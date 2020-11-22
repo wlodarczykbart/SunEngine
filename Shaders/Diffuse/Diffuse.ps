@@ -1,0 +1,15 @@
+#include "SunlightBuffer.hlsl"
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 normal : NORMAL;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float4 normal = normalize(pIn.normal);	
+	float diffuse = max(dot(normal, SunDirection), 0.0);
+	float4 color = SunColor * diffuse;
+	return color;
+}

@@ -1,0 +1,69 @@
+#include "PixelShader.hlsl"
+#include "TextureTransformBuffer.hlsl"
+
+Texture2DArray SplatMaps;
+Texture2DArray DiffuseMaps;
+Texture2DArray NormalMaps;
+
+SamplerState SplatMapSampler;
+SamplerState TextureSampler;
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 position : POSITION;	
+	float4 normal : NORMAL;
+	float4 tangent : TANGENT;
+	float4 texCoords : TEXCOORD;
+};
+
+//x=oneOverTotalTerrainResolution,y=TerrainPatchResolution,z=NumTextures
+cbuffer MaterialBuffer
+{
+	float4 TerrainData;
+};
+
+PixelOutput ps(PS_In pIn)
+{
+	float2 surfaceCoord = pIn.texCoords.xy;
+	float2 splatCoord = pIn.texCoords.zw;
+	
+	int numTextures = int(TerrainData.z);
+	int splatWeightIndex = 0;
+	int splatTexureIndex = 0;
+	float4 splatWeights = float4(0, 0, 0, 0);
+	
+	float4 albedo = float4(0, 0, 0, 0);
+	float3 normal = float3(0, 0, 0);
+	
+	float3x3 tbnMatrix = BuildTBN(pIn.normal, pIn.tangent);
+	
+	for(int i = 0; i < numTextures; i++)
+	{
+		if((splatWeightIndex % 4) == 0)
+		{
+			splatWeights = SplatMaps.Sample(SplatMapSampler, float3(splatCoord, splatTexureIndex));
+			splatWeightIndex = 0;
+			splatTexureIndex++;
+			//splatWeights = float4(0, 1, 0, 0);	
+		}
+		
+		float3 arrayCoord = float3(surfaceCoord, i);
+		albedo += SampleTextureArray(DiffuseMaps, TextureSampler, arrayCoord) * splatWeights[splatWeightIndex];
+		
+		float3 bumpNormal = SampleTextureArray(NormalMaps, TextureSampler, arrayCoord).xyz * 2.0 - 1.0;
+		normal += normalize(mul(bumpNormal, tbnMatrix)) * splatWeights[splatWeightIndex];
+		
+		splatWeightIndex++;
+	}
+
+	PixelOutput pOutput;
+	pOutput.albedo =  albedo;
+	//pOutput.albedo =  splatWeights;
+	pOutput.specular = float4(0, 0, 0, 1);
+	pOutput.worldPosition = pIn.position;
+	pOutput.normal = float4(normal, 0.0);
+	//pOutput.normal = pIn.normal;
+	
+	return pOutput;
+}

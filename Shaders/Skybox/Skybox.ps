@@ -1,0 +1,50 @@
+#include "PixelShader.hlsl"
+
+TextureCube DaySkybox;
+TextureCube NightSkybox;
+SamplerState SkySampler;
+
+cbuffer MaterialBuffer 
+{
+	float4 Color;
+};
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 skyPos : POSITION;
+};
+
+PixelOutput ps(PS_In pIn)
+{
+	PixelOutput pOut;
+	
+	float4 day = DaySkybox.Sample(SkySampler, pIn.skyPos.xyz);
+	float4 night = NightSkybox.Sample(SkySampler, pIn.skyPos.xyz);
+	
+	float timeOfDay = max(dot(SunDirection, float4(0, 1, 0, 0)), 0.0);
+	float4 skyColor = lerp(night, day, timeOfDay);
+	
+	pOut.albedo = skyColor * Color;
+	
+	float3 skyToView = InvViewMatrix[3].xyz;
+	float3 skyPos = normalize(pIn.skyPos.xyz);	
+	float skyDistance = 600000;
+	
+#ifdef APPLY_FOG
+	float fogDensityPct = clamp(FOG_DENSITY / 0.05, 0.0, 1.0);
+	fogDensityPct = fogDensityPct;
+#else	
+	float fogDensityPct = 1.0;
+#endif
+
+	float horizonalSharpness = 1.0 + 4.0 * (1.0 - fogDensityPct);
+	
+	float skyHeight =  (1.0 - (skyPos.y * 0.5 + 0.5)) + 0.1;
+	skyHeight = pow(skyHeight, horizonalSharpness);
+	float skyScale = skyDistance * fogDensityPct * skyHeight;
+	skyToView += skyPos * skyScale;	
+	pOut.worldPosition = float4(skyToView, 1.0);
+	
+	return pOut;
+}

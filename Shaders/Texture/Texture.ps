@@ -1,0 +1,23 @@
+#include "PixelShader.hlsl"
+#include "TextureTransformBuffer.hlsl"
+
+Texture2D Texture;
+SamplerState TextureSampler;
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+	float4 normal : NORMAL;
+	float4 position : POSITION;	
+};
+
+PixelOutput ps(PS_In pIn)
+{
+	PixelOutput pOutput;
+	pOutput.albedo = Texture.Sample(TextureSampler, pIn.texCoord);
+	pOutput.normal = normalize(pIn.normal);
+	pOutput.specular = float4(0, 0, 0, 1);
+	pOutput.worldPosition = pIn.position;
+	return pOutput;
+}

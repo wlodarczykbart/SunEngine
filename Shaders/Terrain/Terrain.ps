@@ -1,0 +1,40 @@
+#include "PixelShader.hlsl"
+#include "TextureTransformBuffer.hlsl"
+#include "ObjectBuffer.hlsl"
+
+Texture2D NormalMap;
+SamplerState TerrainSampler;
+
+Texture2D DiffuseMap;
+
+Texture2DArray SplatMaps;
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 position : POSITION;
+	float4 texCoord : TEXCOORD;
+	float4 debugColor : COLOR;
+};
+
+//x=oneOverTotalTerrainResolution,y=TerrainPatchResolution,z=NumTextures
+cbuffer MaterialBuffer
+{
+	float4 TerrainData;
+	float4 TerrainBox;
+};
+
+PixelOutput ps(PS_In pIn)
+{
+
+	float4 normal = NormalMap.Sample(TerrainSampler, pIn.texCoord.xy);
+
+	PixelOutput pOutput;
+	pOutput.albedo = SplatMaps.Sample(TerrainSampler, float3(pIn.texCoord.xy, 0.0));
+	pOutput.specular = float4(0, 0, 0, 1);
+	pOutput.worldPosition = pIn.position;
+	pOutput.normal = normalize(normal);
+	//pOutput.normal =  float4(0, 1, 0, 0);
+	
+	return pOutput;
+}

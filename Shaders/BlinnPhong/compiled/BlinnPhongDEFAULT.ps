@@ -1,0 +1,226 @@
+#pragma pack_matrix(row_major)
+#define APPLY_LIGHTING 1
+#define APPLY_FOG 1
+
+cbuffer CameraBuffer
+ : register(b0){
+	float4x4 ViewMatrix;
+	float4x4 ProjectionMatrix;
+	float4x4 InvViewMatrix;
+	float4x4 InvProjMatrix;
+};
+
+cbuffer SunlightBuffer
+ : register(b3){
+	float4 SunDirection;
+	float4 SunColor;
+};
+
+float3 ComputeSunlightContribution(float3 viewVector, float3 normal, float3 albedo, float4 specular)
+{
+	float3 sunDir = normalize(SunDirection.xyz);
+	
+	float diffuseComponent = max(dot(normal, sunDir), 0.1);
+	float3 diffuseColor = albedo * diffuseComponent;
+	diffuseColor *= SunColor.rgb * SunColor.a;
+	
+	float3 halfVec = normalize(viewVector + sunDir);
+	float specularComponent = max(dot(normal, halfVec), 0.0);
+	specularComponent = pow(specularComponent, specular.a);
+	float3 specularColor = specular.rgb * specularComponent;
+	specularColor *= SunColor.rgb * SunColor.a;
+	
+	return diffuseColor + specularColor;
+}
+
+Texture2D ShadowTexture : register(t2);
+SamplerState ShadowSampler : register(s2);
+
+cbuffer ShadowBuffer
+ : register(b10){
+	float4x4 ShadowMatrix;
+};
+
+float SampleShadow(float2 texCoord)
+{
+	return ShadowTexture.Sample(ShadowSampler, texCoord).r;
+}
+
+#define FOG_DENSITY FogControls.x
+#define FOG_ENABLED (FogControls.y > 0.0001)
+
+cbuffer FogBuffer
+ : register(b7){
+	float4 FogColor;
+	float4 FogControls;
+};
+
+float3 ComputeFogContribution(float3 inputColor, float distanceToCamera)
+{
+	if(FOG_ENABLED)
+	{
+		float fogFactor =  1.0 - clamp(exp(-distanceToCamera * FOG_DENSITY), 0.0, 1.0);
+		return lerp(inputColor, FogColor.rgb, fogFactor);
+	}
+	else
+	{
+		return inputColor;
+	}
+}
+
+
+struct PixelOutput
+{
+	float4 albedo;
+	float4 specular;
+	float4 worldPosition;
+	float4 normal;
+};
+
+float3x3 BuildTBN(float4 normal, float4 tangent)
+{
+	float3x3 mtx;
+	float3 t = tangent.xyz;
+	float t2 = dot(t, t);
+	t = t2 > 0.0 ? t / sqrt(t2) : float3(0, 0, 0);
+	mtx[0] = t;
+	mtx[2] = normalize(normal.xyz);
+	mtx[1] = cross(mtx[2], mtx[0]);
+	return mtx;
+}
+
+float4 TransformNormal(float4 bumpNormal, float4 normal, float4 tangent)
+{
+	return float4(normalize(mul(bumpNormal.xyz * 2.0 - 1.0, BuildTBN(normal, tangent))), 0.0);
+}
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 position : POSITION;	
+	float4 normal : NORMAL;
+	float4 tangent : TANGENT;
+	float2 texCoord : TEXCOORD;
+};
+
+PixelOutput ps(PS_In pIn);
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	PixelOutput data = ps(pIn);
+	
+#ifdef APPLY_ALPHA_TEST
+	if(data.albedo.a < 0.0)
+		discard;
+#endif
+	
+	float4 outColor = data.albedo;
+	
+	float3 viewVector = (InvViewMatrix[3] - data.worldPosition).xyz;	
+	float distanceToCamera = length(viewVector);
+	viewVector /= distanceToCamera;
+	
+#ifdef APPLY_LIGHTING
+
+	float3 normal = normalize(data.normal.xyz);
+	outColor = float4(ComputeSunlightContribution(viewVector, normal, data.albedo.rgb, data.specular), data.albedo.a);
+#endif
+	
+#ifdef APPLY_SHADOWS	
+	float4 shadowCoord = mul(data.worldPosition, ShadowMatrix); 
+	shadowCoord /= shadowCoord.w;
+	if(!(
+		shadowCoord.x < -1.0 || shadowCoord.x > 1.0 || 
+		shadowCoord.y < -1.0 || shadowCoord.y > 1.0 ||
+		shadowCoord.z < 0.0 || shadowCoord.z > 1.0))
+	{
+		shadowCoord = shadowCoord * 0.5 + 0.5;
+		shadowCoord.y = 1.0 - shadowCoord.y;		
+		float sDepth = SampleShadow(shadowCoord.xy);	
+		
+		//shadowCoord.z -= 0.3;
+		if(sDepth < shadowCoord.z)
+		{
+			outColor *= 0.7;
+		}
+	}
+#endif	
+	
+	
+#ifdef APPLY_FOG
+	viewVector = (InvViewMatrix[3] - data.worldPosition).xyz;	
+	viewVector.y *= 0.1;
+	distanceToCamera = length(viewVector);
+	outColor.rgb = ComputeFogContribution(outColor.rgb, distanceToCamera);
+#endif		
+
+#ifdef RENDER_NORMALS
+	outColor = float4(normalize(data.normal.xyz), 1.0);
+#endif
+
+#ifdef RENDER_VIEW_VECTOR
+	outColor = float4(normalize((InvViewMatrix[3] - data.worldPosition).xyz), 1.0);
+#endif
+
+	return outColor;	
+}
+
+
+cbuffer TextureTransformBuffer
+ : register(b6){
+	float4 TextureTransforms[32];
+};
+
+float4 SampleTextureArray(Texture2DArray texArray, SamplerState texArraySampler, float3 texArrayCoord)
+{
+	float4 transform = TextureTransforms[int(texArrayCoord.z)];
+	texArrayCoord.xy = texArrayCoord.xy * transform.xy + transform.zw;
+	return texArray.Sample(texArraySampler, texArrayCoord);
+}
+
+
+Texture2D DiffuseMap : register(t3);
+Texture2D NormalMap : register(t4);
+Texture2D SpecularMap : register(t5);
+Texture2D TransparentMap : register(t6);
+SamplerState TextureSampler : register(s3);
+
+cbuffer MaterialBuffer
+ : register(b2){
+	float4 DiffuseColor;
+	float4 SpecularColor;
+};
+
+
+
+PixelOutput ps(PS_In pIn)
+{
+	PixelOutput pOutput;	
+	
+	float3 specularTexFactor = SpecularMap.Sample(TextureSampler, pIn.texCoord * TextureTransforms[5].xy + TextureTransforms[5].zw).rrr;
+	
+#ifdef APPLY_ALPHA_TEST
+	float transparentTexFactor = TransparentMap.Sample(TextureSampler, pIn.texCoord * TextureTransforms[6].xy + TextureTransforms[6].zw).r;
+	float4 diffuseMapColor = DiffuseMap.Sample(TextureSampler, pIn.texCoord * TextureTransforms[3].xy + TextureTransforms[3].zw);
+	diffuseMapColor.a *= transparentTexFactor;
+	pOutput.albedo.rgb = diffuseMapColor.rgb * DiffuseColor.rgb;
+	pOutput.albedo.a = diffuseMapColor.a - (1.0 - DiffuseColor.a);
+	//pOutput.albedo = diffuseMapColor.a < 1.0 ? float4(1, 0, 0, 1) : float4(0, 1, 0, 1);
+	//pOutput.albedo = float4(float3(1,1,1) * transparentTexFactor, 1.0);
+#else
+	pOutput.albedo = DiffuseMap.Sample(TextureSampler, pIn.texCoord * TextureTransforms[3].xy + TextureTransforms[3].zw) * DiffuseColor;	
+#endif
+
+	pOutput.specular = SpecularColor * float4(specularTexFactor, 1.0);
+	pOutput.worldPosition = pIn.position;
+	
+	float4 bumpNormal = float4(NormalMap.Sample(TextureSampler, pIn.texCoord * TextureTransforms[4].xy + TextureTransforms[4].zw).xyz, 0.0);
+	pOutput.normal =  normalize(pIn.normal);//
+	pOutput.normal = TransformNormal(bumpNormal, pIn.normal, pIn.tangent);
+	
+	//pOutput.albedo = pOutput.normal;
+	//pOutput.normal = float4(0, 1, 0, 0);
+	
+	return pOutput;
+}
+

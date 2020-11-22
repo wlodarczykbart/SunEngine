@@ -1,0 +1,26 @@
+#include "TextureTransformBuffer.hlsl"
+#include "EnvBuffer.hlsl"
+
+
+
+Texture2D CloudMap;
+SamplerState CloudSampler;
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 position : POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float4 color = CloudMap.Sample(CloudSampler, (float2(1,1) * ELAPSED_TIME * 0.003) + (pIn.position.xz * 0.0003));
+	
+	float d = dot(pIn.position.xyz, pIn.position.xyz);
+	float t = 1.0 / (d * 0.0000001);
+	color.a = min(t, 1.0);
+	color.rgb *= 0.2;
+	return color;
+	
+}

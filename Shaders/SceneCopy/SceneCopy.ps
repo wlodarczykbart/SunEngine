@@ -1,0 +1,26 @@
+#include "CameraBuffer.hlsl"
+
+Texture2D SceneCopyTex;
+Texture2D DepthCopyTex;
+SamplerState Sampler;
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+struct PS_Out
+{
+	float4 color : SV_TARGET;
+	float depth : SV_DEPTH;
+};
+
+PS_Out main(PS_In pIn)
+{
+	PS_Out pOut;
+	pOut.color = SceneCopyTex.Sample(Sampler, pIn.texCoord);
+	pOut.depth = DepthCopyTex.Sample(Sampler, pIn.texCoord).r;
+	
+	return pOut;
+};
