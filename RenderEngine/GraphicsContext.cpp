@@ -19,7 +19,7 @@ namespace SunEngine
 	{
 	}
 
-	bool GraphicsContext::Create()
+	bool GraphicsContext::Create(const CreateInfo& createInfo)
 	{
 		_singleton = this;
 
@@ -32,7 +32,10 @@ namespace SunEngine
 			_iDevice->Destroy();
 		}
 
-		if (!_iDevice->Create())
+		IDeviceCreateInfo deviceInfo = {};
+		deviceInfo.debugEnabled = createInfo.debugEnabled;
+
+		if (!_iDevice->Create(deviceInfo))
 		{
 			return false;
 		}
@@ -148,6 +151,19 @@ namespace SunEngine
 			return 0;
 
 		return _singleton->_defaultSamplers[sampler];
+	}
+
+	const char* GraphicsContext::GetAPIName()
+	{
+		switch (GetGraphicsAPI())
+		{
+		case SE_GFX_D3D11:
+			return "D3D11";
+		case SE_GFX_VULKAN:
+			return "Vulkan";
+		default:
+			return "";
+		}
 	}
 
 }

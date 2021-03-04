@@ -1,6 +1,5 @@
-#include "DirectXShader.h"
 #include "VulkanShader.h"
-
+#include "D3D11Shader.h"
 #include "IShaderBindings.h"
 
 namespace SunEngine
@@ -19,10 +18,10 @@ namespace SunEngine
 	{
 		switch (api)
 		{
-		case SunEngine::SE_GFX_DIRECTX:
-			return new DirectXShaderBindings();
 		case SunEngine::SE_GFX_VULKAN:
 			return new VulkanShaderBindings();
+		case SunEngine::SE_GFX_D3D11:
+			return new D3D11ShaderBindings();
 		default:
 			return 0;
 		}

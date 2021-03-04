@@ -15,10 +15,19 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /wd4267 /wd4201")
 
 find_package(Vulkan REQUIRED)
 
+set(IMGUI_VER imgui-1.80)
+
 add_subdirectory(EngineTools)
 add_subdirectory(RenderEngine)
-add_subdirectory(DXShaderCompiler)
 add_subdirectory(External/ModelImporter)
+add_subdirectory(External/spdlog)
+add_subdirectory(GameEngine)
+add_subdirectory(Editor)
+add_subdirectory(GameEditor)
+add_subdirectory(FBXEditor)
 
 add_dependencies(RenderEngine EngineTools)
-add_dependencies(DXShaderCompiler RenderEngine)
+add_dependencies(GameEngine RenderEngine)
+add_dependencies(Editor spdlog RenderEngine)
+add_dependencies(GameEditor Editor GameEngine ModelImporter)
+add_dependencies(FBXEditor Editor GameEngine ModelImporter)

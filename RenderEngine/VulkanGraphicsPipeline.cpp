@@ -42,6 +42,7 @@ namespace SunEngine
 		{ SE_DC_LESS, VK_COMPARE_OP_LESS },
 		{ SE_DC_LESS_EQUAL, VK_COMPARE_OP_LESS_OR_EQUAL },
 		{ SE_DC_EQUAL, VK_COMPARE_OP_EQUAL },
+		{ SE_DC_ALWAYS, VK_COMPARE_OP_ALWAYS },
 	};
 
 	Map<BlendFactor, VkBlendFactor> BlendFactorMap =
@@ -97,7 +98,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void VulkanGraphicsPipeline::Bind(ICommandBuffer * cmdBuffer)
+	void VulkanGraphicsPipeline::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(cmdBuffer);
 

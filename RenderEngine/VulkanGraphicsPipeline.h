@@ -17,7 +17,7 @@ namespace SunEngine
 		bool Create(const IGraphicsPipelineCreateInfo &info) override;
 		bool Destroy() override;
 
-		void Bind(ICommandBuffer* cmdBuffer) override;
+		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 		VulkanShader* GetShader() const;

@@ -54,7 +54,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void VulkanTextureArray::Bind(ICommandBuffer * cmdBuffer)
+	void VulkanTextureArray::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		(void)cmdBuffer;
 	}

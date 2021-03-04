@@ -20,7 +20,8 @@ namespace SunEngine
 
 	void MemBuffer::SetSize(const uint size)
 	{
-		_buffer.resize(size);
+		if(size != _buffer.size())
+			_buffer.resize(size);
 	}
 
 	uint MemBuffer::GetSize() const

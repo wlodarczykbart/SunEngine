@@ -19,88 +19,87 @@ namespace SunEngine
 
 	struct GenMipMapData
 	{
-		int _baseWidth;
-		int _baseHeight;
+		int baseWidth;
+		int baseHeight;
 
-		int _mipWidth;
-		int _mipHeight;
+		int mipWidth;
+		int mipHeight;
 
-		int _kernelSize;
-		int _mipLevel;
+		int kernelSize;
+		int mipLevel;
 
-		Pixel* _basePixels;
-		Pixel** _pMipPixels;
-
-		uchar* _complete;
-
+		Pixel* basePixels;
+		Pixel** mipPixels;
 	};
 
-	void GenMips(GenMipMapData* pData)
+	void GenMips(const Vector<GenMipMapData>& mipWork)
 	{
-		Pixel* mipPixels = new Pixel[pData->_mipWidth * pData->_mipHeight];
-
-		float remapX = (float)pData->_baseWidth / (float)pData->_mipWidth;
-		float remapY = (float)pData->_baseHeight / (float)pData->_mipHeight;
-
-		int k = pData->_kernelSize;
-
-		for (int y = 0; y < pData->_mipHeight; y++)
+		for (uint w = 0; w < mipWork.size(); w++)
 		{
-			int yIdx = (int)((float)y * remapY);
-			for (int x = 0; x < pData->_mipWidth; x++)
+			const GenMipMapData& data = mipWork.at(w);
+			Pixel* mipPixels = new Pixel[data.mipWidth * data.mipHeight];
+
+			float remapX = (float)data.baseWidth / (float)data.mipWidth;
+			float remapY = (float)data.baseHeight / (float)data.mipHeight;
+
+			int k = data.kernelSize;
+
+			for (int y = 0; y < data.mipHeight; y++)
 			{
-				int xIdx = (int)((float)x * remapX);
-
-				float avgColor[4] = {};
-				float samples = 0.0f;
-
-				for (int i = -k; i <= k; i++)
+				int yIdx = (int)((float)y * remapY);
+				for (int x = 0; x < data.mipWidth; x++)
 				{
-					int iy = yIdx + i;
-					if (iy > -1 && iy < pData->_baseHeight)
+					int xIdx = (int)((float)x * remapX);
+
+					float avgColor[4] = {};
+					float samples = 0.0f;
+
+					for (int i = -k; i <= k; i++)
 					{
-						for (int j = -k; j <= k; j++)
+						int iy = yIdx + i;
+						if (iy > -1 && iy < data.baseHeight)
 						{
-							int jx = j + xIdx;
-							if (jx > -1 && jx < pData->_baseWidth)
+							for (int j = -k; j <= k; j++)
 							{
-								Pixel pixel = pData->_basePixels[(iy * pData->_baseWidth + jx)];
-								avgColor[0] += pixel.R;
-								avgColor[1] += pixel.G;
-								avgColor[2] += pixel.B;
-								avgColor[3] += pixel.A;
-								samples++;
+								int jx = j + xIdx;
+								if (jx > -1 && jx < data.baseWidth)
+								{
+									Pixel pixel = data.basePixels[(iy * data.baseWidth + jx)];
+									avgColor[0] += pixel.R;
+									avgColor[1] += pixel.G;
+									avgColor[2] += pixel.B;
+									avgColor[3] += pixel.A;
+									samples++;
+								}
 							}
 						}
 					}
-				}
 
-				avgColor[0] /= samples;
-				avgColor[1] /= samples;
-				avgColor[2] /= samples;
-				avgColor[3] /= samples;
+					avgColor[0] /= samples;
+					avgColor[1] /= samples;
+					avgColor[2] /= samples;
+					avgColor[3] /= samples;
 
 #if 0
-				if (pData->_mipLevel < (int)MipLayerColors.size())
-				{
-					float t = 0.5f;
-					float alpha = avgColor.w;
-					avgColor = avgColor * (1.0f - t) + MipLayerColors[pData->_mipLevel] * t;
-					avgColor.w = alpha;
-				}
+					if (data.mipLevel < (int)MipLayerColors.size())
+					{
+						float t = 0.5f;
+						float alpha = avgColor.w;
+						avgColor = avgColor * (1.0f - t) + MipLayerColors[data.mipLevel] * t;
+						avgColor.w = alpha;
+					}
 #endif
 
-				int pixelIndex = (y * pData->_mipWidth + x);
-				mipPixels[pixelIndex].R = (uchar)fmax(fmin(avgColor[0], 255.0f), 0.0f);
-				mipPixels[pixelIndex].G = (uchar)fmax(fmin(avgColor[1], 255.0f), 0.0f);
-				mipPixels[pixelIndex].B = (uchar)fmax(fmin(avgColor[2], 255.0f), 0.0f);
-				mipPixels[pixelIndex].A = (uchar)fmax(fmin(avgColor[3], 255.0f), 0.0f);
+					int pixelIndex = (y * data.mipWidth + x);
+					mipPixels[pixelIndex].R = (uchar)fmax(fmin(avgColor[0], 255.0f), 0.0f);
+					mipPixels[pixelIndex].G = (uchar)fmax(fmin(avgColor[1], 255.0f), 0.0f);
+					mipPixels[pixelIndex].B = (uchar)fmax(fmin(avgColor[2], 255.0f), 0.0f);
+					mipPixels[pixelIndex].A = (uchar)fmax(fmin(avgColor[3], 255.0f), 0.0f);
 
+				}
 			}
+			*data.mipPixels = mipPixels;
 		}
-
-		*pData->_pMipPixels = mipPixels;
-		*pData->_complete = 0x1;
 	}
 
 	MipMapGenerator::MipMapGenerator()
@@ -133,26 +132,21 @@ namespace SunEngine
 				numMips++;
 			} while (maxSize > MIN_MIP_SIZE);
 
-			SunEngine::Vector<GenMipMapData> mipData;
-			mipData.resize(numMips);
-
-			SunEngine::Vector<SunEngine::uchar> mipState;
-			mipState.resize(numMips);
-			memset(mipState.data(), 0, sizeof(SunEngine::uchar) * numMips);
-
-			SunEngine::Vector<SunEngine::uchar> mipComplete;
-			mipComplete.resize(numMips);
-			memset(mipComplete.data(), 1, sizeof(SunEngine::uchar) * numMips);
-
 			_mipMaps.resize(numMips);
 
 			width = baseImage.Width;
 			height = baseImage.Height;
 
-			int mipLevel = 0;
-			int kernel = 1;
-			do
+			const uint NUM_THREADS = 8;
+			Vector<GenMipMapData> threadData[NUM_THREADS];
+
+			float minKernel = 1;
+			float maxKernel = 4;
+
+			for (int i = 0; i < numMips; i++)
 			{
+				int mipLevel = i;
+
 				width /= 2;
 				height /= 2;
 
@@ -162,31 +156,31 @@ namespace SunEngine
 				_mipMaps[mipLevel].Width = width;
 				_mipMaps[mipLevel].Height = height;
 
-				GenMipMapData* pData = &mipData[mipLevel];
-				pData->_baseWidth = baseImage.Width;
-				pData->_baseHeight = baseImage.Height;
-				pData->_basePixels = baseImage.Pixels;
-				pData->_mipWidth = width;
-				pData->_mipHeight = height;
-				pData->_kernelSize = kernel;
-				pData->_mipLevel = mipLevel;
-				pData->_pMipPixels = &_mipMaps[mipLevel].Pixels;
-				pData->_complete = &mipState[mipLevel];
+				GenMipMapData data;
+				data.baseWidth = baseImage.Width;
+				data.baseHeight = baseImage.Height;
+				data.basePixels = baseImage.Pixels;
+				data.mipWidth = width;
+				data.mipHeight = height;
+				data.kernelSize = (int)(minKernel + (((float)(i+1) / numMips) * (maxKernel - minKernel)));
+				data.mipLevel = mipLevel;
+				data.mipPixels = &_mipMaps[mipLevel].Pixels;
 
-				std::thread thread = std::thread(GenMips, pData);
-				thread.detach();
-				mipLevel++;
-				kernel++;
+				if (i < NUM_THREADS)
+					threadData[i].push_back(data);
+				else
+					threadData[rand() % NUM_THREADS].push_back(data);
+			}
 
-			} while (width > MIN_MIP_SIZE || height > MIN_MIP_SIZE);
-
-			int counter = 0;
-			while (memcmp(mipState.data(), mipComplete.data(), sizeof(uchar) * numMips) != 0)
+			Vector<std::thread> threads;
+			for (uint i = 0; i < NUM_THREADS; i++)
 			{
-				for (int c = 0; c < 32; c++)
-				{
-					counter++;
-				}
+				threads.push_back(std::thread(GenMips, threadData[i]));
+			}
+
+			for (uint i = 0; i < NUM_THREADS; i++)
+			{
+				threads[i].join();
 			}
 
 			return true;

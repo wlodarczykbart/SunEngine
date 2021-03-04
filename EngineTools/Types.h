@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include <map>
 #include <vector>
@@ -54,8 +55,11 @@ namespace SunEngine
 	template<typename T1, typename T2>
 	using Pair = std::pair<T1, T2>;
 
-	template<typename T> 
-	bool Contains(const Vector<T> &vec, const T& val)
+	template<typename T>
+	using UniquePtr = std::unique_ptr<T>;
+
+	template<typename T>
+	bool Contains(const Vector<T>& vec, const T& val)
 	{
 		return std::find(vec.begin(), vec.end(), val) != vec.end();
 	}
@@ -71,5 +75,11 @@ namespace SunEngine
 
 		return 0;
 	}
+
+	//template<typename T>
+	//UniquePtr<T> MakeUnique()
+	//{
+	//	std::make_unique<T>();
+	//}
 
 }

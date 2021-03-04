@@ -39,7 +39,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void VulkanRenderTarget::Bind(ICommandBuffer * cmdBuffer)
+	void VulkanRenderTarget::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		uint clearValueCount = 0;
 		VkClearValue clearValues[2];

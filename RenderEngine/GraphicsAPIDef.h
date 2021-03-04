@@ -4,40 +4,14 @@
 #include "PipelineSettings.h"
 #include "SamplerSettings.h"
 #include "Image.h"
+#include "MemBuffer.h"
 
 namespace SunEngine
 {
 	enum GraphicsAPI
 	{
-		SE_GFX_DIRECTX,
-		SE_GFX_VULKAN
-	};
-
-	enum ShaderBufferBindingLocations
-	{
-		SBL_CAMERA_BUFFER = 0,
-		SBL_OBJECT_BUFFER = 1,
-		SBL_MATERIAL = 2,
-		SBL_SUN_LIGHT = 3,
-		SBL_POINT_LIGHT = 4,
-		SBL_SPOT_LIGHT = 5,
-		SBL_TEXTURE_TRANSFORM = 6,
-		SBL_FOG = 7,
-		SBL_SKINNED_BONES = 8,
-		SBL_ENV = 9,
-		SBL_SHADOW_BUFFER = 10,
-		SBL_SAMPLE_SCENE = 11,
-
-		SBL_COUNT
-	};
-
-	enum ShaderTextureBindingLocations
-	{
-		STL_SCENE,
-		STL_DEPTH,
-		STL_SHADOW,
-
-		STL_COUNT,
+		SE_GFX_VULKAN,
+		SE_GFX_D3D11,
 	};
 
 	class IObject;
@@ -67,6 +41,11 @@ namespace SunEngine
 		IShader* pShader;
 	};
 
+	struct IDeviceCreateInfo
+	{
+		bool debugEnabled;
+	};
+
 	struct IMeshCreateInfo
 	{
 		uint vertexStride;
@@ -91,27 +70,38 @@ namespace SunEngine
 		SamplerSettings settings;
 	};
 
-	enum ShaderStages
+	enum ShaderStage
 	{
 		SS_VERTEX = 1 << 0,
 		SS_PIXEL = 1 << 1,
 		SS_GEOMETRY = 1 << 2,
 	};
 
-	enum APIVertexInputFormat
+	enum ShaderBindingType
+	{
+		SBT_CAMERA,
+		SBT_OBJECT,
+		SBT_LIGHT,
+		SBT_ENVIRONMENT,
+		SBT_SHADOW,
+		SBT_SCENE,
+		SBT_BONES,
+		SBT_MATERIAL,
+	};
+
+	enum IVertexInputFormat
 	{
 		VIF_FLOAT2,
 		VIF_FLOAT3,
 		VIF_FLOAT4,
 	};
 
-	struct APIVertexElement
+	struct IVertexElement
 	{
-		String name;
-		String semantic;
-		APIVertexInputFormat format;
+		IVertexInputFormat format;
 		uint size;
 		uint offset;
+		String semantic;
 	};
 
 	struct ITextureCreateInfo
@@ -134,18 +124,17 @@ namespace SunEngine
 
 	enum ShaderResourceType
 	{
-		SRT_CONST_BUFFER,
 		SRT_TEXTURE,
 		SRT_SAMPLER,
 
 		SRT_UNSUPPORTED = 0x777777F
 	};
 
-	enum ShaderResourceFlags
+	enum ShaderResourceDimension
 	{
-		SRF_TEXTURE_2D = 1 << 0,
-		SRF_TEXTURE_CUBE = 1 << 1,
-		SRF_TEXTURE_ARRAY = 1 << 2,
+		SRD_TEXTURE_2D,
+		SRD_TEXTURE_CUBE,
+		SRD_TEXTURE_ARRAY,
 	};
 
 	struct IShaderResource
@@ -153,36 +142,97 @@ namespace SunEngine
 		IShaderResource()
 		{
 			type = SRT_UNSUPPORTED;
-			flags = 0;
-			size = 0;
+			dimension = SRD_TEXTURE_2D;
 			stages = 0;
-			binding = 0;
 		}
 
 		String name;
 		ShaderResourceType type;
-		uint binding;
+		ShaderResourceDimension dimension;
+		ShaderBindingType bindType;
+		uint binding[8];
+		uint bindingCount;
 		uint stages;
-		String dataStr;
-		uint size;
-		uint flags;
 	};
 
-	struct IShaderCreateInfo
+	enum ShaderDataType
 	{
-		Vector<IShaderResource> constBuffers;
-		Vector<IShaderResource> textures;
-		Vector<IShaderResource> samplers;
-		Vector<APIVertexElement> vertexElements;
+		SDT_FLOAT,
+		SDT_FLOAT2,
+		SDT_FLOAT3,
+		SDT_FLOAT4,
+		SDT_MAT2,
+		SDT_MAT3,
+		SDT_MAT4,
+		SDT_STRUCT,
 
-		String vertexShaderFilename;
-		String pixelShaderFilename;
-		String geometryShaderFilename;
+		SDT_UNDEFINED,
+	};
+
+	struct ShaderBufferVariable
+	{
+		String Name;
+		ShaderDataType Type;
+		uint Size;
+		uint Offset;
+		uint NumElements;
+	};
+
+	struct IShaderBuffer
+	{
+		IShaderBuffer()
+		{
+			size = 0;
+			stages = 0;
+		}
+
+		String name;
+		ShaderBindingType bindType;
+		uint binding[8];
+		uint stages;
+		uint size;
+		Vector<ShaderBufferVariable> Variables;
 	};
 
 	struct IUniformBufferCreateInfo
 	{
-		IShaderResource resource;
+		uint size;
+		bool isShared;
+	};
+
+	struct IShaderCreateInfo
+	{
+		StrMap<IShaderBuffer> buffers;
+		StrMap<IShaderResource> resources;
+		Vector<IVertexElement> vertexElements;
+
+		MemBuffer vertexBinaries[8];
+		MemBuffer pixelBinaries[8];
+		MemBuffer geometryBinaries[8];
+	};
+
+	struct IShaderBindingCreateInfo
+	{
+		ShaderBindingType type;
 		IShader* pShader;
+		Vector<IShaderBuffer> bufferBindings;
+		Vector<IShaderResource> resourceBindings;
+	};
+
+	enum ObjectBindType
+	{
+		IOBT_SHADER_BINDINGS,
+	};
+
+	struct IBindState
+	{
+		virtual ObjectBindType GetType() const = 0;
+	};
+
+	struct IShaderBindingsBindState : public IBindState
+	{
+		ObjectBindType GetType() const override { return IOBT_SHADER_BINDINGS; }
+
+		Pair<String, uint> DynamicIndices[8];
 	};
 }

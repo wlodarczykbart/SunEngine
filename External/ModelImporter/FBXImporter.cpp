@@ -6,13 +6,18 @@ using namespace fbxsdk;
 #include <unordered_map>
 #include <assert.h>
 
-#define FBX_DIFFUSE_MAP "DiffuseColor"
-#define FBX_NORMAL_MAP "NormalMap"
-#define FBX_SPECULAR_MAP "SpecularColor"
-#define FBX_TRANSPARENT_MAP "TransparentColor"
-
 namespace ModelImporter
 {
+	const char* FBXImporter::FBX_DIFFUSE_MAP = "DiffuseColor";
+	const char* FBXImporter::FBX_NORMAL_MAP = "NormalMap";
+	const char* FBXImporter::FBX_SPECULAR_MAP = "SpecularColor";
+	const char* FBXImporter::FBX_TRANSPARENT_MAP = "TransparentColor";
+
+	const char* FBXImporter::FBX_AMBIENT_MAP = "AmbientColor";
+	const char* FBXImporter::FBX_SPECUALR_FACTOR_MAP = "SpecularFactor";
+	const char* FBXImporter::FBX_SHININESS_EXPONENT_MAP = "ShininessExponent";
+	const char* FBXImporter::FBX_BUMP_MAP = "BumpMap";
+
 	template<typename T>
 	Mat4 ToImporterMtx(const T& otherMtx)
 	{
@@ -551,7 +556,14 @@ namespace ModelImporter
 					texType == FBX_DIFFUSE_MAP || 
 					texType == FBX_NORMAL_MAP || 
 					texType == FBX_SPECULAR_MAP ||
-					texType == FBX_TRANSPARENT_MAP)
+					texType == FBX_TRANSPARENT_MAP ||
+					texType == FBX_AMBIENT_MAP ||
+					texType == FBX_SPECUALR_FACTOR_MAP ||
+					texType == FBX_SHININESS_EXPONENT_MAP ||
+					texType == FBX_BUMP_MAP
+					
+					)
+
 				{
 					if (pTexture)
 					{
@@ -572,6 +584,14 @@ namespace ModelImporter
 									pMat->SpecularMap = GetTexture(fullPath);
 								else if (texType == FBX_TRANSPARENT_MAP)
 									pMat->TransparentMap = GetTexture(fullPath);
+								if (texType == FBX_AMBIENT_MAP)
+									pMat->AmbientMap = GetTexture(fullPath);
+								else if (texType == FBX_SPECUALR_FACTOR_MAP)
+									pMat->SpecularFactorMap = GetTexture(fullPath);
+								else if (texType == FBX_SHININESS_EXPONENT_MAP)
+									pMat->ShininessExponentMap = GetTexture(fullPath);
+								else if (texType == FBX_BUMP_MAP)
+									pMat->BumpMap = GetTexture(fullPath);
 							}							
 						}
 

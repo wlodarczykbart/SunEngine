@@ -71,6 +71,10 @@ namespace SunEngine
 		VK_LBUTTON,
 		VK_RBUTTON,
 		VK_MBUTTON,
+
+		VK_CONTROL,
+		VK_MENU,
+		VK_SHIFT,
 	};
 
 
@@ -190,7 +194,7 @@ namespace SunEngine
 			_errStr = "Failed to create win32 handle";
 			return false;
 		}
-
+		
 		GraphicsWindowMap[_hWnd] = this;
 
 		_width = width;

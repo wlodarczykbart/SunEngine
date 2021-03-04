@@ -1165,6 +1165,10 @@ namespace ModelImporter
 		NormalMap = 0;
 		SpecularMap = 0;
 		TransparentMap = 0;
+		AmbientMap = 0;
+		SpecularFactorMap = 0;
+		ShininessExponentMap = 0;
+		BumpMap = 0;
 	}
 
 	//void Importer::Material::Write(FileStream& stream, Importer* pImporter)

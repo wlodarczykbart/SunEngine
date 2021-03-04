@@ -117,6 +117,10 @@ namespace ModelImporter
 			Texture* NormalMap;
 			Texture* SpecularMap;
 			Texture* TransparentMap;
+			Texture* AmbientMap;
+			Texture* SpecularFactorMap;
+			Texture* ShininessExponentMap;
+			Texture* BumpMap;
 
 			void* pUserData;
 

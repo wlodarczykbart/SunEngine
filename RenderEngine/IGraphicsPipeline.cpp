@@ -1,6 +1,5 @@
 #include "VulkanGraphicsPipeline.h"
-#include "DirectXGraphicsPipeline.h"
-
+#include "D3D11GraphicsPipeline.h"
 #include "IGraphicsPipeline.h"
 
 namespace SunEngine
@@ -20,10 +19,10 @@ namespace SunEngine
 	{
 		switch (api)
 		{
-		case SunEngine::SE_GFX_DIRECTX:
-			return new DirectXGraphicsPipeline();
 		case SunEngine::SE_GFX_VULKAN:
 			return new VulkanGraphicsPipeline();
+		case SunEngine::SE_GFX_D3D11:
+			return new D3D11GraphicsPipeline();
 		default:
 			return 0;
 		}

@@ -66,6 +66,10 @@ namespace SunEngine
 		KEY_RBUTTON,
 		KEY_MBUTTON,
 
+		KEY_CONTROL,
+		KEY_MENU,
+		KEY_SHIFT,
+
 		KEY_CODE_COUNT
 	};
 

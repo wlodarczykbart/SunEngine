@@ -1,6 +1,5 @@
 #include "CommandBuffer.h"
 #include "GraphicsAPIDef.h"
-#include "DirectXObject.h"
 #include "VulkanObject.h"
 
 #include "IObject.h"
@@ -30,7 +29,7 @@ namespace SunEngine
 		return _type;
 	}
 
-	bool GraphicsObject::Bind(CommandBuffer* cmdBuffer)
+	bool GraphicsObject::Bind(CommandBuffer* cmdBuffer, IBindState* pBindState)
 	{
 		IObject* pObj = this->GetAPIHandle();
 		if (!pObj)
@@ -39,10 +38,7 @@ namespace SunEngine
 			return false;
 		}
 
-		pObj->Bind(cmdBuffer->GetAPIHandle());
-
-		if (!OnBind(cmdBuffer))
-			return false;
+		pObj->Bind(cmdBuffer->GetAPIHandle(), pBindState);
 
 		return true;
 	}
@@ -58,21 +54,6 @@ namespace SunEngine
 
 		pObj->Unbind(cmdBuffer->GetAPIHandle());
 
-		if (!OnUnbind(cmdBuffer))
-			return false;
-
-		return true;
-	}
-
-	bool GraphicsObject::OnBind(CommandBuffer * cmdBuffer)
-	{
-		(void)cmdBuffer;
-		return true;
-	}
-
-	bool GraphicsObject::OnUnbind(CommandBuffer * cmdBuffer)
-	{
-		(void)cmdBuffer;
 		return true;
 	}
 

@@ -15,7 +15,7 @@ namespace SunEngine
 		bool Create(const ISamplerCreateInfo &info) override;
 		bool Destroy() override;
 
-		void Bind(ICommandBuffer* cmdBuffer) override;
+		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 	private:

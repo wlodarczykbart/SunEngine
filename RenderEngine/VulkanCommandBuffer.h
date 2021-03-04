@@ -38,8 +38,6 @@ namespace SunEngine
 		VkRenderPass GetCurrentRenderPass() const;
 		VkFramebuffer GetCurrentFramebuffer() const;
 
-		bool ReigsterUniformBuffer(VulkanUniformBuffer* pBuffer);
-
 	private:
 		friend class VulkanSurface;
 		VkCommandBuffer _cmdBuffer;
@@ -47,7 +45,5 @@ namespace SunEngine
 	
 		VkRenderPassBeginInfo _currentRenderPass;
 		VkPipeline _currentPipeline;
-
-		HashSet<VulkanUniformBuffer*> _activeBuffers;
 	};
 }

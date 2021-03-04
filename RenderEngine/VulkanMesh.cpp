@@ -46,7 +46,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void VulkanMesh::Bind(ICommandBuffer * cmdBuffer)
+	void VulkanMesh::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(cmdBuffer);
 		vkCmd->BindVertexBuffer(_vertexBuffer, 0);

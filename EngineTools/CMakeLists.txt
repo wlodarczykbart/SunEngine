@@ -44,3 +44,4 @@ TimeImpl.cpp
 
 target_include_directories(EngineTools PUBLIC "${CMAKE_SOURCE_DIR}/External/stb/")
 target_include_directories(EngineTools PUBLIC "${CMAKE_SOURCE_DIR}/External/FastNoise/")
+target_include_directories(EngineTools PUBLIC "${CMAKE_SOURCE_DIR}/External/Urho3D/")

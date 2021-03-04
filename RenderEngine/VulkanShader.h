@@ -23,61 +23,42 @@ namespace SunEngine
 		VulkanShaderBindings();
 		~VulkanShaderBindings();
 
-		bool Create(IShader* pShader, const Vector<IShaderResource>& textureBindings, const Vector<IShaderResource>& samplerBindings) override;
+		bool Create(const IShaderBindingCreateInfo& createInfo) override;
 
-		void Bind(ICommandBuffer *pCmdBuffer) override;
+		void Bind(ICommandBuffer *pCmdBuffer, IBindState* pBindState) override;
 		void Unbind(ICommandBuffer *pCmdBuffer) override;
 
-		void SetTexture(ITexture* pTexture, uint binding) override;
-		void SetSampler(ISampler* pSampler, uint binding) override;
-		void SetTextureCube(ITextureCube* pTextureCube, uint binding) override;
-		void SetTextureArray(ITextureArray* pTextureArray, uint binding) override;
+		void SetUniformBuffer(IUniformBuffer* pBuffer, const String& name) override;
+		void SetTexture(ITexture* pTexture, const String& name) override;
+		void SetSampler(ISampler* pSampler, const String& name) override;
+		void SetTextureCube(ITextureCube* pTextureCube, const String& name) override;
+		void SetTextureArray(ITextureArray* pTextureArray, const String& name) override;
 
 	private:
 		void BindImageView(VkImageView view, VkImageLayout layout, uint binding);
 
+		uint _setNumber;
 		VulkanShader* _shader;
-		VkDescriptorSet _textureSet;
-		VkDescriptorSet _samplerSet;
-
-		VkDescriptorSetLayout _textureSetLayout;
-		VkDescriptorSetLayout _samplerSetLayout;
-
-		Map<uint, uint> _textureBindingFixup;
-		Map<uint, uint> _samplerBindingFixup;
+		VkDescriptorSet _set;
+		VkDescriptorSetLayout _layout;
+		StrMap<Pair<uint, VulkanObject*>> _bindingMap;
+		Vector<uint> _dynamicOffsets;
 	};
 
 	class VulkanShader : public VulkanObject, public IShader
 	{
 	public:
-		enum SharedShaderSets
-		{
-			ENGINE_BUFFERS = 0,
-			ENGINE_TEXTURES,
-			ENGINE_SAMPLERS,
-			USER_TEXTURES,
-			USER_SAMPLERS,
-
-			SHARED_SETS_COUNT
-		};
-
-		static bool QuerySetAndBinding(ShaderResourceType type, uint inBinding, uint& outSet, uint& outBinding);
-		static bool ResourceHasOwnSet(ShaderResourceType type, uint binding);
-
 		VulkanShader();
 		~VulkanShader();
 
 		bool Create(IShaderCreateInfo& info) override;
 		bool Destroy() override;
 
-		void Bind(ICommandBuffer* cmdBuffer) override;
+		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 		VkPipelineLayout GetPipelineLayout() const;
 		VkDescriptorSetLayout GetDescriptorSetLayout(uint set) const;
-
-		inline VkDescriptorSet GetSharedBufferDescriptorSet() const { return _sharedBufferSet; }
-		void GetSharedBufferDynamicOffsets(uint** ppOffsets, uint& numOffsets);
 
 		//VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(DescriptorSet set, uint binding) const;
 
@@ -123,8 +104,6 @@ namespace SunEngine
 
 		Vector<VkDescriptorSetLayout> _setLayouts;
 
-		Map<VulkanUniformBuffer*, UniformBufferData> _uniformBuffersMap;
-
 		//Map<VulkanUniformBuffer*, uint> _activeBuffersMap;
 		//Map<uint, uint> _bindingToSortedIndexMap;
 		//Vector<uint> _dynamicOffsetTable;
@@ -136,9 +115,5 @@ namespace SunEngine
 
 		BindingData _currentBindings[MAX_BINDINGS_PER_DRAW];
 		uint _currBindingCount;
-
-		VkDescriptorSet _sharedBufferSet;
-		Vector<uint> _sharedBufferDynamicOffsets;
-
 	};
 }

@@ -1,3 +1,4 @@
+#include "VulkanUniformBuffer.h"
 #include "VulkanCommandBuffer.h"
 
 namespace SunEngine
@@ -38,7 +39,6 @@ namespace SunEngine
 	void VulkanCommandBuffer::End()
 	{
 		vkEndCommandBuffer(_cmdBuffer);
-		_activeBuffers.clear();
 	}
 
 	void VulkanCommandBuffer::Submit()
@@ -155,16 +155,4 @@ namespace SunEngine
 	{
 		return _currentRenderPass.framebuffer;
 	}
-
-	bool VulkanCommandBuffer::ReigsterUniformBuffer(VulkanUniformBuffer* pBuffer)
-	{
-		if (_activeBuffers.count(pBuffer) == 0)
-		{
-			_activeBuffers.insert(pBuffer);
-			return true;
-		}
-
-		return false;
-	}
-
 }

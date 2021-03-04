@@ -11,8 +11,8 @@ namespace SunEngine
 	public:
 		struct CreateInfo
 		{
-			IShaderResource resource;
-			IShader* pShader;
+			uint size;
+			bool isShared;
 		};
 
 		UniformBuffer();
@@ -21,6 +21,9 @@ namespace SunEngine
 		bool Create(const CreateInfo& info);
 		bool Destroy() override;
 		bool Update(const void* pData);
+		bool Update(const void* pData, uint offest, uint size);
+		bool UpdateShared(const void* pData, uint numElements);
+		uint GetMaxSharedUpdates() const;
 
 		uint GetSize() const;
 

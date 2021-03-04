@@ -18,32 +18,22 @@ namespace SunEngine
 		bool Destroy() override;
 
 		bool Update(const void* pData) override;
-		bool Update(const void* pData, uint offset, const uint size) override;
+		bool Update(const void* pData, uint offset, uint size) override;
+		bool UpdateShared(const void* pData, uint numElements) override;
 
-		void Bind(ICommandBuffer* cmdBuffer) override;
+		uint GetAlignedSize() const;
+		uint GetMaxSharedUpdates() const override;
+
+		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 	private:
-		struct SetData
-		{
-			VkBuffer buffer;
-			VkDeviceMemory bufferMem;
-			VkDescriptorSet set;
-			uint prevOffset;
-			uint currentOffset;
-		};
+		friend class VulkanShaderBindings;
 
-		bool CreateSet();
-		IShaderResource _resource;
-
-		VulkanShader* _shader;
-		Vector<SetData> _sets;
-		uint _currentSet;
-
-		uint _setIndex;
-		uint _setBinding;
-
-		VulkanCommandBuffer* _currCmdBuffer;
+		VkBuffer _buffer;
+		VkDeviceMemory _memory;
+		uint _size;
+		uint _allocSize;
 	};
 
 }

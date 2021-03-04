@@ -27,7 +27,7 @@ namespace SunEngine
 		//_device->TransferImageData()
 	}
 
-	void VulkanTextureCube::Bind(ICommandBuffer * cmdBuffer)
+	void VulkanTextureCube::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		(void)cmdBuffer;
 	}

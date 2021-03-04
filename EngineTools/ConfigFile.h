@@ -10,7 +10,7 @@ namespace SunEngine
 		ConfigSection();
 		~ConfigSection();
 
-		String GetString(const char * key) const;
+		String GetString(const char * key, const char* defaultValue = NULL) const;
 		int GetInt(const char* key, int defaultValue = 0) const;
 		float GetFloat(const char* key, float defaultValue = 0.0f) const;
 		bool GetBlock(const char* key, OrderedStrMap<String>& block) const;
@@ -25,7 +25,7 @@ namespace SunEngine
 		uint GetCount() const;
 
 		typedef OrderedStrMap<String>::const_iterator Iterator;
-		Iterator GetIterator() const;
+		Iterator Begin() const;
 		Iterator End() const;
 
 	private:
@@ -53,6 +53,10 @@ namespace SunEngine
 		const String& GetFilename() const;
 
 		void Clear();
+
+		typedef OrderedStrMap<ConfigSection>::const_iterator Iterator;
+		Iterator Begin() const;
+		Iterator End() const;
 
 	private:
 		String _filename;

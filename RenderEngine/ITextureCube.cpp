@@ -1,5 +1,5 @@
-#include "DirectXTextureCube.h"
 #include "VulkanTextureCube.h"
+#include "D3D11TextureCube.h"
 #include "ITextureCube.h"
 
 
@@ -18,10 +18,10 @@ namespace SunEngine
 	{
 		switch (api)
 		{
-		case SunEngine::SE_GFX_DIRECTX:
-			return new DirectXTextureCube();
 		case SunEngine::SE_GFX_VULKAN:
 			return new VulkanTextureCube();
+		case SunEngine::SE_GFX_D3D11:
+			return new D3D11TextureCube();
 		default:
 			return 0;
 		}

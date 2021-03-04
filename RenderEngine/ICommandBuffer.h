@@ -21,6 +21,7 @@ namespace SunEngine
 		virtual void SetViewport(float x, float y, float width, float height) = 0;
 
 		static ICommandBuffer* Allocate(GraphicsAPI api);
+
 	};
 
 }

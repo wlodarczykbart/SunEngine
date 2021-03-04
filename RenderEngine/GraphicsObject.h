@@ -29,18 +29,17 @@ namespace SunEngine
 		GraphicsObject::Type GetType() const;
 
 		GraphicsObject(GraphicsObject::Type type);
+		GraphicsObject(const GraphicsObject&) = delete;
+		GraphicsObject& operator = (const GraphicsObject&) = delete;
 		virtual ~GraphicsObject();
 
 		virtual IObject* GetAPIHandle() const = 0;
 		virtual bool Destroy();
 		const String& GetErrStr() const;
-		bool Bind(CommandBuffer* cmdBuffer);
+		bool Bind(CommandBuffer* cmdBuffer, IBindState* pBindState = 0);
 		bool Unbind(CommandBuffer* cmdBuffer);
 
 	protected:
-		virtual bool OnBind(CommandBuffer* cmdBuffer);
-		virtual bool OnUnbind(CommandBuffer* cmdBuffer);
-
 		String _errStr;
 
 	private:

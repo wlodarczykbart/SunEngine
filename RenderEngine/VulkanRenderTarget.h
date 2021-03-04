@@ -15,7 +15,7 @@ namespace SunEngine
 
 		bool Create(const IRenderTargetCreateInfo &info) override;
 
-		void Bind(ICommandBuffer *cmdBuffer) override;
+		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 		void SetClearColor(const float r, const float g, const float b, const float a) override;

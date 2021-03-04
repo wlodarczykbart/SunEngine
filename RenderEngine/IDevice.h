@@ -10,10 +10,11 @@ namespace SunEngine
 		IDevice();
 		virtual ~IDevice();
 
-		virtual bool Create() = 0;
+		virtual bool Create(const IDeviceCreateInfo& info) = 0;
 		virtual bool Destroy() = 0;
 		virtual const String &GetErrorMsg() const = 0;
 		virtual String QueryAPIError() = 0;
+		virtual bool WaitIdle() = 0;
 
 		static IDevice * Allocate(GraphicsAPI api);
 	};

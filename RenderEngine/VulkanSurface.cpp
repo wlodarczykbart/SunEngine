@@ -99,7 +99,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void VulkanSurface::Bind(ICommandBuffer* cmdBuffer)
+	void VulkanSurface::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		VkClearValue clearValues[2];
 

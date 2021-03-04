@@ -18,7 +18,7 @@ namespace SunEngine
 		VulkanDevice();
 		~VulkanDevice();
 
-		bool Create() override;
+		bool Create(const IDeviceCreateInfo& info) override;
 		bool Destroy() override;
 
 		const String &GetErrorMsg() const override;
@@ -79,7 +79,8 @@ namespace SunEngine
 		uint GetUniformBufferMaxSize() const;
 		uint GetMinUniformBufferAlignment() const;
 
-		bool ContainsExtension(const char* extensionName) const;
+		bool ContainsInstanceExtension(const char* extensionName) const;
+		bool ContainsDeviceExtension(const char* extensionName) const;
 
 	private:
 		static VkBool32 VKAPI_PTR DebugCallback(
@@ -92,7 +93,7 @@ namespace SunEngine
 			const char*                                 pMessage,
 			void*                                       pUserData);
 
-		bool createInstance();
+		bool createInstance(bool debugEnabled);
 		bool createAllocationCallback();
 		bool createDebugCallback();
 		bool createDevice();
@@ -107,6 +108,10 @@ namespace SunEngine
 			VkQueue _queue;
 			uint _familyIndex;
 		};
+
+		Vector<const char*> _instanceExtensions;
+		Vector<const char*> _deviceExtensions;
+		Vector<const char*> _validationLayers;
 
 		VkInstance _instance;
 		VkPhysicalDevice _gpu;

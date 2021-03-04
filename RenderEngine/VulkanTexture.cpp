@@ -83,8 +83,9 @@ namespace SunEngine
 		viewInfo.format = imgInfo.format;
 		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		viewInfo.subresourceRange.layerCount = 1;
-		viewInfo.subresourceRange.levelCount = info.mipLevels + 1;
+		viewInfo.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
 		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.subresourceRange.baseMipLevel = 0;// info.mipLevels ? 3 : 0;
 
 		if (info.image.Flags & ImageData::COLOR_BUFFER_RGBA8)
 		{
@@ -114,7 +115,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void VulkanTexture::Bind(ICommandBuffer * cmdBuffer)
+	void VulkanTexture::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		(void)cmdBuffer;
 	}

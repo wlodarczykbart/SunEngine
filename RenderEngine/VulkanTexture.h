@@ -14,7 +14,7 @@ namespace SunEngine
 		bool Create(const ITextureCreateInfo& info) override;
 		bool Destroy() override;
 
-		void Bind(ICommandBuffer* cmdBuffer) override;
+		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 		inline VkFormat GetFormat() const { return _format; }

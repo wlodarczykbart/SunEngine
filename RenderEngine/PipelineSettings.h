@@ -33,6 +33,7 @@ namespace SunEngine
 		SE_DC_LESS, 
 		SE_DC_LESS_EQUAL,
 		SE_DC_EQUAL,
+		SE_DC_ALWAYS,
 	};
 
 	enum BlendFactor

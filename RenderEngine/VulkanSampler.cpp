@@ -40,6 +40,14 @@ namespace SunEngine
 		samplerInfo.minFilter = FilterMap[settings.filterMode];
 		samplerInfo.magFilter = FilterMap[settings.filterMode];
 		samplerInfo.mipmapMode = MipmapMap[settings.filterMode];
+		samplerInfo.maxAnisotropy = 1.0f;
+		samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+
+		if (settings.anisotropicMode != SE_AM_OFF)
+		{
+			samplerInfo.anisotropyEnable = VK_TRUE;
+			samplerInfo.maxAnisotropy = float(1 << settings.anisotropicMode);
+		}
 
 		if (!_device->CreateSampler(samplerInfo, &_sampler)) return false;
 
@@ -52,7 +60,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void VulkanSampler::Bind(ICommandBuffer * cmdBuffer)
+	void VulkanSampler::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		(void)cmdBuffer;
 	}

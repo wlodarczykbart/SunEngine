@@ -153,6 +153,19 @@ namespace SunEngine
 		return CreateFrom(ImageData(), width, height);
 	}
 
+	bool Image::TransferFrom(SunEngine::ImageData& data)
+	{
+		CleanUp();
+
+		_pixels = data.Pixels;
+		_width= data.Width;
+		_height = data.Height;
+		_internalFlags = data.Flags;
+
+		memset(&data, 0x0, sizeof(data));
+		return true;
+	}
+
 	void Image::SwapRB()
 	{
 		if (_pixels)
@@ -225,8 +238,8 @@ namespace SunEngine
 		hdr.colorMapSize = 0;
 		hdr.xOrigin = 0;
 		hdr.yOrigin = 0;
-		hdr.width = _width;
-		hdr.height = _height;
+		hdr.width = (ushort)_width;
+		hdr.height = (ushort)_height;
 		hdr.bitsPerPixel = 32;
 		hdr.imageDescriptor = 0;
 

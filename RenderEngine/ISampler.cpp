@@ -1,5 +1,5 @@
 #include "VulkanSampler.h"
-#include "DirectXSampler.h"
+#include "D3D11Sampler.h"
 #include "ISampler.h"
 
 namespace SunEngine
@@ -18,10 +18,10 @@ namespace SunEngine
 	{
 		switch (api)
 		{
-		case SunEngine::SE_GFX_DIRECTX:
-			return new DirectXSampler();
 		case SunEngine::SE_GFX_VULKAN:
 			return new VulkanSampler();
+		case SunEngine::SE_GFX_D3D11:
+			return new D3D11Sampler();
 		default:
 			return 0;
 		}

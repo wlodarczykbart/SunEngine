@@ -12,7 +12,7 @@ namespace SunEngine
 		~VulkanTextureArray();
 
 		bool Create(const ITextureArrayCreateInfo& info) override;
-		void Bind(ICommandBuffer* cmdBuffer) override;
+		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 	private:

@@ -1,6 +1,5 @@
 #include "VulkanMesh.h"
-#include "DirectXMesh.h"
-
+#include "D3D11Mesh.h"
 #include "IMesh.h"
 
 namespace SunEngine
@@ -19,10 +18,10 @@ namespace SunEngine
 	{
 		switch (api)
 		{
-		case SunEngine::SE_GFX_DIRECTX:
-			return new DirectXMesh();
 		case SunEngine::SE_GFX_VULKAN:
 			return new VulkanMesh();
+		case SunEngine::SE_GFX_D3D11:
+			return new D3D11Mesh();
 		default:
 			return 0;
 		}

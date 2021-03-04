@@ -91,12 +91,14 @@ namespace SunEngine
 
 		if (!_bDynamicIndices)
 		{
-			_numIndices = numIndices;
-			if (!_iMesh->CreateDynamicIndexBuffer(numIndices, pIndices))
+			if (numIndices > _numIndices)
+				_numIndices = numIndices;
+
+			if (!_iMesh->CreateDynamicIndexBuffer(_numIndices, pIndices))
 				return false;
 			_bDynamicIndices = true;
 
-			return _iMesh->UpdateIndices(0, _numIndices, pIndices);
+			return _iMesh->UpdateIndices(0, numIndices, pIndices);
 		}
 		else
 		{

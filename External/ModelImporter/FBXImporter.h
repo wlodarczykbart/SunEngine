@@ -7,6 +7,16 @@ namespace ModelImporter
 	class FBXImporter : public Importer
 	{
 	public:
+		static const char* FBX_DIFFUSE_MAP;
+		static const char* FBX_NORMAL_MAP;
+		static const char* FBX_SPECULAR_MAP;
+		static const char* FBX_TRANSPARENT_MAP;
+		static const char* FBX_AMBIENT_MAP;
+		static const char* FBX_SPECUALR_FACTOR_MAP;
+		static const char* FBX_SHININESS_EXPONENT_MAP;
+		static const char* FBX_BUMP_MAP;
+
+
 		FBXImporter();
 		~FBXImporter();
 

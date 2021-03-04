@@ -10,6 +10,11 @@ namespace SunEngine
 	class GraphicsContext
 	{
 	public:
+		struct CreateInfo
+		{
+			bool debugEnabled;
+		};
+
 		enum DefaultTexture
 		{
 			DT_WHITE,
@@ -31,7 +36,7 @@ namespace SunEngine
 		GraphicsContext();
 		~GraphicsContext();
 
-		bool Create();
+		bool Create(const CreateInfo& createInfo);
 		bool Destroy();
 
 		const String& GetErrStr() const;
@@ -40,6 +45,7 @@ namespace SunEngine
 		static IDevice* GetDevice();
 		static BaseTexture* GetDefaultTexture(DefaultTexture texture);
 		static Sampler* GetDefaultSampler(DefaultSampler sampler);
+		static const char* GetAPIName();
 
 	private:
 		static GraphicsContext* _singleton;

@@ -62,6 +62,7 @@ namespace SunEngine
 		bool CreateFrom(const Image* pOther, uint width, uint height);
 		bool CreateFrom(const ImageData& data, uint width, uint height);
 		bool Resize(uint width, uint height);
+		bool TransferFrom(ImageData& data);
 
 		void SwapRB();
 

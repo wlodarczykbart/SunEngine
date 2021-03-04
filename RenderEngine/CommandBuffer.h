@@ -4,6 +4,8 @@
 
 namespace SunEngine
 {
+	class UniformBuffer;
+
 	class CommandBuffer
 	{
 	public:
@@ -23,7 +25,6 @@ namespace SunEngine
 		void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
 		void SetScissor(float x, float y, float width, float height);
 		void SetViewport(float x, float y, float width, float height);
-
 	private:
 		ICommandBuffer* _apiCmdBuffer;
 	};

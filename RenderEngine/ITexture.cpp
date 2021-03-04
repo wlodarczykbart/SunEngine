@@ -1,6 +1,5 @@
 #include "VulkanTexture.h"
-#include "DirectXTexture.h"
-
+#include "D3D11Texture.h"
 #include "ITexture.h"
 
 namespace SunEngine
@@ -19,10 +18,10 @@ namespace SunEngine
 	{
 		switch (api)
 		{
-		case SunEngine::SE_GFX_DIRECTX:
-			return new DirectXTexture();
 		case SunEngine::SE_GFX_VULKAN:
 			return new VulkanTexture();
+		case SunEngine::SE_GFX_D3D11:
+			return new D3D11Texture();
 		default:
 			return 0;
 		}

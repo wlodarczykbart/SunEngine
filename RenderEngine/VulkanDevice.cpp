@@ -3,33 +3,47 @@
 #include "VulkanDevice.h"
 #include "StringUtil.h"
 
-#define RunCreateFunc(func) if(!func()) { _errMsg += "Failed on function: "; _errMsg += #func; _errMsg += " line "; _errMsg += _errLine; _errMsg += "\n"; return false; }
-#define CheckVkResult(expression) if(expression != VK_SUCCESS) { _errLine = std::to_string(__LINE__); return false; }
+//Copied from Vulkan.h, keep updated?
+
+#define CheckVkResult(expression) if(expression != VK_SUCCESS) { auto strErr = VulkanResultStrings.find(expression); _errLine = StrFormat("err: %s, line: %d", strErr != VulkanResultStrings.end() ? (*strErr).second.data() : std::to_string(expression).data(), __LINE__); return false; }
 
 namespace SunEngine
 {
-
-	Vector<const char*> VulkanInstanceExtensions =
-	{
-		VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
-		VK_KHR_SURFACE_EXTENSION_NAME,
-#ifdef _DEBUG
-		VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
-#endif
-		//VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-	};
-
-	Vector<const char*> VulkanDeviceExtensions =
-	{
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-		//VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
-	};
-
-	Vector<const char*> VulkanLayers =
-	{
-#ifdef _DEBUG
-		"VK_LAYER_LUNARG_standard_validation"
-#endif
+	const Map<VkResult, String> VulkanResultStrings = {
+		{ VK_SUCCESS , "VK_SUCCESS" },
+		{ VK_NOT_READY , "VK_NOT_READY" },
+		{ VK_TIMEOUT , "VK_TIMEOUT" },
+		{ VK_EVENT_SET , "VK_EVENT_SET" },
+		{ VK_EVENT_RESET , "VK_EVENT_RESET" },
+		{ VK_INCOMPLETE , "VK_INCOMPLETE" },
+		{ VK_ERROR_OUT_OF_HOST_MEMORY , "VK_ERROR_OUT_OF_HOST_MEMORY" },
+		{ VK_ERROR_OUT_OF_DEVICE_MEMORY , "VK_ERROR_OUT_OF_DEVICE_MEMORY" },
+		{ VK_ERROR_INITIALIZATION_FAILED , "VK_ERROR_INITIALIZATION_FAILED" },
+		{ VK_ERROR_DEVICE_LOST , "VK_ERROR_DEVICE_LOST" },
+		{ VK_ERROR_MEMORY_MAP_FAILED , "VK_ERROR_MEMORY_MAP_FAILED" },
+		{ VK_ERROR_LAYER_NOT_PRESENT , "VK_ERROR_LAYER_NOT_PRESENT" },
+		{ VK_ERROR_EXTENSION_NOT_PRESENT , "VK_ERROR_EXTENSION_NOT_PRESENT" },
+		{ VK_ERROR_FEATURE_NOT_PRESENT , "VK_ERROR_FEATURE_NOT_PRESENT" },
+		{ VK_ERROR_INCOMPATIBLE_DRIVER , "VK_ERROR_INCOMPATIBLE_DRIVER" },
+		{ VK_ERROR_TOO_MANY_OBJECTS , "VK_ERROR_TOO_MANY_OBJECTS" },
+		{ VK_ERROR_FORMAT_NOT_SUPPORTED , "VK_ERROR_FORMAT_NOT_SUPPORTED" },
+		{ VK_ERROR_FRAGMENTED_POOL , "VK_ERROR_FRAGMENTED_POOL" },
+		{ VK_ERROR_OUT_OF_POOL_MEMORY , "VK_ERROR_OUT_OF_POOL_MEMORY" },
+		{ VK_ERROR_INVALID_EXTERNAL_HANDLE , "VK_ERROR_INVALID_EXTERNAL_HANDLE" },
+		{ VK_ERROR_SURFACE_LOST_KHR , "VK_ERROR_SURFACE_LOST_KHR" },
+		{ VK_ERROR_NATIVE_WINDOW_IN_USE_KHR , "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR" },
+		{ VK_SUBOPTIMAL_KHR , "VK_SUBOPTIMAL_KHR" },
+		{ VK_ERROR_OUT_OF_DATE_KHR , "VK_ERROR_OUT_OF_DATE_KHR" },
+		{ VK_ERROR_INCOMPATIBLE_DISPLAY_KHR , "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR" },
+		{ VK_ERROR_VALIDATION_FAILED_EXT , "VK_ERROR_VALIDATION_FAILED_EXT" },
+		{ VK_ERROR_INVALID_SHADER_NV , "VK_ERROR_INVALID_SHADER_NV" },
+		{ VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT , "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT" },
+		{ VK_ERROR_FRAGMENTATION_EXT , "VK_ERROR_FRAGMENTATION_EXT" },
+		{ VK_ERROR_NOT_PERMITTED_EXT , "VK_ERROR_NOT_PERMITTED_EXT" },
+		{ VK_ERROR_INVALID_DEVICE_ADDRESS_EXT , "VK_ERROR_INVALID_DEVICE_ADDRESS_EXT" },
+		{ VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT , "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT" },
+		{ VK_ERROR_OUT_OF_POOL_MEMORY_KHR , "VK_ERROR_OUT_OF_POOL_MEMORY_KHR" },
+		{ VK_ERROR_INVALID_EXTERNAL_HANDLE_KHR , "VK_ERROR_INVALID_EXTERNAL_HANDLE_KHR" }
 	};
 
 	VkBool32 VKAPI_PTR VulkanDevice::DebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char * pLayerPrefix, const char * pMessage, void * pUserData)
@@ -60,15 +74,15 @@ namespace SunEngine
 	}
 
 
-	bool VulkanDevice::Create()
+	bool VulkanDevice::Create(const IDeviceCreateInfo& info)
 	{
-		RunCreateFunc(createInstance);
-		RunCreateFunc(createDebugCallback);
-		RunCreateFunc(pickGpu);
-		RunCreateFunc(createDevice);
-		RunCreateFunc(createCommandPool);
-		RunCreateFunc(createDescriptorPool);
-		RunCreateFunc(allocCommandBuffers);
+		if(!createInstance(info.debugEnabled)) return false;
+		if(!createDebugCallback()) return false;;
+		if(!pickGpu()) return false;;
+		if(!createDevice()) return false;;
+		if(!createCommandPool()) return false;;
+		if(!createDescriptorPool()) return false;;
+		if(!allocCommandBuffers()) return false;;
 
 		return true;
 	}
@@ -470,6 +484,12 @@ namespace SunEngine
 		if(mipCount)
 			memcpy(&images[1], pMipData, sizeof(ImageData) * mipCount);
 
+		if (images.size() > 1)
+		{
+			int ww = 5;
+			ww++;
+		}
+
 		uint size = 0;
 		for (uint i = 0; i < images.size(); i++)
 		{
@@ -586,11 +606,22 @@ namespace SunEngine
 		return (uint)_gpuProps.limits.minUniformBufferOffsetAlignment;
 	}
 
-	bool VulkanDevice::ContainsExtension(const char* extensionName) const
+	bool VulkanDevice::ContainsInstanceExtension(const char* extensionName) const
 	{
-		for (uint i = 0; i < VulkanDeviceExtensions.size(); i++)
+		for (uint i = 0; i < _instanceExtensions.size(); i++)
 		{
-			if (strcmp(extensionName, VulkanDeviceExtensions[i]) == 0)
+			if (strcmp(extensionName, _instanceExtensions[i]) == 0)
+				return true;
+		}
+
+		return false;
+	}
+
+	bool VulkanDevice::ContainsDeviceExtension(const char* extensionName) const
+	{
+		for (uint i = 0; i < _deviceExtensions.size(); i++)
+		{
+			if (strcmp(extensionName, _deviceExtensions[i]) == 0)
 				return true;
 		}
 
@@ -604,7 +635,7 @@ namespace SunEngine
 		return ret;
 	}
 
-	bool VulkanDevice::createInstance()
+	bool VulkanDevice::createInstance(bool debugEnabled)
 	{
 		VkApplicationInfo app = {};
 		app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -614,14 +645,22 @@ namespace SunEngine
 		app.pApplicationName = 0;
 		app.pEngineName = 0;
 
+		_instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+		_instanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+
+		if(debugEnabled)
+		{
+			_instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+			_validationLayers.push_back("VK_LAYER_KHRONOS_validation");
+		}
 
 		VkInstanceCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		info.pApplicationInfo = &app;
-		info.enabledExtensionCount = VulkanInstanceExtensions.size();
-		info.ppEnabledExtensionNames = VulkanInstanceExtensions.data();
-		info.enabledLayerCount = VulkanLayers.size();
-		info.ppEnabledLayerNames = VulkanLayers.data();
+		info.enabledExtensionCount = _instanceExtensions.size();
+		info.ppEnabledExtensionNames = _instanceExtensions.data();
+		info.enabledLayerCount = _validationLayers.size();
+		info.ppEnabledLayerNames = _validationLayers.data();
 
 		CheckVkResult(vkCreateInstance(&info, VK_NULL_HANDLE, &_instance));
 		return true;
@@ -638,17 +677,18 @@ namespace SunEngine
 
 	bool VulkanDevice::createDebugCallback()
 	{
-#ifdef _DEBUG
-		VkDebugReportCallbackCreateInfoEXT info = {};
-		info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
-		info.pfnCallback = DebugCallback;
-		info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-		info.pUserData = this;
+		if (ContainsInstanceExtension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
+		{
+			VkDebugReportCallbackCreateInfoEXT info = {};
+			info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+			info.pfnCallback = DebugCallback;
+			info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+			info.pUserData = this;
 
-		PFN_vkCreateDebugReportCallbackEXT createFunc = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(_instance, "vkCreateDebugReportCallbackEXT");
+			PFN_vkCreateDebugReportCallbackEXT createFunc = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(_instance, "vkCreateDebugReportCallbackEXT");
 
-		CheckVkResult(createFunc(_instance, &info, VK_NULL_HANDLE, &_debugCallback));
-#endif
+			CheckVkResult(createFunc(_instance, &info, VK_NULL_HANDLE, &_debugCallback));
+		}
 
 		return true;
 	}
@@ -662,21 +702,24 @@ namespace SunEngine
 		float priority = 1.0f;
 		queue.pQueuePriorities = &priority;
 
+		_deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
 		VkDeviceCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		info.enabledExtensionCount = VulkanDeviceExtensions.size();
-		info.ppEnabledExtensionNames = VulkanDeviceExtensions.data();
-		info.enabledLayerCount = VulkanLayers.size();
-		info.ppEnabledLayerNames = VulkanLayers.data();
+		info.enabledExtensionCount = _deviceExtensions.size();
+		info.ppEnabledExtensionNames = _deviceExtensions.data();
+		info.enabledLayerCount = _validationLayers.size();
+		info.ppEnabledLayerNames = _validationLayers.data();
 		info.queueCreateInfoCount = 1;
 		info.pQueueCreateInfos = &queue;
 
 		VkPhysicalDeviceFeatures features = {};
 		features.geometryShader = VK_TRUE;
+		features.samplerAnisotropy = VK_TRUE;
 		info.pEnabledFeatures = &features;
 
 		VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingExt = {};
-		if (std::find(VulkanDeviceExtensions.begin(), VulkanDeviceExtensions.end(), VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME) != VulkanDeviceExtensions.end())
+		if (ContainsDeviceExtension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME))
 		{
 			descriptorIndexingExt.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
 			descriptorIndexingExt.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
@@ -729,6 +772,7 @@ namespace SunEngine
 			score += limits.maxUniformBufferRange;
 			score += limits.maxImageDimension2D;
 			score += limits.maxVertexInputAttributes;
+			score += limits.maxBoundDescriptorSets;
 
 			if (score > bestScore)
 			{

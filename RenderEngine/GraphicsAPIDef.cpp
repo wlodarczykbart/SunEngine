@@ -16,12 +16,12 @@
 
 namespace SunEngine
 {
-	GraphicsAPI g_API = SE_GFX_DIRECTX;
+	GraphicsAPI g_API = SE_GFX_VULKAN;
 
 	void SunEngine::SetGraphicsAPI(GraphicsAPI api)
 	{
 		g_API = api; //Vulkan support not up to date...
-		//g_API = SE_GFX_DIRECTX;
+		//g_API = SE_GFX_D3D11;
 	}
 
 	GraphicsAPI GetGraphicsAPI()

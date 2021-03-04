@@ -9,7 +9,7 @@
 namespace SunEngine
 {
 
-	class Shader;
+	class BaseShader;
 	class RenderTarget;
 
 	class GraphicsPipeline : public GraphicsObject
@@ -17,8 +17,11 @@ namespace SunEngine
 	public:
 		struct CreateInfo
 		{
+			CreateInfo();
+
 			PipelineSettings settings;
-			Shader *pShader;
+			const BaseShader* pShader;
+			String shaderPass;
 		};
 
 		GraphicsPipeline();
@@ -29,11 +32,11 @@ namespace SunEngine
 
 		IObject* GetAPIHandle() const override;
 
-		Shader* GetShader() const;
+		BaseShader* GetShader() const;
 		const PipelineSettings& GetSettings() const;
 
 	private:
-		Shader* _shader;
+		BaseShader* _shader;
 		PipelineSettings _settings;
 		IGraphicsPipeline* _apiPipeline;
 	};

@@ -11,100 +11,14 @@
 #include "VulkanTexture.h"
 #include "VulkanTextureCube.h"
 
+#include "GraphicsContext.h"
+#include "Sampler.h"
+
 #include "VulkanShader.h"
 
 
 namespace SunEngine
 {
-	class VulkanResourceFixup
-	{
-	public:
-		static VulkanResourceFixup& Get()
-		{
-			static VulkanResourceFixup instance;
-			return instance;
-		}
-
-		bool QuerySetAndBinding(ShaderResourceType type, uint inBinding, uint& outSet, uint& outBinding)
-		{
-			auto found = _resFixup.find(type);
-			if (found != _resFixup.end())
-			{
-				auto foundInner = (*found).second.find(inBinding);
-				if (foundInner != (*found).second.end()) 
-				{
-
-					outSet = (*foundInner).second.first;
-					outBinding = (*foundInner).second.second;
-					return true;
-				}
-			}
-
-			if (type == SRT_TEXTURE)
-			{
-				outSet = VulkanShader::USER_TEXTURES;
-				outBinding = inBinding - STL_COUNT;
-				return true;
-			}
-
-			if (type == SRT_SAMPLER)
-			{
-				outSet = VulkanShader::USER_SAMPLERS;
-				outBinding = inBinding - STL_COUNT;
-				return true;
-			}
-
-			return false;
-		}
-
-	private:
-		VulkanResourceFixup()
-		{
-			Vector<uint> UniqueUniformBuffers =
-			{
-				SBL_OBJECT_BUFFER,
-				SBL_MATERIAL,
-				SBL_TEXTURE_TRANSFORM,
-				SBL_SKINNED_BONES,
-			};
-
-			uint uniqueSet = VulkanShader::SHARED_SETS_COUNT;
-
-			for (uint i = 0; i < UniqueUniformBuffers.size(); i++)
-			{
-				_resFixup[SRT_CONST_BUFFER][UniqueUniformBuffers[i]] = { uniqueSet++, 0 };
-			}
-
-			for (uint i = 0; i < STL_COUNT; i++)
-			{
-				_resFixup[SRT_TEXTURE][i] = { VulkanShader::ENGINE_TEXTURES, i };
-				_resFixup[SRT_SAMPLER][i] = { VulkanShader::ENGINE_SAMPLERS, i };
-			}
-
-			Map<uint, Pair<uint, uint>>& bufferMap = _resFixup.at(SRT_CONST_BUFFER);
-			uint sharedBufferBinding = 0;
-			for (uint i = 0; i < SBL_COUNT; i++)
-			{
-				if (bufferMap.find(i) == bufferMap.end())
-				{
-					bufferMap[i] = { VulkanShader::ENGINE_BUFFERS, sharedBufferBinding++ };
-				}
-			}
-		}
-
-		Map<ShaderResourceType, Map<uint, Pair<uint, uint>>> _resFixup;
-	};
-
-	bool VulkanShader::QuerySetAndBinding(ShaderResourceType type, uint inBinding, uint& outSet, uint& outBinding)
-	{
-		return VulkanResourceFixup::Get().QuerySetAndBinding(type, inBinding, outSet, outBinding);
-	}
-
-	bool VulkanShader::ResourceHasOwnSet(ShaderResourceType type, uint binding)
-	{
-		return false;
-	}
-
 	VulkanShader::VulkanShader()
 	{
 		_layout = VK_NULL_HANDLE;
@@ -128,62 +42,50 @@ namespace SunEngine
 
 	bool VulkanShader::Create(IShaderCreateInfo& info)
 	{
-		FileReader rdr;
 		VkShaderModuleCreateInfo shaderInfo = {};
 		shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 
-		MemBuffer vertBuffer;
-		rdr.Open(info.vertexShaderFilename.data());
-		rdr.ReadAll(vertBuffer);
-		rdr.Close();
-		shaderInfo.pCode = (const uint*)vertBuffer.GetData();
-		shaderInfo.codeSize = vertBuffer.GetSize();
+
+		shaderInfo.pCode = (const uint*)info.vertexBinaries[SE_GFX_VULKAN].GetData();
+		shaderInfo.codeSize = info.vertexBinaries[SE_GFX_VULKAN].GetSize();
 		if (!_device->CreateShaderModule(shaderInfo, &_vertShader)) return false;
 
-		if (info.pixelShaderFilename.length())
+		if (info.pixelBinaries[SE_GFX_VULKAN].GetSize())
 		{
-			MemBuffer pixelBuffer;
-			rdr.Open(info.pixelShaderFilename.data());
-			rdr.ReadAll(pixelBuffer);
-			rdr.Close();
-			shaderInfo.pCode = (const uint*)pixelBuffer.GetData();
-			shaderInfo.codeSize = pixelBuffer.GetSize();
+			shaderInfo.pCode = (const uint*)info.pixelBinaries[SE_GFX_VULKAN].GetData();
+			shaderInfo.codeSize = info.pixelBinaries[SE_GFX_VULKAN].GetSize();
 			if (!_device->CreateShaderModule(shaderInfo, &_fragShader)) return false;
 		}
 
-		if (info.geometryShaderFilename.length())
+		if (info.geometryBinaries[SE_GFX_VULKAN].GetSize())
 		{
-			MemBuffer geomBuffer;
-			rdr.Open(info.geometryShaderFilename.data());
-			rdr.ReadAll(geomBuffer);
-			rdr.Close();
-			shaderInfo.pCode = (const uint*)geomBuffer.GetData();
-			shaderInfo.codeSize = geomBuffer.GetSize();
+			shaderInfo.pCode = (const uint*)info.geometryBinaries[SE_GFX_VULKAN].GetData();
+			shaderInfo.codeSize = info.geometryBinaries[SE_GFX_VULKAN].GetSize();
 			if (!_device->CreateShaderModule(shaderInfo, &_geomShader)) return false;
 		}
 
-		Vector<APIVertexElement> sortedElements = info.vertexElements;
-		qsort(sortedElements.data(), sortedElements.size(), sizeof(APIVertexElement), [](const void* left, const void* right) -> int {
-			return ((APIVertexElement*)left)->offset < ((APIVertexElement*)right)->offset ? -1 : 1;
+		Vector<IVertexElement> sortedElements = info.vertexElements;
+		qsort(sortedElements.data(), sortedElements.size(), sizeof(IVertexElement), [](const void* left, const void* right) -> int {
+			return ((IVertexElement*)left)->offset < ((IVertexElement*)right)->offset ? -1 : 1;
 		});
 
 		_inputAttribs.resize(sortedElements.size());
 		for (uint i = 0; i < sortedElements.size(); i++)
 		{
-			const APIVertexElement &attrib = sortedElements[i];
+			const IVertexElement&attrib = sortedElements[i];
 			_inputAttribs[i].binding = 0;
 			_inputAttribs[i].location = i;
 			_inputAttribs[i].offset = attrib.offset;
 
 			switch (attrib.format)
 			{
-			case APIVertexInputFormat::VIF_FLOAT2:
+			case IVertexInputFormat::VIF_FLOAT2:
 				_inputAttribs[i].format = VK_FORMAT_R32G32_SFLOAT;
 				break;
-			case APIVertexInputFormat::VIF_FLOAT3:
+			case IVertexInputFormat::VIF_FLOAT3:
 				_inputAttribs[i].format = VK_FORMAT_R32G32B32_SFLOAT;
 				break;
-			case APIVertexInputFormat::VIF_FLOAT4:
+			case IVertexInputFormat::VIF_FLOAT4:
 				_inputAttribs[i].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 				break;
 			default:
@@ -197,16 +99,12 @@ namespace SunEngine
 		Vector<VkDescriptorSetLayoutBinding> vDescriptorSetLayoutBindings[32];
 		uint maxSet = 0;
 
-		for (uint i = 0; i < info.constBuffers.size(); i++)
+		for (auto iter = info.buffers.begin(); iter != info.buffers.end(); ++iter)
 		{
-			IShaderResource& desc = info.constBuffers[i];
-
-			uint setNum, bindingNum;
-			if (!QuerySetAndBinding(SRT_CONST_BUFFER, desc.binding, setNum, bindingNum))
-				return false;
+			IShaderBuffer& desc = (*iter).second;
 
 			VkDescriptorSetLayoutBinding binding = {};
-			binding.binding = bindingNum;
+			binding.binding = desc.binding[SE_GFX_VULKAN];
 			binding.descriptorCount = 1;
 			binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 
@@ -218,24 +116,19 @@ namespace SunEngine
 				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
 			//_uniformBuffersMap[desc.binding] = static_cast<VulkanUniformBuffer*>(info.constBuffers[i].second);
-			vDescriptorSetLayoutBindings[setNum].push_back(binding);
-			if (setNum > maxSet)
-				maxSet = setNum;
+			vDescriptorSetLayoutBindings[desc.bindType].push_back(binding);
+			if (desc.bindType > maxSet)
+				maxSet = desc.bindType;
 		}
 
 		//Vector<VkDescriptorBindingFlagsEXT> texBindingFlags;
-		for (uint i = 0; i < info.textures.size(); i++)
+		for (auto iter = info.resources.begin(); iter != info.resources.end(); ++iter)
 		{
-			IShaderResource& desc = info.textures[i];
-
-			uint setNum, bindingNum;
-			if (!QuerySetAndBinding(SRT_TEXTURE, desc.binding, setNum, bindingNum))
-				return false;
+			IShaderResource& desc = (*iter).second;
 
 			VkDescriptorSetLayoutBinding binding = {};
-			binding.binding = bindingNum;
+			binding.binding = desc.binding[SE_GFX_VULKAN];
 			binding.descriptorCount = 1;
-			binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 
 			if (desc.stages & SS_VERTEX)
 				binding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
@@ -244,10 +137,15 @@ namespace SunEngine
 			if (desc.stages & SS_GEOMETRY)
 				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
-			vDescriptorSetLayoutBindings[setNum].push_back(binding);
+			if(desc.type == SRT_TEXTURE)
+				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			else if(desc.type == SRT_SAMPLER)
+				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 
-			if (setNum > maxSet)
-				maxSet = setNum;
+			vDescriptorSetLayoutBindings[desc.bindType].push_back(binding);
+
+			if (desc.bindType > maxSet)
+				maxSet = desc.bindType;
 
 			//VkDescriptorBindingFlagBitsEXT texFlags =
 			//	VkDescriptorBindingFlagBitsEXT::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
@@ -266,37 +164,37 @@ namespace SunEngine
 		//}
 		
 
-		//Vector<VkDescriptorBindingFlagsEXT> samplerBindingFlags;
-		for (uint i = 0; i < info.samplers.size(); i++)
-		{
-			IShaderResource& desc = info.samplers[i];
+		////Vector<VkDescriptorBindingFlagsEXT> samplerBindingFlags;
+		//for (uint i = 0; i < info.samplers.size(); i++)
+		//{
+		//	IShaderResource& desc = info.samplers[i];
 
-			uint setNum, bindingNum;
-			if (!QuerySetAndBinding(SRT_SAMPLER, desc.binding, setNum, bindingNum))
-				return false;
+		//	uint setNum = 0, bindingNum = 0;
+		//	//if (!QuerySetAndBinding(SRT_CONST_BUFFER, desc.binding, setNum, bindingNum))
+		//	//	return false;
 
-			VkDescriptorSetLayoutBinding binding = {};
-			binding.binding = bindingNum;
-			binding.descriptorCount = 1;
-			binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		//	VkDescriptorSetLayoutBinding binding = {};
+		//	binding.binding = bindingNum;
+		//	binding.descriptorCount = 1;
+		//	binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 
-			if (desc.stages & SS_VERTEX)
-				binding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-			if (desc.stages & SS_PIXEL)
-				binding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-			if (desc.stages & SS_GEOMETRY)
-				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
+		//	if (desc.stages & SS_VERTEX)
+		//		binding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+		//	if (desc.stages & SS_PIXEL)
+		//		binding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+		//	if (desc.stages & SS_GEOMETRY)
+		//		binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
-			vDescriptorSetLayoutBindings[setNum].push_back(binding);
+		//	vDescriptorSetLayoutBindings[setNum].push_back(binding);
 
-			if (setNum > maxSet)
-				maxSet = setNum;
+		//	if (setNum > maxSet)
+		//		maxSet = setNum;
 
-			//VkDescriptorBindingFlagBitsEXT samplerFlags =
-			//	VkDescriptorBindingFlagBitsEXT::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
-			//samplerBindingFlags.push_back(samplerFlags);
+		//	//VkDescriptorBindingFlagBitsEXT samplerFlags =
+		//	//	VkDescriptorBindingFlagBitsEXT::VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
+		//	//samplerBindingFlags.push_back(samplerFlags);
 
-		}
+		//}
 
 		//VkDescriptorSetLayoutBindingFlagsCreateInfoEXT samplerBindingFlagsCreateInfo = {};
 		//samplerBindingFlagsCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
@@ -323,25 +221,12 @@ namespace SunEngine
 				return false;
 		}
 
-
 		//Not supporting push constants 
 		VkPipelineLayoutCreateInfo layoutInfo = {};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		layoutInfo.setLayoutCount = _setLayouts.size();
 		layoutInfo.pSetLayouts = _setLayouts.data();
 		if (!_device->CreatePipelineLayout(layoutInfo, &_layout)) return false;
-
-
-		VkDescriptorSetAllocateInfo setInfo = {};
-		setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		setInfo.descriptorSetCount = 1;
-		setInfo.pSetLayouts = &_setLayouts[ENGINE_BUFFERS];
-
-		if (!_device->AllocateDescriptorSets(setInfo, &_sharedBufferSet))
-			return false;
-
-		_sharedBufferDynamicOffsets.resize(vDescriptorSetLayoutBindings[ENGINE_BUFFERS].size());
-		memset(_sharedBufferDynamicOffsets.data(), 0, sizeof(uint)* _sharedBufferDynamicOffsets.size());
 
 		//for (uint i = 0; i < DESCRIPTOR_SET_COUNT; i++)
 		//{
@@ -368,7 +253,6 @@ namespace SunEngine
 		_device->DestroyPipelineLayout(_layout);
 
 		_inputAttribs.clear();
-		_uniformBuffersMap.clear();
 
 		_layout = VK_NULL_HANDLE;
 		_inputBinding = {};
@@ -377,7 +261,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void VulkanShader::Bind(ICommandBuffer * cmdBuffer)
+	void VulkanShader::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		(void)cmdBuffer;
 	}
@@ -407,12 +291,6 @@ namespace SunEngine
 		return _setLayouts.at(set);
 	}
 
-	void VulkanShader::GetSharedBufferDynamicOffsets(uint** ppOffsets, uint& numOffsets)
-	{
-		*ppOffsets = _sharedBufferDynamicOffsets.size() ? _sharedBufferDynamicOffsets.data() : 0;
-		numOffsets = _sharedBufferDynamicOffsets.size();
-	}
-
 	int VulkanShader::SortBindings(const void * lhs, const void * rhs)
 	{
 		int ileft = *((int*)lhs);
@@ -440,10 +318,8 @@ namespace SunEngine
 
 	VulkanShaderBindings::VulkanShaderBindings()
 	{
-		_textureSet = VK_NULL_HANDLE;
-		_samplerSet = VK_NULL_HANDLE;
-		_textureSetLayout = VK_NULL_HANDLE;
-		_samplerSetLayout = VK_NULL_HANDLE;
+		_set = VK_NULL_HANDLE;
+		_setNumber = 0;
 	}
 
 	VulkanShaderBindings::~VulkanShaderBindings()
@@ -471,93 +347,104 @@ namespace SunEngine
 	//	return true;
 	//}
 
-	bool VulkanShaderBindings::Create(IShader* pShader, const Vector<IShaderResource>& textureBindings, const Vector<IShaderResource>& samplerBindings)
+	bool VulkanShaderBindings::Create(const IShaderBindingCreateInfo& createInfo)
 	{
-		_shader = static_cast<VulkanShader*>(pShader);
-		//TODO: clean up old handles
+		_shader = static_cast<VulkanShader*>(createInfo.pShader);
+		_setNumber = createInfo.type;
 
-		Vector<VkDescriptorSetLayoutBinding> textureInfos, samplerInfos;
+		Vector<VkDescriptorSetLayoutBinding> layoutBindings;
 		VkDescriptorSetLayoutCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
-		textureInfos.resize(textureBindings.size());
-		info.bindingCount = textureBindings.size();
-		info.pBindings = textureInfos.data();
-		for (uint i = 0; i < textureInfos.size(); i++)
+		uint maxBufferBinding = 0;
+
+		for (uint i = 0; i < createInfo.bufferBindings.size(); i++)
 		{
-			uint setNum, bindingNum;
-			VulkanShader::QuerySetAndBinding(SRT_TEXTURE, textureBindings[i].binding, setNum, bindingNum);
-			assert(setNum == VulkanShader::USER_TEXTURES);
+			VkDescriptorSetLayoutBinding binding = {};
+			binding.binding = createInfo.bufferBindings[i].binding[SE_GFX_VULKAN];
+			binding.descriptorCount = 1;
+			binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 
-			textureInfos[i] = {};
-			textureInfos[i].binding = bindingNum;
-			textureInfos[i].descriptorCount = 1;
-			textureInfos[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			if (createInfo.bufferBindings[i].stages & SS_VERTEX)
+				binding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+			if (createInfo.bufferBindings[i].stages & SS_PIXEL)
+				binding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+			if (createInfo.bufferBindings[i].stages & SS_GEOMETRY)
+				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
-			_textureBindingFixup[textureBindings[i].binding] = bindingNum;
+			_bindingMap[createInfo.bufferBindings[i].name].first = binding.binding;
+			layoutBindings.push_back(binding);
 
-			uint stageFlags = 0;
-			if (textureBindings[i].stages & SS_VERTEX)
-				stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-			if (textureBindings[i].stages & SS_PIXEL)
-				stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-			if (textureBindings[i].stages & SS_GEOMETRY)
-				stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
-
-			textureInfos[i].stageFlags = stageFlags;
+			if (binding.binding+1 > maxBufferBinding)
+				maxBufferBinding = binding.binding+1;
 		}
 
-		if (!_device->CreateDescriptorSetLayout(info, &_textureSetLayout)) return false;
+		_dynamicOffsets.resize(maxBufferBinding);
+		memset(_dynamicOffsets.data(), 0, sizeof(uint) * _dynamicOffsets.size());
 
-		samplerInfos.resize(samplerBindings.size());
-		info.bindingCount = samplerBindings.size();
-		info.pBindings = samplerInfos.data();
-		for (uint i = 0; i < samplerInfos.size(); i++)
+		for (uint i = 0; i < createInfo.resourceBindings.size(); i++)
 		{
-			uint setNum, bindingNum;
-			VulkanShader::QuerySetAndBinding(SRT_SAMPLER, samplerBindings[i].binding, setNum, bindingNum);
-			assert(setNum == VulkanShader::USER_SAMPLERS);
+			VkDescriptorSetLayoutBinding binding = {};
+			binding.binding = createInfo.resourceBindings[i].binding[SE_GFX_VULKAN];
+			binding.descriptorCount = 1;
 
-			samplerInfos[i] = {};
-			samplerInfos[i].binding = bindingNum;
-			samplerInfos[i].descriptorCount = 1;
-			samplerInfos[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+			if (createInfo.resourceBindings[i].stages & SS_VERTEX)
+				binding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+			if (createInfo.resourceBindings[i].stages & SS_PIXEL)
+				binding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+			if (createInfo.resourceBindings[i].stages & SS_GEOMETRY)
+				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
-			_samplerBindingFixup[samplerBindings[i].binding] = bindingNum;
+			if (createInfo.resourceBindings[i].type == SRT_TEXTURE)
+			{
+				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			}
+			else if (createInfo.resourceBindings[i].type == SRT_SAMPLER)
+			{
+				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+			}
 
-			uint stageFlags = 0;
-			if (samplerBindings[i].stages & SS_VERTEX)
-				stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-			if (samplerBindings[i].stages & SS_PIXEL)
-				stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-			if (samplerBindings[i].stages & SS_GEOMETRY)
-				stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
-
-			samplerInfos[i].stageFlags = stageFlags;
+			_bindingMap[createInfo.resourceBindings[i].name].first = binding.binding;
+			layoutBindings.push_back(binding);
 		}
 
-		if (!_device->CreateDescriptorSetLayout(info, &_samplerSetLayout)) return false;
+		info.bindingCount = layoutBindings.size();
+		info.pBindings = layoutBindings.data();
 
-		VkDescriptorSetAllocateInfo texAllocInfo = {};
-		texAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		texAllocInfo.descriptorSetCount = 1;
-		texAllocInfo.pSetLayouts = &_textureSetLayout;
-		if (!_device->AllocateDescriptorSets(texAllocInfo, &_textureSet)) return false;
+		if (!_device->CreateDescriptorSetLayout(info, &_layout)) return false;
 
-		VkDescriptorSetAllocateInfo samplerAllocInfo = {};
-		samplerAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		samplerAllocInfo.descriptorSetCount = 1;
-		samplerAllocInfo.pSetLayouts = &_samplerSetLayout;
-		if (!_device->AllocateDescriptorSets(samplerAllocInfo, &_samplerSet)) return false;
+		VkDescriptorSetAllocateInfo setllocInfo = {};
+		setllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		setllocInfo.descriptorSetCount = 1;
+		setllocInfo.pSetLayouts = &_layout;
+		if (!_device->AllocateDescriptorSets(setllocInfo, &_set)) return false;
 
 		return true;
 	}
 
-	void VulkanShaderBindings::Bind(ICommandBuffer * pCmdBuffer)
+	void VulkanShaderBindings::Bind(ICommandBuffer * pCmdBuffer, IBindState* pBindState)
 	{
-		VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(pCmdBuffer);
-		vkCmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, _shader->GetPipelineLayout(), VulkanShader::USER_TEXTURES, 1, &_textureSet, 0, NULL);
-		vkCmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, _shader->GetPipelineLayout(), VulkanShader::USER_SAMPLERS, 1, &_samplerSet, 0, NULL);
+		if (_set != VK_NULL_HANDLE)
+		{
+			if (pBindState && pBindState->GetType() == IOBT_SHADER_BINDINGS)
+			{
+				IShaderBindingsBindState* state = static_cast<IShaderBindingsBindState*>(pBindState);
+				uint idx = 0;
+				while (!state->DynamicIndices[idx].first.empty() && idx < ARRAYSIZE(state->DynamicIndices))
+				{
+					auto& buffInfo = _bindingMap.at(state->DynamicIndices[idx].first);
+
+					_dynamicOffsets[buffInfo.first] = static_cast<VulkanUniformBuffer*>(buffInfo.second)->GetAlignedSize() * state->DynamicIndices[idx].second;
+					idx++;
+				}
+			}
+
+			VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(pCmdBuffer);
+			vkCmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, _shader->GetPipelineLayout(), _setNumber, 1, &_set, _dynamicOffsets.size(), _dynamicOffsets.data());
+
+			if (_dynamicOffsets.size())
+				memset(_dynamicOffsets.data(), 0x0, sizeof(uint) * _dynamicOffsets.size());
+		}
 	}																							 
 
 	void VulkanShaderBindings::Unbind(ICommandBuffer * pCmdBuffer)
@@ -565,36 +452,59 @@ namespace SunEngine
 		(void)pCmdBuffer;
 	}
 
-	void VulkanShaderBindings::SetTexture(ITexture * pTexture, const uint binding)
+	void VulkanShaderBindings::SetUniformBuffer(IUniformBuffer* pBuffer, const String& name)
 	{
-		BindImageView(static_cast<VulkanTexture*>(pTexture)->_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, binding);
+		VulkanUniformBuffer* pVulkanBuffer = static_cast<VulkanUniformBuffer*>(pBuffer);
+
+		VkDescriptorBufferInfo info = {};
+		info.buffer = pVulkanBuffer->_buffer;
+		info.range = pVulkanBuffer->_size;
+
+		VkWriteDescriptorSet set = {};
+		set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		set.dstSet = _set;
+		set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		set.dstBinding = _bindingMap.at(name).first;
+		set.pBufferInfo = &info;
+		set.descriptorCount = 1;
+
+		_device->UpdateDescriptorSets(&set, 1);
+		_bindingMap.at(name).second = pVulkanBuffer;
 	}
 
-	void VulkanShaderBindings::SetSampler(ISampler * pSampler, const uint binding)
+	void VulkanShaderBindings::SetTexture(ITexture * pTexture, const String& name)
+	{
+		BindImageView(static_cast<VulkanTexture*>(pTexture)->_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _bindingMap.at(name).first);
+		_bindingMap.at(name).second = static_cast<VulkanTexture*>(pTexture);
+	}
+
+	void VulkanShaderBindings::SetSampler(ISampler * pSampler, const String& name)
 	{
 		VkDescriptorImageInfo info = {};
 		info.sampler = static_cast<VulkanSampler*>(pSampler)->_sampler;
 
 		VkWriteDescriptorSet set = {};
 		set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		set.dstSet = _samplerSet;
+		set.dstSet = _set;
 		set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		set.dstBinding = _samplerBindingFixup.at(binding);
+		set.dstBinding = _bindingMap.at(name).first;
 		set.pImageInfo = &info;
 		set.descriptorCount = 1;
 
 		_device->UpdateDescriptorSets(&set, 1);
+		_bindingMap.at(name).second = static_cast<VulkanSampler*>(pSampler);
 	}
 
-	void VulkanShaderBindings::SetTextureCube(ITextureCube * pTextureCube, const uint binding)
+	void VulkanShaderBindings::SetTextureCube(ITextureCube * pTextureCube, const String& name)
 	{
-		BindImageView(static_cast<VulkanTextureCube*>(pTextureCube)->_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, binding);
+		BindImageView(static_cast<VulkanTextureCube*>(pTextureCube)->_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _bindingMap.at(name).first);
+		_bindingMap.at(name).second = static_cast<VulkanTextureCube*>(pTextureCube);
 	}
 
-	void VulkanShaderBindings::SetTextureArray(ITextureArray * pTextureArray, uint binding)
+	void VulkanShaderBindings::SetTextureArray(ITextureArray * pTextureArray, const String& name)
 	{
 		(void)pTextureArray;
-		(void)binding;
+		(void)name;
 		//TODO:!!!!!!
 	}
 
@@ -606,14 +516,13 @@ namespace SunEngine
 
 		VkWriteDescriptorSet set = {};
 		set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		set.dstSet = _textureSet;
+		set.dstSet = _set;
 		set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		set.dstBinding = _textureBindingFixup.at(binding);
+		set.dstBinding = binding;
 		set.pImageInfo = &info;
 		set.descriptorCount = 1;
 
 		_device->UpdateDescriptorSets(&set, 1);
-
 	}
 
 	//bool VulkanShader::ObjectIsCurrentlyBound(const uint set, const uint binding, uint64_t apiHandle)

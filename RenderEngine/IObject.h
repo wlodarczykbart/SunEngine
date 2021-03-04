@@ -11,7 +11,7 @@ namespace SunEngine
 	public:
 		virtual ~IObject();
 
-		virtual void Bind(ICommandBuffer *cmdBuffer) = 0;
+		virtual void Bind(ICommandBuffer *cmdBuffer, IBindState* pBindState = 0) = 0;
 		virtual void Unbind(ICommandBuffer* cmdBuffer) = 0;
 
 		virtual bool Destroy() { return true; }; //todo make this pure virtual...

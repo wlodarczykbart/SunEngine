@@ -26,6 +26,7 @@ namespace SunEngine
 
 			String txtFile;
 			reader.ReadAllText(txtFile);
+			txtFile = StrRemove(txtFile, '\r');
 
 			Vector<String> lines;
 			StrSplit(txtFile, lines, '\n');
@@ -159,7 +160,7 @@ namespace SunEngine
 	{
 	}
 
-	String ConfigSection::GetString(const char * key) const
+	String ConfigSection::GetString(const char * key, const char* defaultValue) const
 	{
 		const String *pStr;
 		if (GetValue(key, &pStr))
@@ -168,7 +169,7 @@ namespace SunEngine
 		}
 		else
 		{
-			return "";
+			return defaultValue ? defaultValue : "";
 		}
 	}
 
@@ -298,7 +299,7 @@ namespace SunEngine
 		return _dataPairs.find(key) != _dataPairs.end();
 	}
 
-	ConfigSection::Iterator ConfigSection::GetIterator() const
+	ConfigSection::Iterator ConfigSection::Begin() const
 	{
 		return _dataPairs.begin();
 	}
@@ -306,5 +307,15 @@ namespace SunEngine
 	ConfigSection::Iterator ConfigSection::End() const
 	{
 		return _dataPairs.end();
+	}
+
+	ConfigFile::Iterator ConfigFile::Begin() const
+	{
+		return _sections.begin();
+	}
+
+	ConfigFile::Iterator ConfigFile::End() const
+	{
+		return _sections.end();
 	}
 }

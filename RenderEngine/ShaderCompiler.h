@@ -1,13 +1,42 @@
 #pragma once
 
-#include "ConfigFile.h"
-#include "Shader.h"
+#include "BaseShader.h"
 
 namespace SunEngine
 {
-	namespace ShaderCompiler
+	class ShaderCompiler
 	{
-		bool Compile(int argc, const char** argv, String& errStr, ConfigFile* pConfig = 0);
-		//bool Recompile(Shader* pShader);
-	}
+	public:
+		ShaderCompiler();
+		ShaderCompiler(const ShaderCompiler&) = delete;
+		ShaderCompiler& operator = (const ShaderCompiler&) = delete;
+		~ShaderCompiler();
+
+		//Must be set at some point before compiling shaders
+		static void SetAuxiliaryDir(const String& path);
+
+		void SetVertexShaderPath(const String& vertexShader);
+		void SetPixelShaderPath(const String& pixelShader);
+
+		const String& GetLastError() const { return _lastErr; }
+		const BaseShader::CreateInfo& GetCreateInfo() const { return _shaderInfo; }
+
+		bool Compile();
+
+	private:
+		void GetBinding(const String& name, const String& type, uint* pBindings, ShaderBindingType& bindType);
+		void PreProcessText(const String& inText, String& outHLSL, String& outGLSL);
+		bool CompileShader(ShaderStage type, const String& path);
+
+		BaseShader::CreateInfo _shaderInfo;
+
+		uint _numUserTextures;
+		uint _numUserSamplers;
+
+		String _vertexPath;
+		String _pixelPath;
+
+		String _lastErr;
+
+	};
 }

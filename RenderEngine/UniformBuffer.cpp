@@ -1,7 +1,5 @@
 #include "VulkanUniformBuffer.h"
-#include "DirectXUniformBuffer.h"
-#include "Shader.h"
-
+#include "D3D11UniformBuffer.h"
 #include "UniformBuffer.h"
 
 namespace SunEngine
@@ -27,12 +25,12 @@ namespace SunEngine
 			_apiBuffer = AllocateGraphics<IUniformBuffer>();
 
 		IUniformBufferCreateInfo apiInfo = {};
-		apiInfo.pShader = info.pShader;
-		apiInfo.resource = info.resource;
+		apiInfo.size = info.size;
+		apiInfo.isShared = info.isShared;
 
 		if (!_apiBuffer->Create(apiInfo)) return false;
 
-		_size = info.resource.size;
+		_size = info.size;
 		return true;
 	}
 
@@ -50,6 +48,21 @@ namespace SunEngine
 		return _apiBuffer->Update(pData);
 	}
 
+	bool UniformBuffer::Update(const void* pData, uint offset, uint size)
+	{
+		return _apiBuffer->Update(pData, offset, size);
+	}
+
+	bool UniformBuffer::UpdateShared(const void* pData, uint numElements)
+	{
+		return _apiBuffer->UpdateShared(pData, numElements);
+	}
+
+	uint UniformBuffer::GetMaxSharedUpdates() const
+	{
+		return _apiBuffer->GetMaxSharedUpdates();
+	}
+
 	uint UniformBuffer::GetSize() const
 	{
 		return _size;
@@ -64,10 +77,10 @@ namespace SunEngine
 	{
 		switch (api)
 		{
-		case SunEngine::SE_GFX_DIRECTX:
-			return new DirectXUniformBuffer();
 		case SunEngine::SE_GFX_VULKAN:
 			return new VulkanUniformBuffer();
+		case SunEngine::SE_GFX_D3D11:
+			return new D3D11UniformBuffer();
 		default:
 			return 0;
 		}
