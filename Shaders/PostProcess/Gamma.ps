@@ -1,0 +1,14 @@
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+Texture2D DiffuseMap;
+SamplerState Sampler;
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float4 color = DiffuseMap.Sample(Sampler, pIn.texCoord);
+	return float4(pow(color.rgb, float3(1,1,1) * (1.0 / 2.2)), color.a);
+}

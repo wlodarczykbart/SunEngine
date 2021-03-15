@@ -7,24 +7,6 @@
 
 namespace SunEngine
 {
-	class StandardShader
-	{
-	public:
-		static const String DiffuseMap;
-		static const String NormalMap;
-		static const String MetalMap;
-		static const String AmbientOcclusionMap;
-		static const String RoughnessMap;
-	};
-
-	class BlinnPhongShader
-	{
-	public:
-		static const String DiffuseMap;
-		static const String NormalMap;
-		static const String SpecularMap;
-	};
-
 	class Material;
 	class Texture2D;
 	class Sampler;
@@ -41,6 +23,8 @@ namespace SunEngine
 		bool RegisterToGPU() override;
 
 		void SetDefaults(Material* pMtl) const;
+
+		const ConfigSection* GetConfigSection(const String& name) const { return _config.GetSection(name.c_str()); }
 
 	private:
 		void SetDefaults();

@@ -64,6 +64,14 @@ namespace SunEngine
 		{
 			imgInfo.format = VK_FORMAT_BC3_UNORM_BLOCK;
 		}
+
+		if (info.image.Flags & ImageData::SRGB)
+		{
+			if (imgInfo.format == VK_FORMAT_R8G8B8A8_UNORM) imgInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+			else if (imgInfo.format == VK_FORMAT_B8G8R8A8_UNORM) imgInfo.format = VK_FORMAT_B8G8R8A8_SRGB;
+			else if (imgInfo.format == VK_FORMAT_BC1_RGBA_UNORM_BLOCK) imgInfo.format = VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+			else if (imgInfo.format == VK_FORMAT_BC3_UNORM_BLOCK) imgInfo.format  = VK_FORMAT_BC3_SRGB_BLOCK;
+		}
 		
 		if (!_device->CreateImage(imgInfo, &_image)) return false;
 		if (!_device->AllocImageMemory(_image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &_memory)) return false;

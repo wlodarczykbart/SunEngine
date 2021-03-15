@@ -4,6 +4,8 @@
 
 namespace SunEngine
 {
+	class GameEditor;
+
 	class GameEditorGUI : public GUIRenderer
 	{
 	public:
@@ -13,11 +15,19 @@ namespace SunEngine
 		~GameEditorGUI();
 
 	private:
+		enum SecondaryWindowType
+		{
+			WT_MATERIAL,
+			WT_MATERIAL_TEXTURE_PICKER,
+			WT_ASSET_IMPORTER,
+
+			SECONDARY_WINDOW_COUNT,
+		};
+
 		class UpdateMaterialTextureCommand;
 
 		struct MaterialTexturePickerData
 		{
-			bool RenderMaterialTexturePicker;
 			String MaterialName;
 			String TextureName;
 			Vector<char> FilterBuffer;
@@ -25,11 +35,12 @@ namespace SunEngine
 
 		void CustomRender() override;
 
-		void RenderMenu();
-		void RenderMaterials();
-		void RenderMaterialTexturePicker();
+		void RenderMenu(GameEditor* pEditor);
+		void RenderMaterials(GameEditor* pEditor);
+		void RenderMaterialTexturePicker(GameEditor* pEditor);
+		void RenderAssetImporter(GameEditor* pEditor);
 
-		bool _renderMaterials;
+		bool _visibleWindows[SECONDARY_WINDOW_COUNT];
 
 		MaterialTexturePickerData _mtlTexturePicker;
 	};

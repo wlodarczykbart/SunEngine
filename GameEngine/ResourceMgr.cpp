@@ -3,22 +3,23 @@
 
 namespace SunEngine
 {
-	namespace DefaultRes
+	namespace DefaultResource
 	{
-		MakeResDef(Texture, Default);
-		MakeResDef(Texture, White);
-		MakeResDef(Texture, Black);
-		MakeResDef(Texture, Zero);
-		MakeResDef(Texture, Normal);
+		DefineStaticStr(Texture, Default);
+		DefineStaticStr(Texture, White);
+		DefineStaticStr(Texture, Black);
+		DefineStaticStr(Texture, Zero);
+		DefineStaticStr(Texture, Normal);
 
-		MakeResDef(Mesh, Cube);
-		MakeResDef(Mesh, Sphere);
+		DefineStaticStr(Mesh, Cube);
+		DefineStaticStr(Mesh, Sphere);
 
-		MakeResDef(Shader, Standard);
-		MakeResDef(Shader, BlinnPhong);
+		DefineStaticStr(Shader, StandardMetallic);
+		DefineStaticStr(Shader, StandardSpecular);
+		DefineStaticStr(Shader, Gamma);
 
-		MakeResDef(Material, StandardDefault)
-		MakeResDef(Material, BlinnPhongDefault)
+		DefineStaticStr(Material, StandardMetallic);
+		DefineStaticStr(Material, StandardSpecular);
 	}
 
 	template<typename T>
@@ -45,21 +46,21 @@ namespace SunEngine
 
 	bool ResourceMgr::CreateDefaults()
 	{
-		Mesh* pCubeMesh = AddMesh(DefaultRes::Mesh::Cube);
+		Mesh* pCubeMesh = AddMesh(DefaultResource::Mesh::Cube);
 		pCubeMesh->AllocateCube();
 		if (!pCubeMesh->RegisterToGPU())
 		{
 			return false;
 		}
 
-		Mesh* pSphereMesh = AddMesh(DefaultRes::Mesh::Sphere);
+		Mesh* pSphereMesh = AddMesh(DefaultResource::Mesh::Sphere);
 		pSphereMesh->AllocateSphere();
 		if (!pSphereMesh->RegisterToGPU())
 		{
 			return false;
 		}
 
-		Texture2D* pDefaultTexture = AddTexture2D(DefaultRes::Texture::Default);
+		Texture2D* pDefaultTexture = AddTexture2D(DefaultResource::Texture::Default);
 		pDefaultTexture->Alloc(16, 16);
 
 		for (uint i = 0; i < pDefaultTexture->GetWidth(); i++)
@@ -77,10 +78,10 @@ namespace SunEngine
 
 		StrMap<glm::vec4> SolidColorDefaults =
 		{
-			{ DefaultRes::Texture::White, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), },
-			{ DefaultRes::Texture::Black, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), },
-			{ DefaultRes::Texture::Zero, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f), },
-			{ DefaultRes::Texture::Normal, glm::vec4(0.5f, 0.5f, 1.0f, 0.0f), },
+			{ DefaultResource::Texture::White, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), },
+			{ DefaultResource::Texture::Black, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), },
+			{ DefaultResource::Texture::Zero, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f), },
+			{ DefaultResource::Texture::Normal, glm::vec4(0.5f, 0.5f, 1.0f, 0.0f), },
 		};
 
 		for (auto iter = SolidColorDefaults.begin(); iter != SolidColorDefaults.end(); ++iter)

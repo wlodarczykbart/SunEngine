@@ -1,9 +1,21 @@
 #include "Shader.h"
 #include "Texture2D.h"
+#include "ResourceMgr.h"
 #include "Material.h"
 
 namespace SunEngine
 {
+	DefineStaticStr(MaterialStrings, DiffuseMap);
+	DefineStaticStr(MaterialStrings, NormalMap);
+	DefineStaticStr(MaterialStrings, SpecularMap);
+	DefineStaticStr(MaterialStrings, MetalMap);
+	DefineStaticStr(MaterialStrings, AmbientOcclusionMap);
+	DefineStaticStr(MaterialStrings, SmoothnessMap);
+	DefineStaticStr(MaterialStrings, DiffuseColor);
+	DefineStaticStr(MaterialStrings, SpecularColor);
+	DefineStaticStr(MaterialStrings, Smoothness);
+	DefineStaticStr(MaterialStrings, Sampler);
+
 	Material::Material()
 	{
 		_shader = 0;

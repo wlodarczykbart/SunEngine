@@ -90,6 +90,12 @@ namespace SunEngine
 			}
 		}
 
+		if (info.image.Flags & ImageData::SRGB)
+		{
+			if (texDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM) texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			else if (texDesc.Format == DXGI_FORMAT_BC1_UNORM) texDesc.Format = DXGI_FORMAT_BC1_UNORM_SRGB;
+			else if (texDesc.Format == DXGI_FORMAT_BC3_UNORM) texDesc.Format = DXGI_FORMAT_BC3_UNORM_SRGB;
+		}
 
 		D3D11_SUBRESOURCE_DATA* pData = subData.size() ? subData.data() : 0;
 		if (!_device->CreateTexture2D(texDesc, pData, &_texture)) return false;

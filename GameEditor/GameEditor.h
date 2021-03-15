@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Editor.h"
+#include "AssetImporter.h"
 #include "SceneRenderer.h"
 
 namespace SunEngine
@@ -14,9 +15,8 @@ namespace SunEngine
 		~GameEditor();
 
 		bool CustomInit(ConfigSection* pEditorConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) override;
-		bool ImportFromFileType(const String& fileType, Asset*& pAsset);
+		Asset* ImportAsset(const String& filename, const AssetImporter::Options& options);
 	private:
-		Asset* ImportAsset(const String& filename);
 
 		void CustomUpdate() override;
 		bool CompileShaders();

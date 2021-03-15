@@ -13,12 +13,12 @@ namespace SunEngine
 		String GetString(const char * key, const char* defaultValue = NULL) const;
 		int GetInt(const char* key, int defaultValue = 0) const;
 		float GetFloat(const char* key, float defaultValue = 0.0f) const;
-		bool GetBlock(const char* key, OrderedStrMap<String>& block) const;
+		bool GetBlock(const char* key, OrderedStrMap<String>& block, char blockStart = 0, char blockEnd = 0) const;
 
 		void SetString(const char * key, const char * value);
 		void SetInt(const char* key, const int value);
 		void SetFloat(const char* key, const float value);
-		void SetBlock(const char* key, const OrderedStrMap<String>& block);
+		void SetBlock(const char* key, const OrderedStrMap<String>& block, char blockStart = 0, char blockEnd = 0);
 
 		bool HasKey(const char* key) const;
 		

@@ -5,6 +5,7 @@
 
 namespace SunEngine
 {
+	class AssetNode;
 	class Asset;
 	class Mesh;
 	class Material;
@@ -14,10 +15,17 @@ namespace SunEngine
 	class AssetImporter
 	{
 	public:
+		struct Options
+		{
+			bool CombineMaterials;
+
+			static const Options Default;
+		};
+
 		AssetImporter();
 		~AssetImporter();
 
-		bool Import(const String& filename);
+		bool Import(const String& filename, const Options& options = Options::Default);
 		Asset* GetAsset() const { return _asset; }
 	private:
 		bool PickMaterialShader(void* iMaterial, String& shader, StrMap<Texture2D*>& textures);

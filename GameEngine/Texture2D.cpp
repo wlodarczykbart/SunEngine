@@ -5,6 +5,7 @@ namespace SunEngine
 {
 	Texture2D::Texture2D()
 	{
+		_srgb = false;
 	}
 
 	Texture2D::~Texture2D()
@@ -18,11 +19,17 @@ namespace SunEngine
 
 		BaseTexture::CreateInfo info = {};
 		info.image = _img.ImageData();
+		if (_srgb)
+			info.image.Flags |= ImageData::SRGB;
 
 		Vector<ImageData> mipData;
 		for (uint i = 0; i < _mips.size(); i++)
 		{
-			mipData.push_back(_mips[i]->ImageData());
+			ImageData mipImage = _mips[i]->ImageData();
+			if (_srgb)
+				mipImage.Flags |= ImageData::SRGB;
+
+			mipData.push_back(mipImage);
 		}
 		info.mipLevels = mipData.size();
 		info.pMips = mipData.data();

@@ -21,7 +21,7 @@ namespace SunEngine
 		static const uint DEFAULT_NORMAL_INDEX;
 		static const uint DEFAULT_TANGENT_INDEX;
 
-		static const VertexDef P_TC_N_T;
+		static const VertexDef POS_TEXCOORD_NORMAL_TANGENT;
 	};
 
 	struct StandardVertex

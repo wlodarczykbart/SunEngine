@@ -63,9 +63,14 @@ namespace SunEngine
 	protected:
 		View(const String& uniqueName);
 
+		virtual bool OnCreate(const CreateInfo& info) { return true; };
+		virtual bool OnResize(const CreateInfo& info) { return true; };
+
 		RenderTarget _target;
 	private:
 		void UpdateFirstPersonCamera(GraphicsWindow* pWindow, const GWEventData* pEvents, uint nEvents, float dt, float et);
+
+		CreateInfo _info;
 
 		String _name;
 

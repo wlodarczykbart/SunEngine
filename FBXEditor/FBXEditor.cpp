@@ -13,6 +13,25 @@
 
 namespace SunEngine
 {
+	void CopyProps(FbxProperty prop, FbxProperty parent, uint level, FbxSurfacePhong* mtl)
+	{
+		while (prop.IsValid())
+		{
+			auto name = prop.GetName();
+
+			for (uint i = 0; i < prop.GetSrcObjectCount(); i++)
+			{
+				auto srcObject = prop.GetSrcObject(i);
+				mtl->FindProperty(name).ConnectSrcObject(srcObject);
+			}
+
+			//spdlog::info("level: {}, name: {}", level, name);
+
+			CopyProps(prop.GetChild(), prop, level + 1, mtl);
+			prop = parent.GetNextDescendent(prop);
+		}
+	}
+
 	class FBXView : public View
 	{
 	public:
@@ -346,15 +365,29 @@ namespace SunEngine
 				if (oldMtl->Is<FbxSurfaceLambert>())
 				{
 					FbxSurfaceLambert* lambert = static_cast<FbxSurfaceLambert*>(oldMtl);
-					phong->Diffuse.Set(lambert->Diffuse);
-					phong->DiffuseFactor.Set(lambert->DiffuseFactor);
-					phong->Ambient.Set(lambert->Ambient);
-					phong->AmbientFactor.Set(lambert->AmbientFactor);
-					phong->Emissive.Set(lambert->Emissive);
-					phong->EmissiveFactor.Set(lambert->EmissiveFactor);
+					phong->Emissive.Set(lambert->				 Emissive);
+					phong->EmissiveFactor.Set(lambert->			 EmissiveFactor);
+					phong->Ambient.Set(lambert->					 Ambient);
+					phong->AmbientFactor.Set(lambert->			 AmbientFactor);
+					phong->Diffuse.Set(lambert->					 Diffuse);
+					phong->DiffuseFactor.Set(lambert->			 DiffuseFactor);
+					phong->NormalMap.Set(lambert->				 NormalMap);
+					phong->Bump.Set(lambert->					 Bump);
+					phong->BumpFactor.Set(lambert->				 BumpFactor);
+					phong->TransparentColor.Set(lambert->		 TransparentColor);
+					phong->TransparencyFactor.Set(lambert->		 TransparencyFactor);
+					phong->DisplacementColor.Set(lambert->		 DisplacementColor);
+					phong->DisplacementFactor.Set(lambert->		 DisplacementFactor);
+					phong->VectorDisplacementColor.Set(lambert->	 VectorDisplacementColor);
+					phong->VectorDisplacementFactor.Set(lambert-> VectorDisplacementFactor);
 
-					phong->FindProperty(ModelImporter::FBXImporter::FBX_DIFFUSE_MAP).
-						ConnectSrcObject(lambert->FindProperty(ModelImporter::FBXImporter::FBX_DIFFUSE_MAP).GetSrcObject<FbxTexture>());
+					auto root = lambert->RootProperty;
+					auto child = root.GetChild();
+					CopyProps(root, child, 0, phong);
+
+
+					//phong->FindProperty(ModelImporter::FBXImporter::FBX_DIFFUSE_MAP).
+					//	ConnectSrcObject(lambert->FindProperty(ModelImporter::FBXImporter::FBX_DIFFUSE_MAP).GetSrcObject<FbxTexture>());
 				}
 
 				for (int j = 0; j < _fbxScene->GetNodeCount(); j++)
@@ -464,6 +497,11 @@ namespace SunEngine
 	glm::vec2 FromFbxDouble(const FbxDouble2& value)
 	{
 		return glm::vec2((float)value[0], (float)value[1]);
+	}
+
+	float FromFbxDouble(const FbxDouble& value)
+	{
+		return (float)value;
 	}
 
 	FbxDouble3 ToFbxDouble(const glm::vec3& value)

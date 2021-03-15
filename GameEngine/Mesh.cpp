@@ -11,7 +11,7 @@ namespace SunEngine
 	const uint VertexDef::DEFAULT_NORMAL_INDEX = 2;
 	const uint VertexDef::DEFAULT_TANGENT_INDEX = 3;
 
-	const VertexDef VertexDef::P_TC_N_T = VertexDef(4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX);
+	const VertexDef VertexDef::POS_TEXCOORD_NORMAL_TANGENT = VertexDef(4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX);
 
 	Mesh::Mesh()
 	{
@@ -231,7 +231,7 @@ namespace SunEngine
 			_indices.push_back(baseIndex + i + 1);
 		}
 
-		AllocVertices(vertices.size(), VertexDef::P_TC_N_T);
+		AllocVertices(vertices.size(), VertexDef::POS_TEXCOORD_NORMAL_TANGENT);
 		for (uint i = 0; i < vertices.size(); i++)
 		{
 			SetVertexVar(i, vertices[i].Position, 0);

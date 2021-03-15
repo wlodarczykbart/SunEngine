@@ -400,6 +400,21 @@ namespace SunEngine
 					fr.ReadAll(pBinBuffer[SE_GFX_VULKAN]);
 					fr.Close();
 				}
+				else
+				{
+					fr.Open(glslInPath.data());
+					String invalidSpvText;
+					fr.ReadAllText(invalidSpvText);
+					fr.Close();
+
+					Vector<String> shaderLines;
+					StrSplit(invalidSpvText, shaderLines, '\n');
+					for (uint l = 0; l < shaderLines.size(); l++)
+					{
+						_lastErr += StrFormat("%d\t%s\n", l + 1, shaderLines[l].data());
+					}
+					return false;
+				}
 
 				ID3D11ShaderReflection* pReflector = NULL;
 				if (D3DReflect(pShaderBlod->GetBufferPointer(), pShaderBlod->GetBufferSize(), __uuidof(ID3D11ShaderReflection), (void**)&pReflector) == S_OK)
@@ -567,6 +582,12 @@ namespace SunEngine
 			else
 			{
 				_lastErr = (char*)pErrorBlod->GetBufferPointer();
+				Vector<String> shaderLines;
+				StrSplit(hlslPassText, shaderLines, '\n');
+				for (uint l = 0; l < shaderLines.size(); l++)
+				{
+					_lastErr += StrFormat("%d\t%s\n", l + 1, shaderLines[l].data());
+				}
 				return false;
 			}
 		}

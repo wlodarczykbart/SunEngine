@@ -7,11 +7,11 @@
 #include "Asset.h"
 #include "Sampler.h"
 
-#define MakeResDef(Type, Name) const String Type::Name = #Name;
+#define DefineStaticStr(Type, Name) const String Type::Name = #Name;
 
 namespace SunEngine
 {
-	namespace DefaultRes
+	namespace DefaultResource
 	{
 		class Texture
 		{
@@ -33,15 +33,16 @@ namespace SunEngine
 		class Shader
 		{
 		public:
-			static const String Standard;
-			static const String BlinnPhong;
+			static const String StandardMetallic;
+			static const String StandardSpecular;
+			static const String Gamma;
 		};
 
 		class Material
 		{
 		public:
-			static const String StandardDefault;
-			static const String BlinnPhongDefault;
+			static const String StandardMetallic;
+			static const String StandardSpecular;
 		};
 	}
 

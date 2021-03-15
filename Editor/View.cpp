@@ -183,6 +183,12 @@ namespace SunEngine
 		}
 
 		_viewSize = glm::vec2((float)info.width, (float)info.height);
+
+		if (!OnCreate(info))
+			return false;
+
+		_info = info;
+
 		return true;
 	}
 
@@ -209,12 +215,19 @@ namespace SunEngine
 	{
 		if (_needsResize)
 		{
+			_info.width = _viewSize.x;
+			_info.height = _viewSize.y;
+
 			RenderTarget::CreateInfo rtInfo = {};
 			rtInfo.width = (uint)_viewSize.x;
 			rtInfo.height = (uint)_viewSize.y;
 			rtInfo.hasDepthBuffer = true;
 			rtInfo.numTargets = 1;
+			rtInfo.floatingPointColorBuffer = _info.floatingPointColorBuffer;
 			_target.Create(rtInfo);
+
+			OnResize(_info);
+
 			_needsResize = false;
 		}
 

@@ -2,6 +2,8 @@
 #include "Camera.h"
 #include "SceneRenderer.h"
 #include "imgui.h"
+#include "ResourceMgr.h"
+#include "CommandBuffer.h"
 #include "GameEditorViews.h"
 
 namespace SunEngine
@@ -43,7 +45,8 @@ namespace SunEngine
 		if (!_renderer)
 			return false;
 
-		if (!_target.Bind(cmdBuffer))
+		//Render the scene
+		if (!_sceneTarget.Bind(cmdBuffer))
 			return false;
 
 		if (!_renderer->PrepareFrame(GetCameraData()))
@@ -52,8 +55,34 @@ namespace SunEngine
 		if (!_renderer->RenderFrame(cmdBuffer))
 			return false;
 
-		if (!_target.Unbind(cmdBuffer))
+		if (!_sceneTarget.Unbind(cmdBuffer))
 			return false;
+
+		//Apply gamma correction
+		_target.Bind(cmdBuffer);
+
+		if (!_gammaData.first.GetShader()->Bind(cmdBuffer))
+			return false;
+
+		if (!_gammaData.first.Bind(cmdBuffer))
+			return false;
+
+		if (!_gammaData.second.Bind(cmdBuffer))
+			return false;
+
+		cmdBuffer->Draw(6, 1, 0, 0);
+
+		if (!_gammaData.second.Unbind(cmdBuffer))
+			return false;
+
+		if (!_gammaData.first.Unbind(cmdBuffer))
+			return false;
+
+		if (!_gammaData.first.GetShader()->Unbind(cmdBuffer))
+			return false;
+
+
+		_target.Unbind(cmdBuffer);
 
 		return true;
 	}
@@ -67,6 +96,48 @@ namespace SunEngine
 
 		ImGui::TableNextColumn();
 		BuildSelectedNodeGUI(pScene);
+	}
+
+	bool SceneView::OnCreate(const CreateInfo& info)
+	{
+		Shader* pShader = ResourceMgr::Get().GetShader(DefaultResource::Shader::Gamma);
+		assert(pShader);
+
+		if (!pShader)
+			return false;
+
+		GraphicsPipeline::CreateInfo pipelineInfo = {};
+		pipelineInfo.pShader = pShader->GetGPUObject();
+		if (!_gammaData.first.Create(pipelineInfo))
+			return false;
+
+		ShaderBindings::CreateInfo bindingInfo = {};
+		bindingInfo.pShader = pShader->GetGPUObject();
+		bindingInfo.type = SBT_MATERIAL;
+
+		if (!_gammaData.second.Create(bindingInfo))
+			return false;
+
+		_gammaData.second.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE, SE_AM_OFF));
+		return OnResize(info);
+	}
+
+	bool SceneView::OnResize(const CreateInfo& info)
+	{
+		RenderTarget::CreateInfo sceneInfo = {};
+		sceneInfo.width = info.width;
+		sceneInfo.height = info.height;
+		sceneInfo.numTargets = 1;
+		sceneInfo.hasDepthBuffer = true;
+		sceneInfo.floatingPointColorBuffer = true;
+
+		if (!_sceneTarget.Create(sceneInfo))
+			return false;
+
+		if (!_gammaData.second.SetTexture(MaterialStrings::DiffuseMap, _sceneTarget.GetColorTexture()))
+			return false;
+
+		return true;
 	}
 
 	void SceneView::BuildSceneTree(SceneNode* pNode)

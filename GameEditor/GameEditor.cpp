@@ -30,17 +30,20 @@ namespace SunEngine
 
 	bool GameEditor::CustomInit(ConfigSection* pEditorConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
 	{
-		View::CreateInfo viewInfo = {};
-
+		if (!CompileShaders())
+		{
+			spdlog::error("Failed to compile Shaders");
+			return false;
+		}
 
 		//Create SceneView
+		View::CreateInfo viewInfo = {};
 		String sceneViewConfig = pEditorConfig->GetString("SceneView");
 		if (!viewInfo.ParseConfigString(sceneViewConfig))
 		{
 			viewInfo.width = pWindow->Width() / 2;;
 			viewInfo.height = pWindow->Height() / 2;
 			viewInfo.visibile = true;
-			viewInfo.floatingPointColorBuffer = true;
 		}
 
 		View* pView = new SceneView(&_sceneRenderer);
@@ -50,13 +53,6 @@ namespace SunEngine
 			return false;
 		}
 		AddView(pView);
-
-		if (!CompileShaders())
-		{
-			spdlog::error("Failed to compile Shaders");
-			return false;
-		}
-
 
 		//String inputFile = GetFilenameFromConfig("GameFile");
 		bool loadDefault = true;
@@ -80,29 +76,10 @@ namespace SunEngine
 		return true;
 	}
 
-	bool GameEditor::ImportFromFileType(const String& fileType, Asset*& pAsset)
-	{
-		if (fileType == "obj" || fileType == "fbx")
-		{
-			String filename;
-			if (SelectFile(filename, fileType + "File", StrFormat("*.%s", fileType.data())))
-			{
-				pAsset = ImportAsset(filename);
-				return pAsset != 0;
-			}
-			return false;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-
-	Asset* GameEditor::ImportAsset(const String& filename)
+	Asset* GameEditor::ImportAsset(const String& filename, const AssetImporter::Options& options)
 	{
 		AssetImporter importer;
-		if (importer.Import(filename))
+		if (importer.Import(filename, options))
 		{
 			_queuedAsset = importer.GetAsset();
 			return _queuedAsset;
@@ -144,11 +121,7 @@ namespace SunEngine
 			if (!CompileShader(info, (*iter).first))
 				return false;
 		}
-		return true;
-	}
 
-	bool GameEditor::CreateDefaultScene()
-	{
 		auto& resMgr = ResourceMgr::Get();
 		resMgr.CreateDefaults();
 
@@ -172,37 +145,44 @@ namespace SunEngine
 			}
 		}
 
-		Shader* pStandardShader = resMgr.GetShader(DefaultRes::Shader::Standard);
-		if (pStandardShader == 0)
+		return true;
+	}
+
+	bool GameEditor::CreateDefaultScene()
+	{
+		auto& resMgr = ResourceMgr::Get();
+
+		Shader* pMetalShader = resMgr.GetShader(DefaultResource::Shader::StandardMetallic);
+		if (pMetalShader == 0)
 		{
-			spdlog::error("Failed to find %s Shader", DefaultRes::Shader::Standard.c_str());
+			spdlog::error("Failed to find {} Shader", DefaultResource::Shader::StandardMetallic.c_str());
 			return false;
 		}
 
-		Material* pStandardMaterial = resMgr.AddMaterial(DefaultRes::Material::StandardDefault);
-		pStandardMaterial->SetShader(pStandardShader);
-		if (!pStandardMaterial->RegisterToGPU())
+		Material* pMetalMaterial = resMgr.AddMaterial(DefaultResource::Material::StandardMetallic);
+		pMetalMaterial->SetShader(pMetalShader);
+		if (!pMetalMaterial->RegisterToGPU())
 		{
-			spdlog::error("Failed to register {}: {}", pStandardMaterial->GetName().data(), pStandardMaterial->GetGPUObject()->GetErrStr().data());
+			spdlog::error("Failed to register {}: {}", pMetalMaterial->GetName().data(), pMetalMaterial->GetGPUObject()->GetErrStr().data());
 			return false;
 		}
-		pStandardShader->SetDefaults(pStandardMaterial);
+		pMetalShader->SetDefaults(pMetalMaterial);
 
-		Shader* pBlinnPhongShader = resMgr.GetShader(DefaultRes::Shader::BlinnPhong);
-		if (pBlinnPhongShader == 0)
+		Shader* pSpecularShader = resMgr.GetShader(DefaultResource::Shader::StandardSpecular);
+		if (pSpecularShader == 0)
 		{
-			spdlog::error("Failed to find %s Shader", DefaultRes::Shader::BlinnPhong.c_str());
+			spdlog::error("Failed to find {} Shader", DefaultResource::Shader::StandardSpecular.c_str());
 			return false;
 		}
 
-		Material* pBlinnPhongMaterial = resMgr.AddMaterial(DefaultRes::Material::BlinnPhongDefault);
-		pBlinnPhongMaterial->SetShader(pBlinnPhongShader);
-		if (!pBlinnPhongMaterial->RegisterToGPU())
+		Material* pSpecularMaterial = resMgr.AddMaterial(DefaultResource::Material::StandardSpecular);
+		pSpecularMaterial->SetShader(pSpecularShader);
+		if (!pSpecularMaterial->RegisterToGPU())
 		{
-			spdlog::error("Failed to register {}: {}", pBlinnPhongMaterial->GetName().data(), pBlinnPhongMaterial->GetGPUObject()->GetErrStr().data());
+			spdlog::error("Failed to register {}: {}", pSpecularMaterial->GetName().data(), pSpecularMaterial->GetGPUObject()->GetErrStr().data());
 			return false;
 		}
-		pBlinnPhongShader->SetDefaults(pBlinnPhongMaterial);
+		pSpecularShader->SetDefaults(pSpecularMaterial);
 
 		String testPath;
 		testPath = "F:\\Models\\TerrainTextures\\large-metal-debris\\";
@@ -219,69 +199,69 @@ namespace SunEngine
 		//roughnessName = "roughness.png";
 		//aoName = "ao.png";
 
-		testPath = "C:/Users/Bart/Documents/Code/LearnOpenGL-master/resources/textures/pbr/grass/";
-		diffuseName = "albedo.png";
-		normName = "normal.png";
-		metalName = "metallic.png";
-		roughnessName = "roughness.png";
-		aoName = "ao.png";
+		//testPath = "C:/Users/Bart/Documents/Code/LearnOpenGL-master/resources/textures/pbr/grass/";
+		//diffuseName = "albedo.png";
+		//normName = "normal.png";
+		//metalName = "metallic.png";
+		//roughnessName = "roughness.png";
+		//aoName = "ao.png";
 
-		testPath = "C:/Users/Bart/Documents/Code/LearnOpenGL-master/resources/textures/pbr/gold/";
-		diffuseName = "albedo.png";
-		normName = "normal.png";
-		metalName = "metallic.png";
-		roughnessName = "roughness.png";
-		aoName = "ao.png";
+		//testPath = "C:/Users/Bart/Documents/Code/LearnOpenGL-master/resources/textures/pbr/gold/";
+		//diffuseName = "albedo.png";
+		//normName = "normal.png";
+		//metalName = "metallic.png";
+		//roughnessName = "roughness.png";
+		//aoName = "ao.png";
 
-		testPath = "C:/Users/Bart/Documents/Code/LearnOpenGL-master/resources/textures/pbr/wall/";
-		diffuseName = "albedo.png";
-		normName = "normal.png";
-		metalName = "metallic.png";
-		roughnessName = "roughness.png";
-		aoName = "ao.png";
+		//testPath = "C:/Users/Bart/Documents/Code/LearnOpenGL-master/resources/textures/pbr/wall/";
+		//diffuseName = "albedo.png";
+		//normName = "normal.png";
+		//metalName = "metallic.png";
+		//roughnessName = "roughness.png";
+		//aoName = "ao.png";
 
-		testPath = "C:/Users/Bart/Documents/Code/LearnOpenGL-master/resources/textures/pbr/plastic/";
-		diffuseName = "albedo.png";
-		normName = "normal.png";
-		metalName = "metallic.png";
-		roughnessName = "roughness.png";
-		aoName = "ao.png";
+		//testPath = "C:/Users/Bart/Documents/Code/LearnOpenGL-master/resources/textures/pbr/plastic/";
+		//diffuseName = "albedo.png";
+		//normName = "normal.png";
+		//metalName = "metallic.png";
+		//roughnessName = "roughness.png";
+		//aoName = "ao.png";
 
-		Texture2D* pTexD = resMgr.AddTexture2D(diffuseName);
-		pTexD->LoadFromFile(testPath + diffuseName);
-		pTexD->GenerateMips();
-		pTexD->RegisterToGPU();
+		//Texture2D* pTexD = resMgr.AddTexture2D(diffuseName);
+		//pTexD->LoadFromFile(testPath + diffuseName);
+		//pTexD->GenerateMips();
+		//pTexD->RegisterToGPU();
 
-		Texture2D* pTexM = resMgr.AddTexture2D(metalName);
-		pTexM->LoadFromFile(testPath + metalName);
-		pTexM->RegisterToGPU();
+		//Texture2D* pTexM = resMgr.AddTexture2D(metalName);
+		//pTexM->LoadFromFile(testPath + metalName);
+		//pTexM->RegisterToGPU();
 
-		Texture2D* pTexR = resMgr.AddTexture2D(roughnessName);
-		pTexR->LoadFromFile(testPath + roughnessName);
-		if(StrContains((roughnessName), "gloss"))
-			pTexR->Invert();
-		pTexR->GenerateMips();
-		pTexR->RegisterToGPU();
+		//Texture2D* pTexR = resMgr.AddTexture2D(roughnessName);
+		//pTexR->LoadFromFile(testPath + roughnessName);
+		//if(StrContains((roughnessName), "gloss"))
+		//	pTexR->Invert();
+		//pTexR->GenerateMips();
+		//pTexR->RegisterToGPU();
 
-		Texture2D* pTexAO = resMgr.AddTexture2D(aoName);
-		pTexAO->LoadFromFile(testPath + aoName);
-		pTexAO->GenerateMips();
-		pTexAO->RegisterToGPU();
+		//Texture2D* pTexAO = resMgr.AddTexture2D(aoName);
+		//pTexAO->LoadFromFile(testPath + aoName);
+		//pTexAO->GenerateMips();
+		//pTexAO->RegisterToGPU();
 
-		Texture2D* pTexN = resMgr.AddTexture2D(normName);
-		pTexN->LoadFromFile(testPath + normName);
-		pTexN->GenerateMips();
-		pTexN->RegisterToGPU();
+		//Texture2D* pTexN = resMgr.AddTexture2D(normName);
+		//pTexN->LoadFromFile(testPath + normName);
+		//pTexN->GenerateMips();
+		//pTexN->RegisterToGPU();
 
-		pBlinnPhongMaterial->SetTexture2D("DiffuseMap", pTexD);
-		pBlinnPhongMaterial->SetTexture2D("NormalMap", pTexN);
-		//pBlinnPhongMaterial->SetTexture("SpecularMap", pTexD);
+		//pBlinnPhongMaterial->SetTexture2D("DiffuseMap", pTexD);
+		//pBlinnPhongMaterial->SetTexture2D("NormalMap", pTexN);
+		////pBlinnPhongMaterial->SetTexture("SpecularMap", pTexD);
 
-		pStandardMaterial->SetTexture2D("DiffuseMap", pTexD);
-		pStandardMaterial->SetTexture2D("MetallicMap", pTexM);
-		pStandardMaterial->SetTexture2D("RoughnessMap", pTexR);
-		pStandardMaterial->SetTexture2D("AOMap", pTexAO);
-		pStandardMaterial->SetTexture2D("NormalMap", pTexN);
+		//pStandardMaterial->SetTexture2D("DiffuseMap", pTexD);
+		//pStandardMaterial->SetTexture2D("MetallicMap", pTexM);
+		//pStandardMaterial->SetTexture2D("RoughnessMap", pTexR);
+		//pStandardMaterial->SetTexture2D("AOMap", pTexAO);
+		//pStandardMaterial->SetTexture2D("NormalMap", pTexN);
 
 		auto& sceneMgr = SceneMgr::Get();
 		Scene* pScene = sceneMgr.AddScene("NewScene");
@@ -295,15 +275,15 @@ namespace SunEngine
 		Light* pSun = pLightNode->AddComponent(new Light())->As<Light>();
 		pSun->SetLightType(LT_DIRECTIONAL);
 		pSun->SetColor(glm::vec4(1));
-		pLightNode->Orientation.Angles.y = 180.0f;
+		//pLightNode->Orientation.Angles.y = 180.0f;
 
 		Asset* pAssetStandard = resMgr.AddAsset("AssetStandard");
 		{
 			AssetNode* pRoot = pAssetStandard->AddNode("Root");
 			MeshRenderer* pRenderer = pRoot->AddComponent(new MeshRenderer())->As<MeshRenderer>();
-			pRenderer->SetMesh(resMgr.GetMesh(DefaultRes::Mesh::Sphere));
-			pRenderer->SetMaterial(pStandardMaterial);
-
+			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Sphere));
+			pRenderer->SetMaterial(pMetalMaterial);
+			
 			SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
 			pSceneNode->Position = glm::vec3(-3.0f, 0.0f, -10.0f);
 		}
@@ -312,8 +292,8 @@ namespace SunEngine
 		{
 			AssetNode* pRoot = pAssetBlinnPhong->AddNode("Root");
 			MeshRenderer* pRenderer = pRoot->AddComponent(new MeshRenderer())->As<MeshRenderer>();
-			pRenderer->SetMesh(resMgr.GetMesh(DefaultRes::Mesh::Sphere));
-			pRenderer->SetMaterial(pBlinnPhongMaterial);
+			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Sphere));
+			pRenderer->SetMaterial(pSpecularMaterial);
 
 			SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
 			pSceneNode->Position = glm::vec3(+3.0f, 0.0f, -10.0f);

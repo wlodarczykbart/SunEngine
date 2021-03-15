@@ -1,6 +1,8 @@
 #pragma once
 
 #include "View.h"
+#include "GraphicsPipeline.h"
+#include "Shader.h"
 
 namespace SunEngine
 {
@@ -37,11 +39,17 @@ namespace SunEngine
 		uint GetGUIColumns() const override { return 3; }
 
 	private:
+		bool OnCreate(const CreateInfo& info) override;
+		bool OnResize(const CreateInfo& info) override;
+
 		void BuildSceneTree(SceneNode* pNode);
 		void BuildSelectedNodeGUI(Scene* pScene);
 
 		SceneRenderer* _renderer;
 		String _selNodeName;
+		RenderTarget _sceneTarget;
+
+		Pair<GraphicsPipeline, ShaderBindings> _gammaData;
 	};
 
 }

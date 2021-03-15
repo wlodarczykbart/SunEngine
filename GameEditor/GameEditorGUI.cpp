@@ -5,6 +5,7 @@
 #include "Asset.h"
 #include "GameEditor.h"
 #include "ResourceMgr.h"
+#include "AssetImporter.h"
 #include "GameEditorGUI.h"
 
 //#define TEST_IMGUI_BASIC
@@ -13,11 +14,10 @@ namespace SunEngine
 {
 	GameEditorGUI::GameEditorGUI()
 	{
-		_renderMaterials = false;
 		_mtlTexturePicker = {};
-
-
 		_mtlTexturePicker.FilterBuffer.resize(2048, '\0');
+
+		memset(_visibleWindows, 0x0, sizeof(_visibleWindows));
 	}
 
 	GameEditorGUI::~GameEditorGUI()
@@ -26,17 +26,17 @@ namespace SunEngine
 
 	void GameEditorGUI::CustomRender()
 	{
-		RenderMenu();
-		RenderMaterials();
-		RenderMaterialTexturePicker();
-	}
-
-	void GameEditorGUI::RenderMenu()
-	{
-		static View* pSelView = 0;
 		GameEditor* pEditor = static_cast<GameEditor*>(GetEditor());
 
-		String importFileType = "";
+		RenderMenu(pEditor);
+		RenderMaterials(pEditor);
+		RenderMaterialTexturePicker(pEditor);
+		RenderAssetImporter(pEditor);
+	}
+
+	void GameEditorGUI::RenderMenu(GameEditor* pEditor)
+	{
+		static View* pSelView = 0;
 
 		if (ImGui::BeginMainMenuBar())
 		{
@@ -64,9 +64,9 @@ namespace SunEngine
 				ImGui::Separator();
 				if (ImGui::BeginMenu("Import"))
 				{
-					if (ImGui::MenuItem("obj")) importFileType = "obj";
-					if (ImGui::MenuItem("fbx")) importFileType = "fbx";
-					//if (ImGui::MenuItem("obj")) importFileType = ".obj";
+					if (ImGui::MenuItem("External Asset"))
+						_visibleWindows[WT_ASSET_IMPORTER] = true;
+
 					ImGui::EndMenu();
 				}
 
@@ -85,7 +85,7 @@ namespace SunEngine
 				if (ImGui::MenuItem("Paste", "CTRL+V")) {}
 
 				if (ImGui::MenuItem("Materials")) 
-					_renderMaterials = true;
+					_visibleWindows[WT_MATERIAL] =  true;
 
 				ImGui::EndMenu();
 			}
@@ -108,15 +108,6 @@ namespace SunEngine
 			ImGui::EndMainMenuBar();
 		}
 
-		if (importFileType.length())
-		{
-			Asset* pAsset = 0;
-			if (pEditor->ImportFromFileType(importFileType, pAsset))
-			{
-
-			}
-		}
-
 		if (pSelView)
 		{
 			//RenderTargetData& data = (*clearColIter).second;
@@ -131,14 +122,59 @@ namespace SunEngine
 		}
 	}
 
-	void GameEditorGUI::RenderMaterials()
+	bool EditMaterialProperty(Material* mtl, const String& name, ShaderDataType dataType)
 	{
-		float floatDrag = 0.005f;
+		Shader* pShader = mtl->GetShader();
+		if (!pShader)
+			return false;
 
-		if (_renderMaterials && ImGui::Begin("Materials", &_renderMaterials))
+		const ConfigSection* pConfig = pShader->GetConfigSection("Editor");
+		if (!pConfig)
+			return false;
+
+		OrderedStrMap<String> options;
+		if (!pConfig->GetBlock(name.c_str(), options))
+			return false;
+
+		auto type = options.find("ColorEdit");
+		if (type != options.end())
 		{
-			auto iter = ResourceMgr::Get().IterMaterials();
-			while (!iter.End())
+			switch (dataType)
+			{
+			case SunEngine::SDT_FLOAT3:
+			{
+				glm::vec3 color;
+				mtl->GetMaterialVar(name, color);
+				if (ImGui::ColorEdit3(name.c_str(), &color.x, ImGuiColorEditFlags_Float))
+					mtl->SetMaterialVar(name.c_str(), color);
+			}
+			break;
+			case SunEngine::SDT_FLOAT4:
+			{
+				glm::vec4 color;
+				mtl->GetMaterialVar(name, color);
+				if (ImGui::ColorEdit4(name.c_str(), &color.x, ImGuiColorEditFlags_Float))
+					mtl->SetMaterialVar(name.c_str(), color);
+			}
+			break;
+			default:
+				return false;
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	void GameEditorGUI::RenderMaterials(GameEditor* pEditor)
+	{
+		float floatDrag = 0.0005f;
+		const char* floatFmt = "%.4f";
+
+		bool& state = _visibleWindows[WT_MATERIAL];
+		if (state && ImGui::Begin("Materials", &state))
+		{
+			for(auto iter = ResourceMgr::Get().IterMaterials(); !iter.End(); ++iter)
 			{
 				Material* mtl = *iter;
 				if (ImGui::TreeNode(mtl->GetName().c_str()))
@@ -148,42 +184,46 @@ namespace SunEngine
 						for (auto varIter = mtl->BeginVars(); varIter != mtl->EndVars(); ++varIter)
 						{
 							auto& var = (*varIter).second;
-							switch (var.Type)
+
+							if (!EditMaterialProperty(mtl, var.Name, var.Type))
 							{
-							case SDT_FLOAT:
-							{
-								float value;
-								mtl->GetMaterialVar(var.Name, value);
-								if (ImGui::DragFloat(var.Name.c_str(), &value, floatDrag))
-									mtl->SetMaterialVar(var.Name, value);
-							}
-							break;
-							case SDT_FLOAT2:
-							{
-								glm::vec2 value;
-								mtl->GetMaterialVar(var.Name, value);
-								if (ImGui::DragFloat2(var.Name.c_str(), &value.x, floatDrag))
-									mtl->SetMaterialVar(var.Name, value);
-							}
-							break;
-							case SDT_FLOAT3:
-							{
-								glm::vec3 value;
-								mtl->GetMaterialVar(var.Name, value);
-								if (ImGui::DragFloat3(var.Name.c_str(), &value.x, floatDrag))
-									mtl->SetMaterialVar(var.Name, value);
-							}
-							break;
-							case SDT_FLOAT4:
-							{
-								glm::vec4 value;
-								mtl->GetMaterialVar(var.Name, value);
-								if (ImGui::DragFloat4(var.Name.c_str(), &value.x, floatDrag))
-									mtl->SetMaterialVar(var.Name, value);
-							}
-							break;
-							default:
+								switch (var.Type)
+								{
+								case SDT_FLOAT:
+								{
+									float value;
+									mtl->GetMaterialVar(var.Name, value);
+									if (ImGui::DragFloat(var.Name.c_str(), &value, floatDrag, 0.0f, 0.0f, floatFmt))
+										mtl->SetMaterialVar(var.Name, value);
+								}
 								break;
+								case SDT_FLOAT2:
+								{
+									glm::vec2 value;
+									mtl->GetMaterialVar(var.Name, value);
+									if (ImGui::DragFloat2(var.Name.c_str(), &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
+										mtl->SetMaterialVar(var.Name, value);
+								}
+								break;
+								case SDT_FLOAT3:
+								{
+									glm::vec3 value;
+									mtl->GetMaterialVar(var.Name, value);
+									if (ImGui::DragFloat3(var.Name.c_str(), &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
+										mtl->SetMaterialVar(var.Name, value);
+								}
+								break;
+								case SDT_FLOAT4:
+								{
+									glm::vec4 value;
+									mtl->GetMaterialVar(var.Name, value);
+									if (ImGui::DragFloat4(var.Name.c_str(), &value.x, floatDrag))
+										mtl->SetMaterialVar(var.Name, value);
+								}
+								break;
+								default:
+									break;
+								}
 							}
 						}
 						ImGui::TreePop();
@@ -196,7 +236,7 @@ namespace SunEngine
 							auto& tex = (*texIter).second;
 							if (ImGui::Button(tex.Res.name.c_str()))
 							{
-								_mtlTexturePicker.RenderMaterialTexturePicker = true;
+								_visibleWindows[WT_MATERIAL_TEXTURE_PICKER] = true;
 								_mtlTexturePicker.MaterialName = mtl->GetName();
 								_mtlTexturePicker.TextureName = tex.Res.name;
 								_mtlTexturePicker.FilterBuffer[0] = '\0';
@@ -212,7 +252,6 @@ namespace SunEngine
 
 					ImGui::TreePop();
 				}
-				++iter;
 			}
 			ImGui::End();
 		}
@@ -245,9 +284,10 @@ namespace SunEngine
 		String Texture;
 	};
 
-	void GameEditorGUI::RenderMaterialTexturePicker()
+	void GameEditorGUI::RenderMaterialTexturePicker(GameEditor* pEditor)
 	{
-		if (_mtlTexturePicker.RenderMaterialTexturePicker && ImGui::Begin("MaterialTexturePicker", &_mtlTexturePicker.RenderMaterialTexturePicker))
+		bool& state = _visibleWindows[WT_MATERIAL_TEXTURE_PICKER];
+		if (state && ImGui::Begin("MaterialTexturePicker", &state))
 		{
 			auto& resMgr = ResourceMgr::Get();
 			auto mtl = resMgr.GetMaterial(_mtlTexturePicker.MaterialName);
@@ -279,6 +319,34 @@ namespace SunEngine
 				}
 
 			}
+			ImGui::End();
+		}
+	}
+
+	void GameEditorGUI::RenderAssetImporter(GameEditor* pEditor)
+	{
+		bool& state = _visibleWindows[WT_ASSET_IMPORTER];
+		if (state && ImGui::Begin("AssetImporter", &state))
+		{
+			static AssetImporter::Options opt = AssetImporter::Options::Default;
+
+			ImGui::Checkbox("Combine Materials", &opt.CombineMaterials);
+
+			static char filePath[512] = {};
+			ImGui::Text(filePath);
+			if (ImGui::Button("Select File"))
+			{
+				String strFile;
+				if (GetEditor()->SelectFile(strFile, "3D File", "*.fbx;*.obj"))
+					strncpy_s(filePath, strFile.c_str(), strFile.length());
+			}
+
+			if (ImGui::Button("Import"))
+			{
+				if (pEditor->ImportAsset(filePath, opt))
+					state = false;
+			}
+
 			ImGui::End();
 		}
 	}

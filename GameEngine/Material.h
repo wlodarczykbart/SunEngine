@@ -10,6 +10,21 @@ namespace SunEngine
 	class Texture2D;
 	class Sampler;
 
+	class MaterialStrings
+	{
+	public:
+		static const String DiffuseMap;
+		static const String NormalMap;
+		static const String SpecularMap;
+		static const String MetalMap;
+		static const String AmbientOcclusionMap;
+		static const String SmoothnessMap;
+		static const String DiffuseColor;
+		static const String SpecularColor;
+		static const String Smoothness;
+		static const String Sampler;
+	};
+
 	class Material : public GPUResource<ShaderBindings>
 	{
 	public:

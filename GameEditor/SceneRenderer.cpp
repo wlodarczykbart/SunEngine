@@ -129,7 +129,9 @@ namespace SunEngine
 				if (!_lightBuffer->ShaderBindings[pShader].Create(bindInfo))
 					return false;
 				if (!_lightBuffer->ShaderBindings[pShader].SetUniformBuffer(ShaderStrings::SunlightBufferName, &_lightBuffer->Buffer))
-					return false;
+				{
+					//return false;
+				}
 			}
 		}
 

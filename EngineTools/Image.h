@@ -17,6 +17,7 @@ namespace SunEngine
 			COMPRESSED_BC3 = 1 << 4,
 			SAMPLED_TEXTURE_R32F = 1 << 5,
 			SAMPLED_TEXTURE_R32G32B32A32F = 1 << 6,
+			SRGB = 1 << 7,
 		};
 
 		ImageData()

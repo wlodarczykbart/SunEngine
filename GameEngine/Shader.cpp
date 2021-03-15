@@ -4,16 +4,6 @@
 
 namespace SunEngine
 {
-	MakeResDef(StandardShader, DiffuseMap);
-	MakeResDef(StandardShader, NormalMap);
-	MakeResDef(StandardShader, MetalMap);
-	MakeResDef(StandardShader, AmbientOcclusionMap);
-	MakeResDef(StandardShader, RoughnessMap);
-
-	MakeResDef(BlinnPhongShader, DiffuseMap);
-	MakeResDef(BlinnPhongShader, NormalMap);
-	MakeResDef(BlinnPhongShader, SpecularMap);
-
 	Shader::Shader()
 	{
 		_createInfo = {};

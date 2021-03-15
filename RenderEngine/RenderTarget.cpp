@@ -48,6 +48,7 @@ namespace SunEngine
 				texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA8;
 			else
 				texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
+
 			if (!_colorTexture->Create(texInfo))
 				_errStr = _colorTexture->GetErrStr();
 		}

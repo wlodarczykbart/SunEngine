@@ -1,0 +1,49 @@
+#include "LightBuffer.hlsl"
+#include "CameraBuffer.hlsl"
+
+Texture2D DiffuseMap;
+Texture2D SpecularMap;
+Texture2D NormalMap;
+Texture2D AOMap;
+SamplerState Sampler;
+
+cbuffer MaterialBuffer
+{
+	float4 Diffuse;
+	float3 Specular;
+	float Smoothness;
+};
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 position : POSITION;
+	float4 texCoord : TEXCOORD;
+	float4 normal : NORMAL;
+	float4 tangent : TANGENT;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{	
+	float2 texCoord = pIn.texCoord.xy;
+
+	float3 albedo = DiffuseMap.Sample(Sampler, texCoord).rgb * Diffuse.rgb;
+	float3 f0 = Specular * SpecularMap.Sample(Sampler, texCoord).r;
+	float smoothness = Smoothness;
+		
+	float3x3 tbn;
+	tbn[0] = normalize(pIn.tangent.xyz);
+	tbn[2] = normalize(pIn.normal.xyz);
+	tbn[1] = -cross(tbn[2], tbn[0]);
+	
+	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
+	float3 v = normalize((InvViewMatrix[3] - pIn.position).xyz);
+		
+	float3 l = normalize(SunDirection.xyz);	
+	float3 litColor = BRDF_CookTorrance(l, n, v, SunColor.rgb, albedo, f0, smoothness, 0.001);
+	
+	float ao = AOMap.Sample(Sampler, texCoord).r;
+    float3 ambient = 0.03 * albedo * ao;	
+	
+	return float4(litColor + ambient, 1.0);
+}

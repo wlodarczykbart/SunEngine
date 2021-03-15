@@ -6,8 +6,38 @@
 
 #include "AssetImporter.h"
 
+#define COMPARE_MTL_VAR(left, right, Var) if(!(left->Var == right->Var)) return false;
+
 namespace SunEngine
 {
+	bool ImportedMaterialsSame(ModelImporter::Importer::Material* lhs, ModelImporter::Importer::Material* rhs)
+	{
+		COMPARE_MTL_VAR(lhs, rhs, DiffuseColor);
+		COMPARE_MTL_VAR(lhs, rhs, Alpha);
+		COMPARE_MTL_VAR(lhs, rhs, SpecularColor);
+		COMPARE_MTL_VAR(lhs, rhs, SpecularExponent);
+		COMPARE_MTL_VAR(lhs, rhs, DiffuseMap);
+		COMPARE_MTL_VAR(lhs, rhs, NormalMap);
+		COMPARE_MTL_VAR(lhs, rhs, SpecularMap);
+		COMPARE_MTL_VAR(lhs, rhs, TransparentMap);
+		COMPARE_MTL_VAR(lhs, rhs, AmbientMap);
+		COMPARE_MTL_VAR(lhs, rhs, SpecularFactorMap);
+		COMPARE_MTL_VAR(lhs, rhs, ShininessExponentMap);
+		COMPARE_MTL_VAR(lhs, rhs, BumpMap);
+
+		return true;
+	}
+
+	AssetImporter::Options MakeDefaultImporterOptions()
+	{
+		AssetImporter::Options opt;
+		opt.CombineMaterials = false;
+
+		return opt;
+	}
+
+	const AssetImporter::Options AssetImporter::Options::Default = MakeDefaultImporterOptions();
+
 	AssetImporter::AssetImporter()
 	{
 		_asset = 0;
@@ -17,7 +47,7 @@ namespace SunEngine
 	{
 	}
 
-	bool AssetImporter::Import(const String& filename)
+	bool AssetImporter::Import(const String& filename, const Options& options)
 	{
 		String ext = StrToLower(GetExtension(filename));
 
@@ -39,7 +69,7 @@ namespace SunEngine
 			auto iMesh = pImporter->GetMeshData(m);
 			auto pMesh = resMgr.AddMesh(iMesh->Name);
 
-			pMesh->AllocVertices(iMesh->Vertices.size(), VertexDef::P_TC_N_T);
+			pMesh->AllocVertices(iMesh->Vertices.size(), VertexDef::POS_TEXCOORD_NORMAL_TANGENT);
 			pMesh->AllocIndices(iMesh->Indices.size());
 
 			auto& def = pMesh->GetVertexDef();
@@ -66,9 +96,31 @@ namespace SunEngine
 			_meshFixup[iMesh] = pMesh;
 		}
 
+		Vector<ModelImporter::Importer::Material*> uniqueMaterials;
+
 		for (uint m = 0; m < pImporter->GetMaterialCount(); m++)
 		{
 			auto iMtl = pImporter->GetMaterial(m);
+
+			if (options.CombineMaterials)
+			{
+				bool foundMaterial = false;
+				for (uint i = 0; i < uniqueMaterials.size(); i++)
+				{
+					if (ImportedMaterialsSame(iMtl, uniqueMaterials[i]))
+					{
+						_materialFixup[iMtl] = _materialFixup.at(uniqueMaterials[i]);
+						foundMaterial = true;
+						break;
+					}
+				}
+
+				if (foundMaterial)
+					continue;
+
+				uniqueMaterials.push_back(iMtl);
+			}
+
 			auto pMtl = resMgr.AddMaterial(iMtl->Name);
 
 			String strShader;
@@ -146,7 +198,7 @@ namespace SunEngine
 				}
 
 				pRenderer->SetMesh(_meshFixup.at(iMesh->MeshData));
-				pRenderer->SetMaterial(iMesh->Material ? _materialFixup.at(iMesh->Material) : ResourceMgr::Get().GetMaterial(DefaultRes::Material::BlinnPhongDefault));
+				pRenderer->SetMaterial(iMesh->Material ? _materialFixup.at(iMesh->Material) : ResourceMgr::Get().GetMaterial(DefaultResource::Material::StandardSpecular));
 			}
 
 			auto* parent = _nodeFixup.at(iNode->Parent);
@@ -173,32 +225,32 @@ namespace SunEngine
 
 		if (StrContains(strRoughness, "gloss") || StrContains(strRoughness, "rough"))
 		{
-			shader = DefaultRes::Shader::Standard;
+			shader = DefaultResource::Shader::StandardMetallic;
 
-			importerTextures[StandardShader::RoughnessMap] = pMtl->ShininessExponentMap;
+			importerTextures[MaterialStrings::SmoothnessMap] = pMtl->ShininessExponentMap;
 
-			if (pMtl->DiffuseMap) importerTextures[StandardShader::DiffuseMap] = pMtl->DiffuseMap;
+			if (pMtl->DiffuseMap) importerTextures[MaterialStrings::DiffuseMap] = pMtl->DiffuseMap;
 
-			if (pMtl->SpecularFactorMap) importerTextures[StandardShader::MetalMap] = pMtl->SpecularFactorMap;
-			else if (pMtl->SpecularMap) importerTextures[StandardShader::MetalMap] = pMtl->SpecularMap;
+			if (pMtl->SpecularFactorMap) importerTextures[MaterialStrings::MetalMap] = pMtl->SpecularFactorMap;
+			else if (pMtl->SpecularMap) importerTextures[MaterialStrings::MetalMap] = pMtl->SpecularMap;
 
-			if (pMtl->NormalMap) importerTextures[StandardShader::NormalMap] = pMtl->NormalMap;
-			else if (pMtl->BumpMap) importerTextures[StandardShader::NormalMap] = pMtl->BumpMap;
+			if (pMtl->NormalMap) importerTextures[MaterialStrings::NormalMap] = pMtl->NormalMap;
+			else if (pMtl->BumpMap) importerTextures[MaterialStrings::NormalMap] = pMtl->BumpMap;
 
-			if (pMtl->AmbientMap) importerTextures[StandardShader::AmbientOcclusionMap] = pMtl->AmbientMap;
+			if (pMtl->AmbientMap) importerTextures[MaterialStrings::AmbientOcclusionMap] = pMtl->AmbientMap;
 		}
 		else
 		{
-			shader = DefaultRes::Shader::BlinnPhong;
+			shader = DefaultResource::Shader::StandardSpecular;
 
-			if (pMtl->DiffuseMap) importerTextures[BlinnPhongShader::DiffuseMap] = pMtl->DiffuseMap;
+			if (pMtl->DiffuseMap) importerTextures[MaterialStrings::DiffuseMap] = pMtl->DiffuseMap;
 
-			if (pMtl->SpecularFactorMap) importerTextures[BlinnPhongShader::SpecularMap] = pMtl->SpecularFactorMap;
-			else if (pMtl->SpecularMap) importerTextures[BlinnPhongShader::SpecularMap] = pMtl->SpecularMap;
-			else if(pMtl->ShininessExponentMap) importerTextures[BlinnPhongShader::SpecularMap] = pMtl->ShininessExponentMap;
+			if (pMtl->SpecularFactorMap) importerTextures[MaterialStrings::SpecularMap] = pMtl->SpecularFactorMap;
+			else if (pMtl->SpecularMap) importerTextures[MaterialStrings::SpecularMap] = pMtl->SpecularMap;
+			else if(pMtl->ShininessExponentMap) importerTextures[MaterialStrings::SpecularMap] = pMtl->ShininessExponentMap;
 
-			if (pMtl->NormalMap) importerTextures[BlinnPhongShader::NormalMap] = pMtl->NormalMap;
-			else if (pMtl->BumpMap) importerTextures[BlinnPhongShader::NormalMap] = pMtl->BumpMap;
+			if (pMtl->NormalMap) importerTextures[MaterialStrings::NormalMap] = pMtl->NormalMap;
+			else if (pMtl->BumpMap) importerTextures[MaterialStrings::NormalMap] = pMtl->BumpMap;
 		}
 
 		for (auto iter = importerTextures.begin(); iter != importerTextures.end(); ++iter)
@@ -226,6 +278,9 @@ namespace SunEngine
 
 				if (!pTex->GenerateMips())
 					return false;
+
+				if ((*iter).first == MaterialStrings::DiffuseMap)
+					pTex->SetSRGB(true);
 
 				if (!pTex->RegisterToGPU())
 					return false;

@@ -199,36 +199,36 @@ namespace SunEngine
 		}
 	}
 
-	bool ConfigSection::GetBlock(const char* key, OrderedStrMap<String>& block) const
+	bool ConfigSection::GetBlock(const char* key, OrderedStrMap<String>& block, char blockStart, char blockEnd) const
 	{
 		const String *pStr;
 		if (GetValue(key, &pStr))
 		{
-			usize start = pStr->find_first_of('{');
-			usize end = pStr->find_last_of('}');
-			if (start != String::npos && end != String::npos)
-			{
-				Vector<String> pairList;
-				StrSplit(pStr->substr(start + 1, end - start - 1), pairList, ',');
+			usize start = blockStart != 0 ? pStr->find_first_of(blockStart) : String::npos;
+			usize end = blockEnd != 0 ? pStr->find_last_of(blockEnd) : pStr->length();
 
-				for (uint i = 0; i < pairList.size(); i++)
+			Vector<String> pairList;
+			StrSplit(pStr->substr(start + 1, end - start - 1), pairList, ',');
+
+			for (uint i = 0; i < pairList.size(); i++)
+			{
+				String strPair = pairList[i];
+				usize eqPos = strPair.find('=');
+				if (eqPos != String::npos)
 				{
-					String strPair = pairList[i];
-					usize eqPos = strPair.find('=');
-					if (eqPos != String::npos)
-					{
-						String strKey = strPair.substr(0, eqPos);
-						String strValue = strPair.substr(eqPos + 1);
-						block[strKey] = strValue;
-					}
+					String strKey = StrTrimStart(StrTrimEnd(strPair.substr(0, eqPos)));
+					String strValue = StrTrimStart(StrTrimEnd(strPair.substr(eqPos + 1)));
+					block[strKey] = strValue;
 				}
+				else
+				{
+					String strKey = StrTrimStart(StrTrimEnd(strPair));
+					block[strKey] = "";
+				}
+			}
 
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+			return true;
+
 		}
 		else
 		{
@@ -265,10 +265,10 @@ namespace SunEngine
 		_dataPairs[key] = FloatToStr(value);
 	}
 
-	void ConfigSection::SetBlock(const char * key, const OrderedStrMap<String>& block)
+	void ConfigSection::SetBlock(const char * key, const OrderedStrMap<String>& block, char blockStart, char blockEnd)
 	{
 		String strBlock;	
-		strBlock += "{";
+		if (blockStart != 0) strBlock += blockStart;
 		{
 			String strPairs;
 			OrderedStrMap<String>::const_iterator iter = block.begin();
@@ -285,7 +285,7 @@ namespace SunEngine
 
 			strBlock += strPairs;
 		}
-		strBlock += "}";
+		if(blockEnd != 0) strBlock += blockEnd;
 		_dataPairs[key] = strBlock;
 	}
 
