@@ -58,7 +58,7 @@ namespace SunEngine
 
 			D3D11_INPUT_ELEMENT_DESC elem = {};
 			elem.AlignedByteOffset = data.offset;
-			elem.SemanticName = data.semantic.data();
+			elem.SemanticName = data.semantic;
 			elem.InstanceDataStepRate = D3D11_INPUT_PER_VERTEX_DATA;
 
 			switch (data.format)

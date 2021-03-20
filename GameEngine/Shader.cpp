@@ -139,7 +139,7 @@ namespace SunEngine
 		ResourceMgr& resMgr = ResourceMgr::Get();
 
 		_defaultValues.clear();
-		for (auto iter = _createInfo.ResMap.begin(); iter != _createInfo.ResMap.end(); ++iter)
+		for (auto iter = _createInfo.resources.begin(); iter != _createInfo.resources.end(); ++iter)
 		{
 			const IShaderResource& res = (*iter).second;
 			if (res.bindType == SBT_MATERIAL)
@@ -161,7 +161,7 @@ namespace SunEngine
 			}
 		}
 
-		for (auto iter = _createInfo.BuffMap.begin(); iter != _createInfo.BuffMap.end(); ++iter)
+		for (auto iter = _createInfo.buffers.begin(); iter != _createInfo.buffers.end(); ++iter)
 		{
 			const IShaderBuffer& buff = (*iter).second;
 			if (buff.bindType == SBT_MATERIAL)
@@ -169,23 +169,23 @@ namespace SunEngine
 				for (uint i = 0; i < buff.Variables.size(); i++)
 				{
 					const ShaderBufferVariable& var = buff.Variables[i];
-					switch (var.Type)
+					switch (var.type)
 					{
 					case SDT_FLOAT:
-						_defaultValues[var.Name].Type = DV_FLOAT;
-						_defaultValues[var.Name].float1 = 0.0f;
+						_defaultValues[var.name].Type = DV_FLOAT;
+						_defaultValues[var.name].float1 = 0.0f;
 						break;
 					case SDT_FLOAT2:
-						_defaultValues[var.Name].Type = DV_FLOAT2;
-						_defaultValues[var.Name].float2 = glm::vec2(0.0f);
+						_defaultValues[var.name].Type = DV_FLOAT2;
+						_defaultValues[var.name].float2 = glm::vec2(0.0f);
 						break;
 					case SDT_FLOAT3:
-						_defaultValues[var.Name].Type = DV_FLOAT3;
-						_defaultValues[var.Name].float3 = glm::vec3(0.0f);
+						_defaultValues[var.name].Type = DV_FLOAT3;
+						_defaultValues[var.name].float3 = glm::vec3(0.0f);
 						break;
 					case SDT_FLOAT4:
-						_defaultValues[var.Name].Type = DV_FLOAT4;
-						_defaultValues[var.Name].float4 = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+						_defaultValues[var.name].Type = DV_FLOAT4;
+						_defaultValues[var.name].float4 = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 						break;
 					default:
 						break;

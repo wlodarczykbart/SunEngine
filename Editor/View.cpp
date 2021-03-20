@@ -215,8 +215,8 @@ namespace SunEngine
 	{
 		if (_needsResize)
 		{
-			_info.width = _viewSize.x;
-			_info.height = _viewSize.y;
+			_info.width = (uint)_viewSize.x;
+			_info.height = (uint)_viewSize.y;
 
 			RenderTarget::CreateInfo rtInfo = {};
 			rtInfo.width = (uint)_viewSize.x;

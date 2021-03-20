@@ -63,7 +63,7 @@ namespace SunEngine
 		return &_buffer[offset];
 	}
 
-	bool MemBuffer::Write(StreamWriter &stream)
+	bool MemBuffer::Write(StreamBase &stream)
 	{
 		if (!stream.Write((uint)_buffer.size()))
 			return false;
@@ -77,7 +77,7 @@ namespace SunEngine
 		return true;
 	}
 
-	bool MemBuffer::Read(StreamReader &stream)
+	bool MemBuffer::Read(StreamBase&stream)
 	{
 		uint size;
 		if (!stream.Read(size))

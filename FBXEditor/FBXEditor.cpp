@@ -42,10 +42,9 @@ namespace SunEngine
 
 		bool Init()
 		{
-			Shader* pShader = ResourceMgr::Get().GetShader(DefaultRes::Shader::Standard);
+			Shader* pShader = ResourceMgr::Get().GetShader(DefaultResource::Shader::StandardSpecular);
 			GraphicsPipeline::CreateInfo pipelineInfo = {};
 			pipelineInfo.pShader = pShader->GetGPUObject();
-			pipelineInfo.shaderPass = ShaderStrings::DefaultShaderPassName;
 
 			if (!_opaquePipeline.Create(pipelineInfo))
 				return false;
@@ -221,9 +220,9 @@ namespace SunEngine
 			return false;
 		}
 
-		Shader* pShader = resMgr.AddShader(DefaultRes::Shader::Standard);
+		Shader* pShader = resMgr.AddShader(DefaultResource::Shader::StandardSpecular);
 		CompiledShaderInfo shaderInfo = {};
-		if (!CompileShader(shaderInfo, DefaultRes::Shader::Standard))
+		if (!CompileShader(shaderInfo, DefaultResource::Shader::StandardSpecular))
 		{
 			spdlog::error("Failed to compile {}", pShader->GetName().c_str());
 			return false;
@@ -234,7 +233,7 @@ namespace SunEngine
 		if (!pShader->RegisterToGPU())
 			return false;
 
-		Material* pMaterial = resMgr.AddMaterial(DefaultRes::Material::StandardDefault);
+		Material* pMaterial = resMgr.AddMaterial(DefaultResource::Material::StandardSpecular);
 		pMaterial->SetShader(pShader);
 		if (!pMaterial->RegisterToGPU())
 			return false;

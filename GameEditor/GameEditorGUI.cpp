@@ -185,40 +185,40 @@ namespace SunEngine
 						{
 							auto& var = (*varIter).second;
 
-							if (!EditMaterialProperty(mtl, var.Name, var.Type))
+							if (!EditMaterialProperty(mtl, var.name, var.type))
 							{
-								switch (var.Type)
+								switch (var.type)
 								{
 								case SDT_FLOAT:
 								{
 									float value;
-									mtl->GetMaterialVar(var.Name, value);
-									if (ImGui::DragFloat(var.Name.c_str(), &value, floatDrag, 0.0f, 0.0f, floatFmt))
-										mtl->SetMaterialVar(var.Name, value);
+									mtl->GetMaterialVar(var.name, value);
+									if (ImGui::DragFloat(var.name, &value, floatDrag, 0.0f, 0.0f, floatFmt))
+										mtl->SetMaterialVar(var.name, value);
 								}
 								break;
 								case SDT_FLOAT2:
 								{
 									glm::vec2 value;
-									mtl->GetMaterialVar(var.Name, value);
-									if (ImGui::DragFloat2(var.Name.c_str(), &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
-										mtl->SetMaterialVar(var.Name, value);
+									mtl->GetMaterialVar(var.name, value);
+									if (ImGui::DragFloat2(var.name, &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
+										mtl->SetMaterialVar(var.name, value);
 								}
 								break;
 								case SDT_FLOAT3:
 								{
 									glm::vec3 value;
-									mtl->GetMaterialVar(var.Name, value);
-									if (ImGui::DragFloat3(var.Name.c_str(), &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
-										mtl->SetMaterialVar(var.Name, value);
+									mtl->GetMaterialVar(var.name, value);
+									if (ImGui::DragFloat3(var.name, &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
+										mtl->SetMaterialVar(var.name, value);
 								}
 								break;
 								case SDT_FLOAT4:
 								{
 									glm::vec4 value;
-									mtl->GetMaterialVar(var.Name, value);
-									if (ImGui::DragFloat4(var.Name.c_str(), &value.x, floatDrag))
-										mtl->SetMaterialVar(var.Name, value);
+									mtl->GetMaterialVar(var.name, value);
+									if (ImGui::DragFloat4(var.name, &value.x, floatDrag))
+										mtl->SetMaterialVar(var.name, value);
 								}
 								break;
 								default:
@@ -234,7 +234,7 @@ namespace SunEngine
 						for (auto texIter = mtl->BeginTextures2D(); texIter != mtl->EndTextures2D(); ++texIter)
 						{
 							auto& tex = (*texIter).second;
-							if (ImGui::Button(tex.Res.name.c_str()))
+							if (ImGui::Button(tex.Res.name))
 							{
 								_visibleWindows[WT_MATERIAL_TEXTURE_PICKER] = true;
 								_mtlTexturePicker.MaterialName = mtl->GetName();

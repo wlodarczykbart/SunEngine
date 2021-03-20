@@ -4,23 +4,33 @@
 namespace SunEngine
 {
 
-	FileBase::FileBase()
+	FileStream::FileStream()
 	{
 		_fh = 0;
 	}
 
 
-	FileBase::~FileBase()
+	FileStream::~FileStream()
 	{
 		Close();
 	}
 
-	uint FileBase::Tell() const
+	bool FileStream::OpenForRead(const char* filename)
+	{
+		return fopen_s(&_fh, filename, "rb") == 0;
+	}
+
+	bool FileStream::OpenForWrite(const char* filename)
+	{
+		return fopen_s(&_fh, filename, "wb") == 0;
+	}
+
+	uint FileStream::Tell() const
 	{
 		return (uint)ftell(_fh);
 	}
 
-	bool FileBase::Seek(const uint offset, const StreamBase::Position pos)
+	bool FileStream::Seek(const uint offset, const StreamBase::Position pos)
 	{
 		int fpos = -1;
 		if (pos == StreamBase::Position::CURRENT)
@@ -33,7 +43,17 @@ namespace SunEngine
 		return fseek(_fh, (long)offset, fpos) == 0;
 	}
 
-	bool FileBase::Close()
+	bool FileStream::DerivedWrite(const void* pBuffer, const usize size)
+	{
+		return fwrite(pBuffer, size, 1, _fh) > 0;
+	}
+
+	bool FileStream::DerivedRead(void* pBuffer, const usize size)
+	{
+		return fread(pBuffer, size, 1, _fh) > 0;
+	}
+
+	bool FileStream::Close()
 	{
 		if (_fh == 0)
 			return true;

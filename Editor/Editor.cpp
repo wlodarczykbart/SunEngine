@@ -1,7 +1,6 @@
 
 #include "StringUtil.h"
-#include "FileWriter.h"
-#include "FileReader.h"
+#include "FileBase.h"
 #include "ShaderCompiler.h"
 #include "CommandBuffer.h"
 #include "IDevice.h"
@@ -157,8 +156,8 @@ namespace SunEngine
 		{
 			String vertexPath = shaderOutputDir + name + ".vs";
 
-			FileWriter fw;
-			if (!fw.Open(vertexPath.data()))
+			FileStream fw;
+			if (!fw.OpenForWrite(vertexPath.data()))
 				return false;
 
 			if (!fw.Write(vertexText.data()))
@@ -174,8 +173,8 @@ namespace SunEngine
 		{
 			String pixelPath = shaderOutputDir + name + ".ps";
 
-			FileWriter fw;
-			if (!fw.Open(pixelPath.data()))
+			FileStream fw;
+			if (!fw.OpenForWrite(pixelPath.data()))
 				return false;
 
 			if (!fw.Write(pixelText.data()))
@@ -216,11 +215,11 @@ namespace SunEngine
 
 			String vertexText, pixelText;
 
-			FileReader fr;
+			FileStream fr;
 			String shaderFile;
 
 			shaderFile = shaderDir + pSection->GetString("vs");
-			if (fr.Open(shaderFile.data()))
+			if (fr.OpenForRead(shaderFile.data()))
 			{
 				fr.ReadAllText(vertexText);
 			}
@@ -231,7 +230,7 @@ namespace SunEngine
 			}
 
 			shaderFile = shaderDir + pSection->GetString("ps");
-			if (fr.Open(shaderFile.data()))
+			if (fr.OpenForRead(shaderFile.data()))
 			{
 				fr.ReadAllText(pixelText);
 			}

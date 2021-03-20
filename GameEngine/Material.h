@@ -52,7 +52,7 @@ namespace SunEngine
 			auto found = _mtlVariables.find(name);
 			if (found != _mtlVariables.end())
 			{
-				memcpy(&value, _memBuffer.GetData((*found).second.Offset), (*found).second.Size);
+				memcpy(&value, _memBuffer.GetData((*found).second.offset), (*found).second.size);
 				return true;
 			}
 			else
@@ -76,6 +76,9 @@ namespace SunEngine
 
 		StrMap<MaterialTextureData>::const_iterator BeginTextures2D() const { return _mtlTextures2D.begin(); };
 		StrMap<MaterialTextureData>::const_iterator EndTextures2D() const { return _mtlTextures2D.end(); };
+
+		bool Write(StreamBase& stream) override;
+		bool Read(StreamBase& stream) override;
 		
 	private:
 
@@ -85,10 +88,11 @@ namespace SunEngine
 		};
 
 		Shader* _shader;
-		UniformBuffer _mtlBuffer;
 		MemBuffer _memBuffer;
 		StrMap<ShaderBufferVariable> _mtlVariables;
 		StrMap<MaterialTextureData> _mtlTextures2D;
 		StrMap<MaterialSamplerData> _mtlSamplers;
+
+		UniformBuffer _mtlBuffer;
 	};
 }

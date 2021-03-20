@@ -1,6 +1,5 @@
+#include "MemBuffer.h"
 #include "StreamBase.h"
-
-
 
 namespace SunEngine
 {
@@ -28,5 +27,82 @@ namespace SunEngine
 		{
 			return 0;
 		}
+	}
+
+	bool StreamBase::ReadAll(MemBuffer& buffer)
+	{
+		buffer.SetSize(Size());
+		Seek(0, START);
+		return Read(buffer.GetData(), buffer.GetSize());
+	}
+
+	bool StreamBase::ReadAllText(String& buffer)
+	{
+		buffer.resize(Size());
+
+		Seek(0, START);
+		bool bRead = Read(&buffer[0], buffer.size());
+		if (bRead)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool StreamBase::SeekStart()
+	{
+		return Seek(0, Position::START);
+	}
+
+	NullStream::NullStream()
+	{
+		_pos = 0;
+		_size = 0;
+	}
+
+	uint NullStream::Tell() const
+	{
+		return _pos;
+	}
+
+	bool NullStream::Seek(const uint offset, const Position pos)
+	{
+		switch (pos)
+		{
+		case Position::CURRENT:
+			_pos += offset;
+			break;
+		case Position::START:
+			_pos = offset;
+			break;
+		case Position::END:
+			_pos = _size + offset;
+			break;
+		default:
+			break;
+		}
+
+		return true;
+	}
+
+	bool NullStream::DerivedWrite(const void*, const usize size)
+	{
+		_pos += size;
+		if (_pos > size)
+			_size = _pos;
+
+		return true;
+	}
+
+	bool NullStream::DerivedRead(void*, const usize size)
+	{
+		if (_pos + size > _size)
+			return false;
+
+		_pos += size;
+		return true;
 	}
 }

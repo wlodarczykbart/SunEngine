@@ -21,7 +21,6 @@ namespace SunEngine
 
 			PipelineSettings settings;
 			const BaseShader* pShader;
-			String shaderPass;
 		};
 
 		GraphicsPipeline();

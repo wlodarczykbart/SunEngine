@@ -6,6 +6,8 @@
 #include "Image.h"
 #include "MemBuffer.h"
 
+#define MAX_GRAPHICS_FIELD_LENGTH 64
+
 namespace SunEngine
 {
 	enum GraphicsAPI
@@ -101,7 +103,7 @@ namespace SunEngine
 		IVertexInputFormat format;
 		uint size;
 		uint offset;
-		String semantic;
+		char semantic[MAX_GRAPHICS_FIELD_LENGTH];
 	};
 
 	struct ITextureCreateInfo
@@ -146,7 +148,7 @@ namespace SunEngine
 			stages = 0;
 		}
 
-		String name;
+		char name[MAX_GRAPHICS_FIELD_LENGTH];
 		ShaderResourceType type;
 		ShaderResourceDimension dimension;
 		ShaderBindingType bindType;
@@ -171,11 +173,11 @@ namespace SunEngine
 
 	struct ShaderBufferVariable
 	{
-		String Name;
-		ShaderDataType Type;
-		uint Size;
-		uint Offset;
-		uint NumElements;
+		char name[MAX_GRAPHICS_FIELD_LENGTH];
+		ShaderDataType type;
+		uint size;
+		uint offset;
+		uint numElements;
 	};
 
 	struct IShaderBuffer
@@ -186,7 +188,7 @@ namespace SunEngine
 			stages = 0;
 		}
 
-		String name;
+		char name[MAX_GRAPHICS_FIELD_LENGTH];
 		ShaderBindingType bindType;
 		uint binding[8];
 		uint stages;

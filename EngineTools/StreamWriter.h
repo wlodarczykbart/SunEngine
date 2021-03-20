@@ -1,11 +1,11 @@
 #pragma once
 
-#include "StreamBase.h"
+#include "Types.h"
 
 namespace SunEngine
 {
 
-	class StreamWriter : public StreamBase
+	class StreamWriter
 	{
 	public:
 		StreamWriter();
@@ -27,9 +27,27 @@ namespace SunEngine
 		bool Write(const String& buffer);
 		bool Write(const char* pBuffer);
 		bool Write(void* const* pBuffer);
+		
+		template<typename K, typename V>
+		bool WriteSimple(const Map<K, V>& map)
+		{
+			uint size = map.size();
+			if (!Write(size))
+				return false;
+
+			for (auto iter = map.begin(); iter != map.end(); ++iter)
+			{
+				if (!Write((*iter).first))
+					return false;
+
+				if(!Write(&(*iter).second, sizeof(V)))
+					return false;
+			}
+
+			return true;
+		}
 
 	protected:
 		virtual bool DerivedWrite(const void *pBuffer, const usize size) = 0;
 	};
-
 }

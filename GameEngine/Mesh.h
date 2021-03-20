@@ -74,6 +74,7 @@ namespace SunEngine
 
 		void AllocateCube();
 		void AllocateSphere();
+		void AllocatePlane();
 
 		const AABB& GetAABB() const { return _aabb; }
 		void UpdateBoundingVolume();

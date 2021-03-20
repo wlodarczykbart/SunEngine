@@ -27,6 +27,8 @@ namespace SunEngine
 		void GetBinding(const String& name, const String& type, uint* pBindings, ShaderBindingType& bindType);
 		void PreProcessText(const String& inText, String& outHLSL, String& outGLSL);
 		bool CompileShader(ShaderStage type, const String& path);
+		bool ParseShaderFile(String& output, const String& input);
+		void ConvertToLines(const String& input, Vector<String>& lines) const;
 
 		BaseShader::CreateInfo _shaderInfo;
 
@@ -37,6 +39,8 @@ namespace SunEngine
 		String _pixelPath;
 
 		String _lastErr;
+
+		HashSet<String> _includedFiles;
 
 	};
 }

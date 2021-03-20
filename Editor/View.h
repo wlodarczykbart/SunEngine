@@ -63,8 +63,8 @@ namespace SunEngine
 	protected:
 		View(const String& uniqueName);
 
-		virtual bool OnCreate(const CreateInfo& info) { return true; };
-		virtual bool OnResize(const CreateInfo& info) { return true; };
+		virtual bool OnCreate(const CreateInfo&) { return true; };
+		virtual bool OnResize(const CreateInfo&) { return true; };
 
 		RenderTarget _target;
 	private:

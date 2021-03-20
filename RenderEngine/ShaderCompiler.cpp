@@ -1,11 +1,10 @@
 #include <d3dcompiler.h>
 
 #include "GraphicsAPIDef.h"
-#include "FileReader.h"
+#include "FileBase.h"
 #include "StringUtil.h"
 #include "BaseShader.h"
 
-#include "FileWriter.h"
 #include "MemBuffer.h"
 #include "ShaderCompiler.h"
 
@@ -46,8 +45,8 @@ namespace SunEngine
 
 	bool ShaderCompiler::Compile()
 	{
-		_shaderInfo.ResMap.clear();
-		_shaderInfo.BuffMap.clear();
+		_shaderInfo.resources.clear();
+		_shaderInfo.buffers.clear();
 		_numUserTextures = 0;
 		_numUserSamplers = 0;
 
@@ -70,8 +69,8 @@ namespace SunEngine
 	{
 		if (type == "cbuffer")
 		{
-			auto found = _shaderInfo.BuffMap.find(name);
-			if (found != _shaderInfo.BuffMap.end())
+			auto found = _shaderInfo.buffers.find(name);
+			if (found != _shaderInfo.buffers.end())
 			{
 				pBindings[SE_GFX_VULKAN] = (*found).second.binding[SE_GFX_VULKAN];
 				pBindings[SE_GFX_D3D11] = (*found).second.binding[SE_GFX_D3D11];
@@ -81,8 +80,8 @@ namespace SunEngine
 		}
 		else 
 		{
-			auto found = _shaderInfo.ResMap.find(name);
-			if (found != _shaderInfo.ResMap.end())
+			auto found = _shaderInfo.resources.find(name);
+			if (found != _shaderInfo.resources.end())
 			{
 				pBindings[SE_GFX_VULKAN] = (*found).second.binding[SE_GFX_VULKAN];
 				pBindings[SE_GFX_D3D11] = (*found).second.binding[SE_GFX_D3D11];
@@ -196,15 +195,17 @@ namespace SunEngine
 
 		if (type == "cbuffer")
 		{
-			_shaderInfo.BuffMap[name].binding[SE_GFX_VULKAN] = pBindings[SE_GFX_VULKAN];
-			_shaderInfo.BuffMap[name].binding[SE_GFX_D3D11] = pBindings[SE_GFX_D3D11];
-			_shaderInfo.BuffMap[name].bindType = bindType;
+			_shaderInfo.buffers[name].binding[SE_GFX_VULKAN] = pBindings[SE_GFX_VULKAN];
+			_shaderInfo.buffers[name].binding[SE_GFX_D3D11] = pBindings[SE_GFX_D3D11];
+			_shaderInfo.buffers[name].bindType = bindType;
+			_shaderInfo.buffers[name].size = 0;
 		}
 		else
 		{
-			_shaderInfo.ResMap[name].binding[SE_GFX_VULKAN] = pBindings[SE_GFX_VULKAN];
-			_shaderInfo.ResMap[name].binding[SE_GFX_D3D11] = pBindings[SE_GFX_D3D11];
-			_shaderInfo.ResMap[name].bindType = bindType;
+			_shaderInfo.resources[name].binding[SE_GFX_VULKAN] = pBindings[SE_GFX_VULKAN];
+			_shaderInfo.resources[name].binding[SE_GFX_D3D11] = pBindings[SE_GFX_D3D11];
+			_shaderInfo.resources[name].bindType = bindType;
+			_shaderInfo.resources[name].bindingCount = 0;
 		}
 	}
 
@@ -284,8 +285,8 @@ namespace SunEngine
 
 	bool ShaderCompiler::CompileShader(ShaderStage type, const String& path)
 	{
-		FileReader fr;
-		if (!fr.Open(path.data()))
+		FileStream fr;
+		if (!fr.OpenForRead(path.data()))
 			return false;
 
 		String fileText;
@@ -295,58 +296,8 @@ namespace SunEngine
 		if (!fr.Close())
 			return false;
 
-		fileText = StrRemove(fileText, '\r');
-
-		Vector<String> lines;
-		StrSplit(fileText, lines, '\n');
-
 		String shaderText;
-		Vector<String> shaderPassNames;
-		shaderPassNames.push_back(ShaderStrings::DefaultShaderPassName);
-
-		for (uint i = 0; i < lines.size(); i++)
-		{
-			usize includePos = lines[i].find("#include");
-
-			if (includePos != String::npos)
-			{
-				usize includeStart = lines[i].find('\"');
-				usize includeEnd = lines[i].rfind('\"');
-				if (includeStart != includeEnd && includeStart != String::npos)
-				{
-					String includeName = lines[i].substr(includeStart+1, includeEnd - includeStart-1);
-					includeName = g_ShaderAuxDir + includeName;
-
-					FileReader includeReader;
-					if (!includeReader.Open((includeName).data()))
-						return false;
-
-					String includeText;
-					if (!includeReader.ReadAllText(includeText))
-						return false;
-
-					if (!includeReader.Close())
-						return false;
-
-					shaderText += includeText;
-					shaderText += "\n";
-				}
-				else
-				{
-					return false;
-				}
-			}
-			else
-			{
-				const char passStart[] = "#ifdef SHADER_PASS_";
-				usize shaderPassPos = lines[i].find(passStart);
-				if (shaderPassPos != String::npos)
-					shaderPassNames.push_back(lines[i].substr(sizeof(passStart)));
-
-				shaderText += lines[i];
-			}
-			shaderText += "\n";
-		}
+		ParseShaderFile(shaderText, fileText);
 
 		String targetHLSL, targetGLSL;
 		if (type == SS_VERTEX)
@@ -363,235 +314,284 @@ namespace SunEngine
 		String hlslText, glslText;
 		PreProcessText(shaderText, hlslText, glslText);
 
-		for (uint p = 0; p < shaderPassNames.size(); p++)
+		String shaderHeader = "#pragma pack_matrix( row_major )\n";
+
+		hlslText = shaderHeader + hlslText;
+		BaseShader::CreateInfo& shader = _shaderInfo;
+
+		MemBuffer* pBinBuffer = 0;
+		if (type == SS_VERTEX) pBinBuffer = shader.vertexBinaries;
+		if (type == SS_PIXEL) pBinBuffer = shader.pixelBinaries;
+		if (type == SS_GEOMETRY) pBinBuffer = shader.geometryBinaries;
+
+		ID3DBlob* pShaderBlod = NULL;
+		ID3DBlob* pErrorBlod = NULL;
+		if (D3DCompile(hlslText.data(), hlslText.size(), NULL, NULL, NULL, "main", targetHLSL.data(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ALL_RESOURCES_BOUND, 0, &pShaderBlod, &pErrorBlod) == S_OK)
 		{
-			String passHeader = "#define SHADER_PASS_" + shaderPassNames[p] + "\n";
-			passHeader += "#pragma pack_matrix( row_major )\n";
+			pBinBuffer[SE_GFX_D3D11].SetSize((uint)pShaderBlod->GetBufferSize());
+			pBinBuffer[SE_GFX_D3D11].SetData(pShaderBlod->GetBufferPointer(), (uint)pShaderBlod->GetBufferSize());
 
-			String hlslPassText = passHeader + hlslText;
-			IShaderCreateInfo& shader = _shaderInfo.Shaders[shaderPassNames[p]];
+			glslText = shaderHeader + glslText;
 
-			MemBuffer* pBinBuffer = 0;
-			if (type == SS_VERTEX) pBinBuffer = shader.vertexBinaries;
-			if (type == SS_PIXEL) pBinBuffer = shader.pixelBinaries;
-			if (type == SS_GEOMETRY) pBinBuffer = shader.geometryBinaries;
+			String glslInPath = path + ".glsl";
+			String glslOutPath = path + ".spv";
+			FileStream fw;
+			fw.OpenForWrite(glslInPath.data());
+			fw.Write(glslText.data());
+			fw.Close();
 
-			ID3DBlob* pShaderBlod = NULL;
-			ID3DBlob* pErrorBlod = NULL;
-			if (D3DCompile(hlslPassText.data(), hlslPassText.size(), NULL, NULL, NULL, "main", targetHLSL.data(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ALL_RESOURCES_BOUND, 0, &pShaderBlod, &pErrorBlod) == S_OK)
+			String compileSpvCmd = StrFormat("glslangValidator -D -S %s -e main -o %s -V %s", targetGLSL.data(), glslOutPath.data(), glslInPath.data());
+			int compiled = system(compileSpvCmd.data());
+			if (compiled == 0)
 			{
-				pBinBuffer[SE_GFX_D3D11].SetSize((uint)pShaderBlod->GetBufferSize());
-				pBinBuffer[SE_GFX_D3D11].SetData(pShaderBlod->GetBufferPointer(), (uint)pShaderBlod->GetBufferSize());
-
-				String spvPassText = passHeader + glslText;
-
-				String glslInPath = path + ".glsl";
-				String glslOutPath = path + ".spv";
-				FileWriter fw;
-				fw.Open(glslInPath.data());
-				fw.Write(spvPassText.data());
-				fw.Close();
-
-				String compileSpvCmd = StrFormat("glslangValidator -D -S %s -e main -o %s -V %s", targetGLSL.data(), glslOutPath.data(), glslInPath.data());
-				int compiled = system(compileSpvCmd.data());
-				if (compiled == 0)
-				{
-					fr.Open(glslOutPath.data());
-					fr.ReadAll(pBinBuffer[SE_GFX_VULKAN]);
-					fr.Close();
-				}
-				else
-				{
-					fr.Open(glslInPath.data());
-					String invalidSpvText;
-					fr.ReadAllText(invalidSpvText);
-					fr.Close();
-
-					Vector<String> shaderLines;
-					StrSplit(invalidSpvText, shaderLines, '\n');
-					for (uint l = 0; l < shaderLines.size(); l++)
-					{
-						_lastErr += StrFormat("%d\t%s\n", l + 1, shaderLines[l].data());
-					}
-					return false;
-				}
-
-				ID3D11ShaderReflection* pReflector = NULL;
-				if (D3DReflect(pShaderBlod->GetBufferPointer(), pShaderBlod->GetBufferSize(), __uuidof(ID3D11ShaderReflection), (void**)&pReflector) == S_OK)
-				{
-					D3D11_SHADER_DESC shaderDesc;
-					pReflector->GetDesc(&shaderDesc);
-
-					if (type == SS_VERTEX)
-					{
-						uint vertexOffset = 0;
-						for (uint i = 0; i < shaderDesc.InputParameters; i++)
-						{
-							D3D11_SIGNATURE_PARAMETER_DESC inputDesc;
-							pReflector->GetInputParameterDesc(i, &inputDesc);
-
-							uint mask = inputDesc.Mask;
-							IVertexElement elem = {};
-							
-							if ((mask & HLSL_MASK_XYZW) == HLSL_MASK_XYZW)
-							{
-								elem.format = VIF_FLOAT4;
-								elem.size = sizeof(float) * 4;
-							}
-							else if ((mask & HLSL_MASK_XYZ) == HLSL_MASK_XYZ)
-							{
-								elem.format = VIF_FLOAT3;
-								elem.size = sizeof(float) * 3;
-							}
-							else if ((mask & HLSL_MASK_XY) == HLSL_MASK_XY)
-							{
-								elem.format = VIF_FLOAT2;
-								elem.size = sizeof(float) * 2;
-							}
-
-							elem.offset = vertexOffset;
-							elem.semantic = inputDesc.SemanticName;
-							vertexOffset += elem.size;
-
-							shader.vertexElements.push_back(elem);
-						}
-					}
-
-					for (uint i = 0; i < shaderDesc.ConstantBuffers; i++)
-					{
-						ID3D11ShaderReflectionConstantBuffer* pBuffer = pReflector->GetConstantBufferByIndex(i);
-
-						D3D11_SHADER_BUFFER_DESC bufferDesc;
-						pBuffer->GetDesc(&bufferDesc);
-
-						auto found = shader.buffers.find(bufferDesc.Name);
-						if (found == shader.buffers.end())
-						{
-							IShaderBuffer& buffer = shader.buffers[bufferDesc.Name];
-							buffer = _shaderInfo.BuffMap.at(bufferDesc.Name); //copy over global buffer
-							buffer.name = bufferDesc.Name;
-							buffer.size = bufferDesc.Size;
-							buffer.stages |= type;
-
-							for (uint j = 0; j < bufferDesc.Variables; j++)
-							{
-								ID3D11ShaderReflectionVariable* pVar = pBuffer->GetVariableByIndex(j);
-
-								D3D11_SHADER_TYPE_DESC typeDesc;
-								pVar->GetType()->GetDesc(&typeDesc);
-
-								D3D11_SHADER_VARIABLE_DESC varDesc;
-								pVar->GetDesc(&varDesc);
-
-								ShaderBufferVariable var;
-								var.Name = varDesc.Name;
-								var.NumElements = typeDesc.Elements;
-								var.Offset = varDesc.StartOffset;
-								var.Size = varDesc.Size;
-								
-								String strType = StrToLower(typeDesc.Name);
-								if (strType == "float4x4" || strType == "matrix")
-								{
-									var.Type = SDT_MAT4;
-								}
-								else if (strType == "float3x3")
-								{
-									var.Type = SDT_MAT3;
-								}
-								else if (strType == "float2x2")
-								{
-									var.Type = SDT_MAT2;
-								}
-								if (strType == "float4")
-								{
-									var.Type = SDT_FLOAT4;
-								}
-								else if (strType == "float3")
-								{
-									var.Type = SDT_FLOAT3;
-								}
-								else if (strType == "float2")
-								{
-									var.Type = SDT_FLOAT2;
-								}
-								else if (strType == "float")
-								{
-									var.Type = SDT_FLOAT;
-								}
-								else if (typeDesc.Class == D3D_SHADER_VARIABLE_CLASS::D3D_SVC_STRUCT)
-								{
-									var.Type = SDT_STRUCT;
-								}
-
-								buffer.Variables.push_back(var);
-							}
-						}
-						else
-						{
-							(*found).second.stages |= type;
-						}
-
-						//copy back any settings that were foudn easier through reflection
-						_shaderInfo.BuffMap[bufferDesc.Name] = shader.buffers.at(bufferDesc.Name);
-					}
-
-					for (uint i = 0; i < shaderDesc.BoundResources; i++)
-					{
-						D3D11_SHADER_INPUT_BIND_DESC resDesc = {};
-						pReflector->GetResourceBindingDesc(i, &resDesc);
-
-						if (resDesc.Type == D3D_SIT_TEXTURE || resDesc.Type == D3D_SIT_SAMPLER)
-						{
-							auto found = shader.resources.find(resDesc.Name);
-							if (found == shader.resources.end())
-							{
-								IShaderResource& resource = shader.resources[resDesc.Name];
-								resource = _shaderInfo.ResMap.at(resDesc.Name); //copy over global resource
-								resource.name = resDesc.Name;
-								resource.stages |= type;
-								resource.bindingCount = resDesc.BindCount;
-
-								if (resDesc.Type == D3D_SIT_TEXTURE)
-								{
-									resource.type = SRT_TEXTURE;
-									if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2D)
-										resource.dimension = SRD_TEXTURE_2D;
-									if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2DARRAY)
-										resource.dimension = SRD_TEXTURE_ARRAY;
-									if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURECUBE)
-										resource.dimension = SRD_TEXTURE_CUBE;
-								}
-								else if (resDesc.Type == D3D_SIT_SAMPLER)
-								{
-									resource.type = SRT_SAMPLER;
-								}
-							}
-							else
-							{
-								(*found).second.stages |= type;
-							}
-
-							//copy back any settings that were foudn easier through reflection
-							_shaderInfo.ResMap[resDesc.Name] = shader.resources.at(resDesc.Name);
-						}
-					}
-				}
-
-				return true;
+				fr.OpenForRead(glslOutPath.data());
+				fr.ReadAll(pBinBuffer[SE_GFX_VULKAN]);
+				fr.Close();
 			}
 			else
 			{
-				_lastErr = (char*)pErrorBlod->GetBufferPointer();
+				fr.OpenForRead(glslInPath.data());
+				String invalidSpvText;
+				fr.ReadAllText(invalidSpvText);
+				fr.Close();
+
 				Vector<String> shaderLines;
-				StrSplit(hlslPassText, shaderLines, '\n');
+				StrSplit(invalidSpvText, shaderLines, '\n');
 				for (uint l = 0; l < shaderLines.size(); l++)
 				{
 					_lastErr += StrFormat("%d\t%s\n", l + 1, shaderLines[l].data());
 				}
 				return false;
 			}
+
+			ID3D11ShaderReflection* pReflector = NULL;
+			if (D3DReflect(pShaderBlod->GetBufferPointer(), pShaderBlod->GetBufferSize(), __uuidof(ID3D11ShaderReflection), (void**)&pReflector) == S_OK)
+			{
+				D3D11_SHADER_DESC shaderDesc;
+				pReflector->GetDesc(&shaderDesc);
+
+				if (type == SS_VERTEX)
+				{
+					uint vertexOffset = 0;
+					for (uint i = 0; i < shaderDesc.InputParameters; i++)
+					{
+						D3D11_SIGNATURE_PARAMETER_DESC inputDesc;
+						pReflector->GetInputParameterDesc(i, &inputDesc);
+
+						uint mask = inputDesc.Mask;
+						IVertexElement elem = {};
+
+						if ((mask & HLSL_MASK_XYZW) == HLSL_MASK_XYZW)
+						{
+							elem.format = VIF_FLOAT4;
+							elem.size = sizeof(float) * 4;
+						}
+						else if ((mask & HLSL_MASK_XYZ) == HLSL_MASK_XYZ)
+						{
+							elem.format = VIF_FLOAT3;
+							elem.size = sizeof(float) * 3;
+						}
+						else if ((mask & HLSL_MASK_XY) == HLSL_MASK_XY)
+						{
+							elem.format = VIF_FLOAT2;
+							elem.size = sizeof(float) * 2;
+						}
+
+						elem.offset = vertexOffset;
+						strncpy_s(elem.semantic, inputDesc.SemanticName, strlen(inputDesc.SemanticName));
+						vertexOffset += elem.size;
+
+						shader.vertexElements.push_back(elem);
+					}
+				}
+
+				for (uint i = 0; i < shaderDesc.ConstantBuffers; i++)
+				{
+					ID3D11ShaderReflectionConstantBuffer* pBuffer = pReflector->GetConstantBufferByIndex(i);
+
+					D3D11_SHADER_BUFFER_DESC bufferDesc;
+					pBuffer->GetDesc(&bufferDesc);
+
+					auto found = shader.buffers.find(bufferDesc.Name);
+					if (found != shader.buffers.end())
+					{
+						IShaderBuffer& buffer = (*found).second;
+						strncpy_s(buffer.name, bufferDesc.Name, strlen(bufferDesc.Name));
+						buffer.size = max(buffer.size, bufferDesc.Size);
+						buffer.stages |= type;
+
+						for (uint j = 0; j < bufferDesc.Variables; j++)
+						{
+							ID3D11ShaderReflectionVariable* pVar = pBuffer->GetVariableByIndex(j);
+
+							D3D11_SHADER_TYPE_DESC typeDesc;
+							pVar->GetType()->GetDesc(&typeDesc);
+
+							D3D11_SHADER_VARIABLE_DESC varDesc;
+							pVar->GetDesc(&varDesc);
+
+							ShaderBufferVariable var;
+							strncpy_s(var.name, varDesc.Name, strlen(varDesc.Name));
+							var.numElements = typeDesc.Elements;
+							var.offset = varDesc.StartOffset;
+							var.size = varDesc.Size;
+
+							String strType = StrToLower(typeDesc.Name);
+							if (strType == "float4x4" || strType == "matrix")
+							{
+								var.type = SDT_MAT4;
+							}
+							else if (strType == "float3x3")
+							{
+								var.type = SDT_MAT3;
+							}
+							else if (strType == "float2x2")
+							{
+								var.type = SDT_MAT2;
+							}
+							if (strType == "float4")
+							{
+								var.type = SDT_FLOAT4;
+							}
+							else if (strType == "float3")
+							{
+								var.type = SDT_FLOAT3;
+							}
+							else if (strType == "float2")
+							{
+								var.type = SDT_FLOAT2;
+							}
+							else if (strType == "float")
+							{
+								var.type = SDT_FLOAT;
+							}
+							else if (typeDesc.Class == D3D_SHADER_VARIABLE_CLASS::D3D_SVC_STRUCT)
+							{
+								var.type = SDT_STRUCT;
+							}
+
+							buffer.Variables.push_back(var);
+						}
+					}
+					else
+					{
+						(*found).second.stages |= type;
+					}
+				}
+
+				for (uint i = 0; i < shaderDesc.BoundResources; i++)
+				{
+					D3D11_SHADER_INPUT_BIND_DESC resDesc = {};
+					pReflector->GetResourceBindingDesc(i, &resDesc);
+
+					if (resDesc.Type == D3D_SIT_TEXTURE || resDesc.Type == D3D_SIT_SAMPLER)
+					{
+						auto found = shader.resources.find(resDesc.Name);
+						if (found != shader.resources.end())
+						{
+							IShaderResource& resource = (*found).second;
+							strncpy_s(resource.name, resDesc.Name, strlen(resDesc.Name));
+							resource.stages |= type;
+							resource.bindingCount = max(resource.bindingCount, resDesc.BindCount);
+
+							if (resDesc.Type == D3D_SIT_TEXTURE)
+							{
+								resource.type = SRT_TEXTURE;
+								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2D)
+									resource.dimension = SRD_TEXTURE_2D;
+								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2DARRAY)
+									resource.dimension = SRD_TEXTURE_ARRAY;
+								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURECUBE)
+									resource.dimension = SRD_TEXTURE_CUBE;
+							}
+							else if (resDesc.Type == D3D_SIT_SAMPLER)
+							{
+								resource.type = SRT_SAMPLER;
+							}
+						}
+					}
+				}
+			}
+
+			return true;
+		}
+		else
+		{
+			_lastErr = (char*)pErrorBlod->GetBufferPointer();
+			Vector<String> shaderLines;
+			StrSplit(hlslText, shaderLines, '\n');
+			for (uint l = 0; l < shaderLines.size(); l++)
+			{
+				_lastErr += StrFormat("%d\t%s\n", l + 1, shaderLines[l].data());
+			}
+			return false;
 		}
 
 		return true;
+	}
+
+	bool ShaderCompiler::ParseShaderFile(String& output, const String& input)
+	{
+		Vector<String> lines;
+		ConvertToLines(input, lines);
+
+		for (uint i = 0; i < lines.size(); i++)
+		{
+			usize includePos = lines[i].find("#include");
+			if (includePos != String::npos)
+			{
+				const String& line = lines[i];
+
+				usize includeStart = line.find('\"');
+				usize includeEnd = line.rfind('\"');
+				if (includeStart != includeEnd && includeStart != String::npos)
+				{
+					String includeName = StrTrim(line.substr(includeStart + 1, includeEnd - includeStart - 1));
+					if (_includedFiles.count(includeName))
+						continue;
+
+					FileStream includeReader;
+					if (!includeReader.OpenForRead((g_ShaderAuxDir + includeName).data()))
+						return false;
+
+					String includeText;
+					if (!includeReader.ReadAllText(includeText))
+						return false;
+
+					if (!includeReader.Close())
+						return false;
+
+					String includeTextParsed;
+					ParseShaderFile(includeTextParsed, includeText);
+					output += includeTextParsed;
+				}
+			}
+			else
+			{
+				output += lines[i];
+			}
+			output += "\n";
+		}
+
+		return true;
+	}
+
+	void ShaderCompiler::ConvertToLines(const String& input, Vector<String>& lines) const
+	{
+		String inText = StrRemove(input, '\r');
+
+		Vector<String> tmpLines;
+		StrSplit(inText, tmpLines, '\n');
+
+		for (uint i = 0; i < tmpLines.size(); i++)
+		{
+			String line = tmpLines[i];
+			usize commentPos = line.find("//");
+			if (commentPos != String::npos)
+				line = line.substr(0, commentPos);
+
+			if (line.length())
+				lines.push_back(line);
+		}
 	}
 }

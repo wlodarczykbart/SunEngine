@@ -1,6 +1,7 @@
 #include "IGraphicsPipeline.h"
 #include "BaseShader.h"
 #include "RenderTarget.h"
+#include "IShader.h"
 #include "GraphicsPipeline.h"
 
 
@@ -9,7 +10,6 @@ namespace SunEngine
 {
 	GraphicsPipeline::CreateInfo::CreateInfo()
 	{
-		shaderPass = ShaderStrings::DefaultShaderPassName;
 	}
 
 	GraphicsPipeline::GraphicsPipeline() : GraphicsObject(GraphicsObject::GRAPHICS_PIPELINE)
@@ -30,7 +30,7 @@ namespace SunEngine
 			return false;
 
 		IGraphicsPipelineCreateInfo apiInfo;
-		apiInfo.pShader = info.pShader->GetShaderPassShader(info.shaderPass);
+		apiInfo.pShader = static_cast<IShader*>(info.pShader->GetAPIHandle());
 		if (!apiInfo.pShader)
 			return false;
 		apiInfo.settings = info.settings;

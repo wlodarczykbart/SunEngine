@@ -229,6 +229,11 @@ namespace SunEngine
 		return str.substr(0, i + 1);
 	}
 
+	String StrTrim(const String& str)
+	{
+		return StrTrimEnd(StrTrimStart(str));
+	}
+
 	bool StrStartsWith(const String & str, const String & startsWith)
 	{
 		usize offset = str.find(startsWith);

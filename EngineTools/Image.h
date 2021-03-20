@@ -79,8 +79,8 @@ namespace SunEngine
 
 		ImageData ImageData() const;
 
-		bool Write(StreamWriter& stream) override;
-		bool Read(StreamReader& stream) override;
+		bool Write(StreamBase& stream) override;
+		bool Read(StreamBase& stream) override;
 
 		bool Compress();
 

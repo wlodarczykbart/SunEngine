@@ -25,6 +25,7 @@ namespace SunEngine
 	String StrReplace(const String& str, const Vector<char> &inTokens, char outToken);
 	String StrTrimStart(const String& str);
 	String StrTrimEnd(const String& str);
+	String StrTrim(const String& str);
 	bool StrStartsWith(const String& str, const String& startsWith);
 	String StrRemove(const String& str, char token);
 	bool StrContains(const String& str, const char* inStr);

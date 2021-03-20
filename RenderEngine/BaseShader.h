@@ -106,9 +106,6 @@ namespace SunEngine
 	class ShaderStrings
 	{
 	public:
-		static String DefaultShaderPassName;
-		static String ShadowShaderPassName;
-
 		static String CameraBufferName;
 		static String ObjectBufferName;
 		static String EnvBufferName;
@@ -171,29 +168,22 @@ namespace SunEngine
 		};
 
 		BaseShader* _shader;
-		StrMap<IShaderBindings*> _iBindings;
+		IShaderBindings* _iBindings;
 		StrMap<ResourceInfo> _resourceMap;
 	};
 
 	class BaseShader : public GraphicsObject
 	{
 	public:
-		struct ShaderPass
-		{
-			ShaderPass()
-			{
-				pShader = 0;
-			}
-
-			IShaderCreateInfo ShaderData;
-			IShader* pShader;
-		};
-
 		struct CreateInfo
 		{
-			StrMap<IShaderCreateInfo> Shaders;
-			StrMap<IShaderResource> ResMap;
-			StrMap<IShaderBuffer> BuffMap;
+			StrMap<IShaderBuffer> buffers;
+			StrMap<IShaderResource> resources;
+			Vector<IVertexElement> vertexElements;
+
+			MemBuffer vertexBinaries[8];
+			MemBuffer pixelBinaries[8];
+			MemBuffer geometryBinaries[8];
 		};
 
 		BaseShader();
@@ -203,10 +193,6 @@ namespace SunEngine
 		bool Destroy() override;
 
 		IObject* GetAPIHandle() const override;
-		inline const String& GetActiveShaderPass() const { return _activeShaderPass; }
-
-		inline const StrMap<ShaderPass>& GetShaderPasses() const { return _shaderPasses; }
-		IShader* GetShaderPassShader(const String& shaderPass) const;		
 
 		void GetBufferInfos(Vector<IShaderBuffer>& infos) const;
 		void GetResourceInfos(Vector<IShaderResource>& infos) const;
@@ -215,10 +201,9 @@ namespace SunEngine
 
 	private:
 
-		String _activeShaderPass;
 		StrMap<IShaderBuffer> _buffers;
 		StrMap<IShaderResource> _resources;
-		StrMap<ShaderPass> _shaderPasses;
+		IShader* _iShader;
 	};
 
 }

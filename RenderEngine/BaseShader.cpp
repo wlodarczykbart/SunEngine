@@ -22,9 +22,6 @@
 
 namespace SunEngine
 {
-	String ShaderStrings::DefaultShaderPassName = "DEFAULT";
-	String ShaderStrings::ShadowShaderPassName = "SHADOW";	
-
 	String ShaderStrings::CameraBufferName = "CameraBuffer";
 	String ShaderStrings::ObjectBufferName = "ObjectBuffer";
 	String ShaderStrings::EnvBufferName = "EnvBuffer";
@@ -45,7 +42,7 @@ namespace SunEngine
 
 	BaseShader::BaseShader() : GraphicsObject(GraphicsObject::SHADER)
 	{
-		_activeShaderPass = ShaderStrings::DefaultShaderPassName;
+		_iShader = 0;
 	}
 
 
@@ -59,73 +56,69 @@ namespace SunEngine
 		if (!Destroy())
 			return false;
 
-		_buffers = info.BuffMap;
-		_resources = info.ResMap;
+		_buffers = info.buffers;
+		_resources = info.resources;
 
-		for (auto iter = info.Shaders.begin(); iter != info.Shaders.end(); ++iter)
+		IShaderCreateInfo apiInfo = {};
+		apiInfo.buffers = info.buffers;
+		apiInfo.resources = info.resources;
+		apiInfo.vertexElements = info.vertexElements;
+
+		for (uint i = 0; i < SE_ARR_SIZE(info.vertexBinaries); i++)
 		{
-			ShaderPass& pass = _shaderPasses[(*iter).first];
-			pass.ShaderData = (*iter).second;
-
-			pass.pShader = AllocateGraphics<IShader>();
-			if (!pass.pShader->Create(pass.ShaderData))
-				return false;
+			apiInfo.vertexBinaries[i] = info.vertexBinaries[i];
+			apiInfo.pixelBinaries[i] = info.pixelBinaries[i];
+			apiInfo.geometryBinaries[i] = info.geometryBinaries[i];
 		}
+
+		_iShader = AllocateGraphics<IShader>();
+		if (!_iShader->Create(apiInfo))
+			return false;
 
 		return true;
 	}
 
 	bool BaseShader::Destroy()
 	{
-		for (auto iter = _shaderPasses.begin(); iter != _shaderPasses.end(); ++iter)
-		{
-			ShaderPass& pass = (*iter).second;
-			if (pass.pShader)
-			{
-				pass.pShader->Destroy();
-				delete pass.pShader;
-				pass.pShader = 0;
-			}
-		}
+		if (!GraphicsObject::Destroy())
+			return false;
 
-		_shaderPasses.clear();
 		_resources.clear();
 		_buffers.clear();
-		_activeShaderPass = ShaderStrings::DefaultShaderPassName;
+		_iShader = 0;
 		return true;
 	}
 
 	IObject * BaseShader::GetAPIHandle() const
 	{
-		return _shaderPasses.size() ? (*_shaderPasses.find(_activeShaderPass)).second.pShader : 0;
-	}
-
-	IShader* BaseShader::GetShaderPassShader(const String& shaderPass) const
-	{
-		auto found = _shaderPasses.find(shaderPass);
-		return found != _shaderPasses.end() ? (*found).second.pShader : nullptr;
+		return _iShader;
 	}
 
 	void BaseShader::GetBufferInfos(Vector<IShaderBuffer>& infos) const
 	{
 		for (auto iter = _buffers.begin(); iter != _buffers.end(); ++iter)
+		{
 			infos.push_back((*iter).second);
+		}
 	}
 
 	void BaseShader::GetResourceInfos(Vector<IShaderResource>& infos) const
 	{
 		for (auto iter = _resources.begin(); iter != _resources.end(); ++iter)
+		{
 			infos.push_back((*iter).second);
+		}
 	}
 
 	ShaderBindings::ShaderBindings() : GraphicsObject(GraphicsObject::SHADER_BINDINGS)
 	{
 		_shader = 0;
+		_iBindings = 0;
 	}
 
 	IObject * ShaderBindings::GetAPIHandle() const
 	{
-		return _iBindings.size() ? (*_iBindings.find(_shader->GetActiveShaderPass())).second : 0;
+		return _iBindings;
 	}
 
 	bool ShaderBindings::SetUniformBuffer(const String& name, UniformBuffer* pBuffer)
@@ -137,12 +130,7 @@ namespace SunEngine
 				return true;
 
 			const String& binding = (*foundIter).second.Name;
-			StrMap<IShaderBindings*>::iterator iter = _iBindings.begin();
-			while (iter != _iBindings.end())
-			{
-				(*iter).second->SetUniformBuffer((IUniformBuffer*)pBuffer->GetAPIHandle(), binding);
-				++iter;
-			}
+			_iBindings->SetUniformBuffer((IUniformBuffer*)pBuffer->GetAPIHandle(), binding);
 			(*foundIter).second.Set(pBuffer);
 			return true;
 		}
@@ -161,12 +149,7 @@ namespace SunEngine
 				return true;
 
 			const String& binding = (*foundIter).second.Name;
-			StrMap<IShaderBindings*>::iterator iter = _iBindings.begin();
-			while (iter != _iBindings.end())
-			{
-				(*iter).second->SetTexture((ITexture*)pTexture->GetAPIHandle(), binding);
-				++iter;
-			}
+			_iBindings->SetTexture((ITexture*)pTexture->GetAPIHandle(), binding);
 			(*foundIter).second.Set(pTexture);
 			return true;
 		}
@@ -185,12 +168,7 @@ namespace SunEngine
 				return true;
 
 			const String& binding = (*foundIter).second.Name;
-			StrMap<IShaderBindings*>::iterator iter = _iBindings.begin();
-			while (iter != _iBindings.end())
-			{
-				(*iter).second->SetSampler((ISampler*)pSampler->GetAPIHandle(), binding);
-				++iter;
-			}
+			_iBindings->SetSampler((ISampler*)pSampler->GetAPIHandle(), binding);
 			(*foundIter).second.Set(pSampler);
 			return true;
 		}
@@ -209,12 +187,7 @@ namespace SunEngine
 				return true;
 
 			const String& binding = (*foundIter).second.Name;
-			StrMap<IShaderBindings*>::iterator iter = _iBindings.begin();
-			while (iter != _iBindings.end())
-			{
-				(*iter).second->SetTextureCube((ITextureCube*)pTextureCube->GetAPIHandle(), binding);
-				++iter;
-			}
+			_iBindings->SetTextureCube((ITextureCube*)pTextureCube->GetAPIHandle(), binding);
 			(*foundIter).second.Set(pTextureCube);
 			return true;
 		}
@@ -233,13 +206,7 @@ namespace SunEngine
 				return true;
 
 			const String& binding = (*foundIter).second.Name;
-			StrMap<IShaderBindings*>::iterator iter = _iBindings.begin();
-			while (iter != _iBindings.end())
-			{
-				(*iter).second->SetTextureArray((ITextureArray*)pTextureArray->GetAPIHandle(), binding);
-				++iter;
-			}
-
+			_iBindings->SetTextureArray((ITextureArray*)pTextureArray->GetAPIHandle(), binding);
 			(*foundIter).second.Set(pTextureArray);
 			return true;
 		}
@@ -258,54 +225,50 @@ namespace SunEngine
 			return false;
 
 		_shader = (BaseShader*)info.pShader;
-		for (auto iter = _shader->GetShaderPasses().begin(); iter != _shader->GetShaderPasses().end(); ++iter)
+
+		IShaderBindingCreateInfo bindingInfo = {};
+		bindingInfo.pShader = static_cast<IShader*>(_shader->GetAPIHandle());
+		bindingInfo.type = info.type;
+
+		Vector<IShaderBuffer> buffers;
+		_shader->GetBufferInfos(buffers);
+
+		Vector<IShaderResource> resources;
+		_shader->GetResourceInfos(resources);
+
+		for (uint i = 0; i < buffers.size(); i++)
 		{
-			const BaseShader::ShaderPass& pass = (*iter).second;
-
-			IShaderBindingCreateInfo bindingInfo = {};
-			bindingInfo.pShader = pass.pShader;
-			bindingInfo.type = info.type;
-
-			for (auto buffIter = pass.ShaderData.buffers.begin(); buffIter != pass.ShaderData.buffers.end(); ++buffIter)
+			if (buffers[i].bindType == info.type)
 			{
-				if ((*buffIter).second.bindType == info.type)
-				{
-					const IShaderBuffer& buff = (*buffIter).second;
-					bindingInfo.bufferBindings.push_back(buff);
-					
-					ResourceInfo resInfo = {};
-					resInfo.Name = buff.name;
-					_resourceMap[buff.name] = resInfo;
-				}
-			}
+				const IShaderBuffer& buff = buffers[i];
+				bindingInfo.bufferBindings.push_back(buff);
 
-			for (auto resIter = pass.ShaderData.resources.begin(); resIter != pass.ShaderData.resources.end(); ++resIter)
+				ResourceInfo resInfo = {};
+				resInfo.Name = buff.name;
+				_resourceMap[buff.name] = resInfo;
+			}
+		}
+
+		for (uint i = 0; i < resources.size(); i++)
+		{
+			if (resources[i].bindType == info.type)
 			{
-				if ((*resIter).second.bindType == info.type)
-				{
-					const IShaderResource& res = (*resIter).second;
-					bindingInfo.resourceBindings.push_back(res);
+				const IShaderResource& res = resources[i];
+				bindingInfo.resourceBindings.push_back(res);
 
-					ResourceInfo resInfo = {};
-					resInfo.Name = res.name;
-					_resourceMap[res.name] = resInfo;
-				}
+				ResourceInfo resInfo = {};
+				resInfo.Name = res.name;
+				_resourceMap[res.name] = resInfo;
 			}
-		
-			IShaderBindings* pBindings = AllocateGraphics<IShaderBindings>();
+		}
 
-			//only create the api bindings if any buffers our resources are using the binding type
-			if (bindingInfo.bufferBindings.size() || bindingInfo.resourceBindings.size())
-			{
-				if (!pBindings->Create(bindingInfo))
-				{
-					_errStr = "Failed to create per shader pass binding";
-					delete pBindings;
-					return false;
-				}
-			}
+		_iBindings = AllocateGraphics<IShaderBindings>();
 
-			_iBindings[(*iter).first] = pBindings;
+		//only create the api bindings if any buffers our resources are using the binding type
+		if (bindingInfo.bufferBindings.size() || bindingInfo.resourceBindings.size())
+		{
+			if (!_iBindings->Create(bindingInfo))
+				return false;
 		}
 
 		return true;
@@ -313,16 +276,10 @@ namespace SunEngine
 
 	bool ShaderBindings::Destroy()
 	{
-		StrMap<IShaderBindings*>::iterator iter = _iBindings.begin();
-		while (iter != _iBindings.end())
-		{
-			if (!(*iter).second->Destroy())
-				return false;
-			delete (*iter).second;
-			++iter;
-		}
+		if (!GraphicsObject::Destroy())
+			return false;
 
-		_iBindings.clear();
+		_iBindings = 0;
 		_shader = 0;
 		_resourceMap.clear();
 		return true;

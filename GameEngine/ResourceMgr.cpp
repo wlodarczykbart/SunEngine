@@ -1,4 +1,5 @@
 #include "StringUtil.h"
+#include "BufferBase.h"
 #include "ResourceMgr.h"
 
 namespace SunEngine
@@ -13,6 +14,7 @@ namespace SunEngine
 
 		DefineStaticStr(Mesh, Cube);
 		DefineStaticStr(Mesh, Sphere);
+		DefineStaticStr(Mesh, Plane);
 
 		DefineStaticStr(Shader, StandardMetallic);
 		DefineStaticStr(Shader, StandardSpecular);
@@ -38,6 +40,20 @@ namespace SunEngine
 		return pResource;
 	}
 
+	template<typename T>
+	bool ResourceMgr::RemoveResourceFromMap(StrMap<UniquePtr<T>>& map, T* pRes)
+	{
+		if (!pRes)
+			return false;
+
+		auto found = map.find(pRes->GetName());
+		if (found == map.end() || (*found).second.get() != pRes)
+			return false;
+
+		map.erase(found);
+		return true;
+	}
+
 	ResourceMgr& ResourceMgr::Get()
 	{
 		static ResourceMgr mgr;
@@ -56,6 +72,13 @@ namespace SunEngine
 		Mesh* pSphereMesh = AddMesh(DefaultResource::Mesh::Sphere);
 		pSphereMesh->AllocateSphere();
 		if (!pSphereMesh->RegisterToGPU())
+		{
+			return false;
+		}
+
+		Mesh* pPlaneMesh = AddMesh(DefaultResource::Mesh::Plane);
+		pPlaneMesh->AllocatePlane();
+		if (!pPlaneMesh->RegisterToGPU())
 		{
 			return false;
 		}
@@ -159,6 +182,49 @@ namespace SunEngine
 		return found != _textures2D.end() ? (*found).second.get() : 0;
 	}
 
+	bool ResourceMgr::CloneResource(Resource* pDst, Resource* pSrc) const
+	{
+		if (!pDst)
+			return false;
+
+		if (!pSrc)
+			return false;
+
+		String name = pDst->GetName();
+
+		NullStream sizeFinder;
+		if (!pSrc->Write(sizeFinder))
+			return false;
+		uint size = sizeFinder.Size();
+
+		BufferStream stream;
+		stream.SetSize(size);
+
+		if (!pSrc->Write(stream))
+			return false;
+
+		stream.SeekStart();
+		if (!pDst->Read(stream))
+			return false;
+
+		pDst->_name = name;
+		return true;
+	}
+
+	Material* ResourceMgr::Clone(Material* pSrc)
+	{
+		if (pSrc == 0)
+			return 0;
+
+		Material* pDst = AddMaterial(pSrc->GetName());
+		if (!CloneResource(pDst, pSrc))
+		{
+			Remove(pDst);
+			return 0;
+		}
+		return pDst;
+	}
+
 	ResourceMgr::ResourceMgr()
 	{
 	}
@@ -207,16 +273,13 @@ namespace SunEngine
 		return iter;
 	}
 
-	bool ResourceMgr::Remove(Asset* pAsset)
+	bool ResourceMgr::Remove(Asset* pRes)
 	{
-		if (!pAsset)
-			return false;
+		return RemoveResourceFromMap(_assets, pRes);
+	}
 
-		auto found = _assets.find(pAsset->GetName());
-		if (found == _assets.end() || (*found).second.get() != pAsset)
-			return false;
-
-		_assets.erase(found);
-		return true;
+	bool ResourceMgr::Remove(Material* pRes)
+	{
+		return RemoveResourceFromMap(_materials, pRes);
 	}
 }

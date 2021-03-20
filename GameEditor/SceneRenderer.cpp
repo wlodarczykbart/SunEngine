@@ -138,13 +138,12 @@ namespace SunEngine
 		IShaderBindingsBindState objectBindData = {};
 		objectBindData.DynamicIndices[0].first = ShaderStrings::ObjectBufferName;
 
-		String shaderPass = ShaderStrings::DefaultShaderPassName;
 		while (_renderQueue.size())
 		{
 			RenderNodeData& renderData = _renderQueue.front();
 
 			Shader* pShader = renderData.RenderNode->GetMaterial()->GetShader();
-			GraphicsPipeline& pipeline = renderData.PipelineData->Pipelines.at(shaderPass);
+			GraphicsPipeline& pipeline = *renderData.Pipeline;
 
 			//pipeline.GetShader()->getgpu
 			pShader->GetGPUObject()->Bind(cmdBuffer);
@@ -213,7 +212,7 @@ namespace SunEngine
 						RenderNodeData data = {};
 						data.SceneNode = pNode;
 						data.RenderNode = &renderNode;
-						data.PipelineData = GetPipelineData(renderNode);
+						data.Pipeline = GetPipeline(renderNode);
 
 						if (_currentObjectBuffer->UpdateIndex == _objectBufferData.size())
 						{
@@ -269,7 +268,7 @@ namespace SunEngine
 		}
 	}
 
-	SceneRenderer::GraphicsPipelineData* SceneRenderer::GetPipelineData(const RenderNode& node)
+	GraphicsPipeline* SceneRenderer::GetPipeline(const RenderNode& node)
 	{
 		PipelineSettings settings = {};
 		node.BuildPipelineSettings(settings);
@@ -277,31 +276,22 @@ namespace SunEngine
 
 		for (uint i = 0; i < _graphicsPipelines.size(); i++)
 		{
-			if (_graphicsPipelines[i]->Shader == pShader && settings == _graphicsPipelines[i]->Settings)
+			if (_graphicsPipelines[i]->GetShader() == pShader->GetGPUObject() && settings == _graphicsPipelines[i]->GetSettings())
 			{
 				return _graphicsPipelines[i].get();
 			}
 		}
 
-		GraphicsPipelineData* data = new GraphicsPipelineData();
-		data->Shader = pShader;
-		data->Settings = settings;
+		GraphicsPipeline* pipeline = new GraphicsPipeline();
 
 		GraphicsPipeline::CreateInfo info = {};
 		info.pShader = pShader->GetGPUObject();
 		info.settings = settings;
-		
-		auto& passMap = pShader->GetGPUObject()->GetShaderPasses();
-		for (auto iter = passMap.begin(); iter != passMap.end(); ++iter)
-		{
-			info.shaderPass = (*iter).first;
-			if (!data->Pipelines[info.shaderPass].Create(info))
-			{
-				return 0;
-			}
-		}
 
-		_graphicsPipelines.push_back(UniquePtr<GraphicsPipelineData>(data));
+		if (!pipeline->Create(info))
+			return 0;
+
+		_graphicsPipelines.push_back(UniquePtr<GraphicsPipeline>(pipeline));
 		return _graphicsPipelines.back().get();
 	}
 

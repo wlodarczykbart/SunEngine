@@ -1,12 +1,12 @@
 #pragma once
 
-#include "StreamBase.h"
+#include "Types.h"
 
 namespace SunEngine
 {
 	class MemBuffer;
 
-	class StreamReader : public StreamBase
+	class StreamReader
 	{
 	public:
 		StreamReader();
@@ -28,8 +28,28 @@ namespace SunEngine
 		virtual bool Read(String& buffer);
 		virtual bool Read(void** buffer);
 
-		virtual bool ReadAll(MemBuffer &buffer);
-		virtual bool ReadAllText(String &buffer);
+		template<typename K, typename V>
+		bool ReadSimple( Map<K, V>& map)
+		{
+			uint size = 0;
+			if (!Read(size))
+				return false;
+
+			for (uint i = 0; i < size; i++)
+			{
+				K key;
+				if (!Read(key))
+					return false;
+
+				V value;
+				if (!Read(&value, sizeof(V)))
+					return false;
+
+				map[key] = value;
+			}
+
+			return true;
+		}
 
 	protected:
 		virtual bool DerivedRead(void *pBuffer, const usize size) = 0;

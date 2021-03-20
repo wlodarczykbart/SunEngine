@@ -6,18 +6,21 @@
 namespace SunEngine
 {
 
-	class FileBase
+	class FileStream final : public StreamBase
 	{
 	public:
-		FileBase();
-		virtual ~FileBase();
+		FileStream();
+		~FileStream();
 
-		virtual bool Open(const char * filename) = 0;
+		bool OpenForRead(const char* filename);
+		bool OpenForWrite(const char* filename);
 		bool Close();
 
-	protected:
-		uint Tell() const;
-		bool Seek(const uint offset, const StreamBase::Position pos);
+	private:
+		uint Tell() const override;
+		bool Seek(const uint offset, const StreamBase::Position pos) override;
+		bool DerivedWrite(const void* pBuffer, const usize size) override;
+		bool DerivedRead(void* pBuffer, const usize size) override;
 
 		FILE* _fh;
 	};

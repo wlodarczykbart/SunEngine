@@ -28,6 +28,7 @@ namespace SunEngine
 		public:
 			static const String Cube;
 			static const String Sphere;
+			static const String Plane;
 		};
 
 		class Shader
@@ -87,11 +88,19 @@ namespace SunEngine
 		Iter<Material> IterMaterials() const;
 		Iter<Texture2D> IterTextures2D() const;
 
-		bool Remove(Asset* pAsset);
+		Material* Clone(Material* pSrc);
+
+		bool Remove(Asset* pRes);
+		bool Remove(Material* pRes);
 
 	private:
 		template<typename T>
 		T* AddResourceToMap(StrMap<UniquePtr<T>>& map, const String& name);
+
+		template<typename T>
+		bool RemoveResourceFromMap(StrMap<UniquePtr<T>>& map, T* resource);
+
+		bool CloneResource(Resource* pDst, Resource* pSrc) const;
 
 		ResourceMgr();
 		~ResourceMgr();

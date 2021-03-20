@@ -1,5 +1,4 @@
-#include "FileReader.h"
-#include "FileWriter.h"
+#include "FileBase.h"
 #include "StringUtil.h"
 
 #include "ConfigFile.h"
@@ -18,8 +17,8 @@ namespace SunEngine
 
 	bool ConfigFile::Load(const char * fileName)
 	{
-		FileReader reader;
-		if (reader.Open(fileName))
+		FileStream reader;
+		if (reader.OpenForRead(fileName))
 		{
 			this->_sections.clear();
 			this->_filename = fileName;
@@ -65,9 +64,9 @@ namespace SunEngine
 
 	bool ConfigFile::Save(const char * fileName)
 	{
-		FileWriter writer;
+		FileStream writer;
 
-		if (writer.Open(fileName))
+		if (writer.OpenForWrite(fileName))
 		{
 			_filename = fileName;
 

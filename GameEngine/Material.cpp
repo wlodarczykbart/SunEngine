@@ -34,9 +34,9 @@ namespace SunEngine
 	bool Material::SetMaterialVar(const String& name, const void* pData, const uint size)
 	{
 		auto found = _mtlVariables.find(name);
-		if (found != _mtlVariables.end() && (*found).second.Size <= size)
+		if (found != _mtlVariables.end() && (*found).second.size <= size)
 		{
-			_memBuffer.SetData(pData, size, (*found).second.Offset);
+			_memBuffer.SetData(pData, size, (*found).second.offset);
 			if (!_mtlBuffer.Update(_memBuffer.GetData()))
 				return false;
 
@@ -125,7 +125,7 @@ namespace SunEngine
 
 					for (uint j = 0; j < buff.Variables.size(); j++)
 					{
-						_mtlVariables[buff.Variables[j].Name] = buff.Variables[j];
+						_mtlVariables[buff.Variables[j].name] = buff.Variables[j];
 					}
 
 					break;
@@ -167,5 +167,33 @@ namespace SunEngine
 		{
 
 		}
+	}
+
+	bool Material::Write(StreamBase& stream)
+	{
+		if (!GPUResource::Write(stream))
+			return false;
+
+		if (!stream.Write((void**)&_shader)) return false;
+		if (!_memBuffer.Write(stream)) return false;
+		if (!stream.WriteSimple(_mtlVariables)) return false;
+		if (!stream.WriteSimple(_mtlTextures2D)) return false;
+		if (!stream.WriteSimple(_mtlSamplers)) return false;
+
+		return true;
+	}
+
+	bool Material::Read(StreamBase& stream)
+	{
+		if (!GPUResource::Read(stream))
+			return false;
+
+		if (!stream.Read((void**)&_shader)) return false;
+		if (!_memBuffer.Read(stream)) return false;
+		if (!stream.ReadSimple(_mtlVariables)) return false;
+		if (!stream.ReadSimple(_mtlTextures2D)) return false;
+		if (!stream.ReadSimple(_mtlSamplers)) return false;
+
+		return true;
 	}
 }

@@ -4,7 +4,7 @@
 #define STB_DXT_IMPLEMENTATION
 #include "stb_dxt.h"
 
-#include "FileWriter.h"
+#include "FileBase.h"
 
 #include "Image.h"
 
@@ -224,8 +224,8 @@ namespace SunEngine
 
 	bool Image::SaveAsTGA(const String& filename)
 	{
-		FileWriter fw;
-		if (!fw.Open(filename.data()))
+		FileStream fw;
+		if (!fw.OpenForWrite(filename.data()))
 			return false;
 
 		TGAHeader hdr = {};
@@ -296,7 +296,7 @@ namespace SunEngine
 		return id;
 	}
 
-	bool Image::Write(StreamWriter& stream)
+	bool Image::Write(StreamBase& stream)
 	{
 		if (!stream.Write(_width))
 			return false;
@@ -317,7 +317,7 @@ namespace SunEngine
 		return true;
 	}
 
-	bool Image::Read(StreamReader& stream)
+	bool Image::Read(StreamBase& stream)
 	{
 		if (!stream.Read(_width))
 			return false;

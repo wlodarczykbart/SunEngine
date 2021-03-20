@@ -96,5 +96,4 @@ namespace SunEngine
 	{
 		return Write(pBuffer, sizeof(void*));
 	}
-
 }

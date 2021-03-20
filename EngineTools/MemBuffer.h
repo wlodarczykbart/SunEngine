@@ -2,7 +2,6 @@
 
 #include "Serializable.h"
 
-
 namespace SunEngine
 {
 	class MemBuffer : public Serializable
@@ -23,8 +22,8 @@ namespace SunEngine
 		char* GetData(const uint offset);
 		const char* GetData(const uint offset) const;
 
-		bool Write(StreamWriter &stream) override;
-		bool Read(StreamReader &stream) override;
+		bool Write(StreamBase &stream) override;
+		bool Read(StreamBase&stream) override;
 
 	private:
 		Vector<char> _buffer;

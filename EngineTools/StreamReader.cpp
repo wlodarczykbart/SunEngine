@@ -100,27 +100,4 @@ namespace SunEngine
 		*buffer = ptr;
 		return true;;
 	}
-
-	bool StreamReader::ReadAll(MemBuffer & buffer)
-	{
-		buffer.SetSize(Size());
-		Seek(0, START);
-		return Read(buffer.GetData(), buffer.GetSize());
-	}
-
-	bool StreamReader::ReadAllText(String & buffer)
-	{
-		buffer.resize(Size());
-
-		Seek(0, START);
-		bool bRead = Read(&buffer[0], buffer.size());
-		if (bRead)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
 }

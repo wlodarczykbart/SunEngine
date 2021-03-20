@@ -1,10 +1,11 @@
 #pragma once
 
 #include "Types.h"
+#include "Serializable.h"
 
 namespace SunEngine
 {
-	class Resource
+	class Resource : public Serializable
 	{
 	public:
 		Resource();
@@ -13,6 +14,9 @@ namespace SunEngine
 		Resource & operator = (const Resource&) = delete;
 
 		const String& GetName() const { return _name; }
+
+		virtual bool Write(StreamBase& stream) override;
+		virtual bool Read(StreamBase& stream) override;
 
 	private:
 		friend class ResourceMgr;

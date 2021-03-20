@@ -1,7 +1,6 @@
 #pragma once
 
-#include "StreamReader.h"
-#include "StreamWriter.h"
+#include "StreamBase.h"
 
 namespace SunEngine
 {
@@ -12,8 +11,8 @@ namespace SunEngine
 		Serializable();
 		virtual ~Serializable();
 
-		virtual bool Write(StreamWriter &stream) = 0;
-		virtual bool Read(StreamReader &stream) = 0;
+		virtual bool Write(StreamBase &stream) = 0;
+		virtual bool Read(StreamBase &stream) = 0;
 
 	private:
 	};

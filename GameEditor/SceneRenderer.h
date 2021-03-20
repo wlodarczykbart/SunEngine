@@ -26,13 +26,6 @@ namespace SunEngine
 		bool RenderFrame(CommandBuffer* cmdBuffer);
 
 	private:
-		struct GraphicsPipelineData
-		{
-			Shader* Shader;
-			PipelineSettings Settings;
-			StrMap<GraphicsPipeline> Pipelines;
-		};
-
 		struct UniformBufferData
 		{
 			uint ArrayIndex;
@@ -45,19 +38,19 @@ namespace SunEngine
 		{
 			SceneNode* SceneNode;
 			const RenderNode* RenderNode;
-			GraphicsPipelineData* PipelineData;
+			GraphicsPipeline* Pipeline;
 			UniformBufferData* ObjectBindings;
 			uint ObjectBufferIndex;
 		};
 
 		static void TraverseFunc(SceneNode* pNode, void* pUserData);
 		void ProcessNode(SceneNode* pNode);
-		GraphicsPipelineData* GetPipelineData(const RenderNode& node);
+		GraphicsPipeline* GetPipeline(const RenderNode& node);
 
 		bool _bInit;
 		UniquePtr<UniformBufferData> _cameraBuffer;
 		UniquePtr<UniformBufferData> _lightBuffer;
-		Vector<UniquePtr<GraphicsPipelineData>> _graphicsPipelines;
+		Vector<UniquePtr<GraphicsPipeline>> _graphicsPipelines;
 		Vector<UniquePtr<UniformBufferData>> _objectBuffers;
 		UniformBufferData* _currentObjectBuffer;
 		CameraComponentData* _currentCamera;
