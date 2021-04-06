@@ -11,22 +11,28 @@ namespace SunEngine
 	class Texture2D;
 	class Sampler;
 
-	class Shader : public GPUResource<BaseShader>
+	class Shader
 	{
 	public:
+		static const String Default;
+		static const String Shadow;
+
 		Shader();
 		~Shader();
 
-		bool LoadConfig(const String& path);
-		void SetCreateInfo(const BaseShader::CreateInfo& info);
-
-		bool RegisterToGPU() override;
+		bool Compile(const String& vertexSource, const String& pixelSource);
+		bool Compile(const String& path);
+		bool Compile(const ConfigFile& config);
 
 		void SetDefaults(Material* pMtl) const;
 
-		const ConfigSection* GetConfigSection(const String& name) const { return _config.GetSection(name.c_str()); }
+		BaseShader* GetDefault() const;
+		BaseShader* GetVariant(const String& variant) const;
+
+		bool GetConfigSection(const String& name, ConfigSection& section) const;
 
 	private:
+		void CollectConfigFiles(LinkedList<ConfigFile>& configList, HashSet<String>& configMap);
 		void SetDefaults();
 		void ParseSamplerAnisotropy(const String& str, FilterMode& fm, WrapMode& wm, AnisotropicMode& am) const;
 		void ParseFloats(const String& str, uint maxComponents, float* pData) const;
@@ -55,8 +61,14 @@ namespace SunEngine
 			};
 		};
 
-		BaseShader::CreateInfo _createInfo;
+		struct ShaderVariant
+		{
+			BaseShader shader;
+			StrMap<DefaultValue> defaults;
+		};
+
 		ConfigFile _config;
-		StrMap<DefaultValue> _defaultValues;
+		StrMap<UniquePtr<ShaderVariant>> _variants;
+		String _shaderError;
 	};
 }

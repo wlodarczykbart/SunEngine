@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "ResourceMgr.h"
 #include "CommandBuffer.h"
+#include "ShaderMgr.h"
 #include "GameEditorViews.h"
 
 namespace SunEngine
@@ -100,19 +101,19 @@ namespace SunEngine
 
 	bool SceneView::OnCreate(const CreateInfo& info)
 	{
-		Shader* pShader = ResourceMgr::Get().GetShader(DefaultResource::Shader::Gamma);
+		Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::Gamma);
 		assert(pShader);
 
 		if (!pShader)
 			return false;
 
 		GraphicsPipeline::CreateInfo pipelineInfo = {};
-		pipelineInfo.pShader = pShader->GetGPUObject();
+		pipelineInfo.pShader = pShader->GetDefault();
 		if (!_gammaData.first.Create(pipelineInfo))
 			return false;
 
 		ShaderBindings::CreateInfo bindingInfo = {};
-		bindingInfo.pShader = pShader->GetGPUObject();
+		bindingInfo.pShader = pShader->GetDefault();
 		bindingInfo.type = SBT_MATERIAL;
 
 		if (!_gammaData.second.Create(bindingInfo))

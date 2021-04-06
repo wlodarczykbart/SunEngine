@@ -33,14 +33,19 @@ namespace SunEngine
 		g_ShaderAuxDir = path + "/";
 	}
 
-	void ShaderCompiler::SetVertexShaderPath(const String& vertexShader)
+	void ShaderCompiler::SetDefines(const Vector<String>& defines)
 	{
-		_vertexPath = vertexShader;
+		_defines = defines;
 	}
 
-	void ShaderCompiler::SetPixelShaderPath(const String& pixelShader)
+	void ShaderCompiler::SetVertexShaderSource(const String& vertexShader)
 	{
-		_pixelPath = pixelShader;
+		_vertexSource = vertexShader;
+	}
+
+	void ShaderCompiler::SetPixelShaderSource(const String& pixelShader)
+	{
+		_pixelSource = pixelShader;
 	}
 
 	bool ShaderCompiler::Compile()
@@ -50,15 +55,15 @@ namespace SunEngine
 		_numUserTextures = 0;
 		_numUserSamplers = 0;
 
-		if (_vertexPath.length())
+		if (_vertexSource.length())
 		{
-			if (!CompileShader(SS_VERTEX, _vertexPath))
+			if (!CompileShader(SS_VERTEX, _vertexSource))
 				return false;
 		}
 
-		if (_pixelPath.length())
+		if (_pixelSource.length())
 		{
-			if (!CompileShader(SS_PIXEL, _pixelPath))
+			if (!CompileShader(SS_PIXEL, _pixelSource))
 				return false;
 		}
 
@@ -283,21 +288,10 @@ namespace SunEngine
 		}
 	}
 
-	bool ShaderCompiler::CompileShader(ShaderStage type, const String& path)
+	bool ShaderCompiler::CompileShader(ShaderStage type, const String& source)
 	{
-		FileStream fr;
-		if (!fr.OpenForRead(path.data()))
-			return false;
-
-		String fileText;
-		if (!fr.ReadAllText(fileText))
-			return false;
-
-		if (!fr.Close())
-			return false;
-
 		String shaderText;
-		ParseShaderFile(shaderText, fileText);
+		ParseShaderFile(shaderText, source);
 
 		String targetHLSL, targetGLSL;
 		if (type == SS_VERTEX)
@@ -315,6 +309,10 @@ namespace SunEngine
 		PreProcessText(shaderText, hlslText, glslText);
 
 		String shaderHeader = "#pragma pack_matrix( row_major )\n";
+		for (uint i = 0; i < _defines.size(); i++)
+		{
+			shaderHeader += "#define " + _defines[i] + "\n";
+		}
 
 		hlslText = shaderHeader + hlslText;
 		BaseShader::CreateInfo& shader = _shaderInfo;
@@ -326,33 +324,35 @@ namespace SunEngine
 
 		ID3DBlob* pShaderBlod = NULL;
 		ID3DBlob* pErrorBlod = NULL;
-		if (D3DCompile(hlslText.data(), hlslText.size(), NULL, NULL, NULL, "main", targetHLSL.data(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ALL_RESOURCES_BOUND, 0, &pShaderBlod, &pErrorBlod) == S_OK)
+		if (D3DCompile(hlslText.data(), hlslText.size(), NULL, NULL, NULL, "main", targetHLSL.data(), 0, 0, &pShaderBlod, &pErrorBlod) == S_OK)
 		{
 			pBinBuffer[SE_GFX_D3D11].SetSize((uint)pShaderBlod->GetBufferSize());
 			pBinBuffer[SE_GFX_D3D11].SetData(pShaderBlod->GetBufferPointer(), (uint)pShaderBlod->GetBufferSize());
 
 			glslText = shaderHeader + glslText;
 
-			String glslInPath = path + ".glsl";
-			String glslOutPath = path + ".spv";
+			String glslInPath = "ShaderCompilerTempShader.glsl";
+			String glslOutPath = "ShaderCompilerTempShader.spv";
 			FileStream fw;
 			fw.OpenForWrite(glslInPath.data());
-			fw.Write(glslText.data());
+			fw.WriteText(glslText);
 			fw.Close();
+
+			FileStream fr;
 
 			String compileSpvCmd = StrFormat("glslangValidator -D -S %s -e main -o %s -V %s", targetGLSL.data(), glslOutPath.data(), glslInPath.data());
 			int compiled = system(compileSpvCmd.data());
 			if (compiled == 0)
 			{
 				fr.OpenForRead(glslOutPath.data());
-				fr.ReadAll(pBinBuffer[SE_GFX_VULKAN]);
+				fr.ReadBuffer(pBinBuffer[SE_GFX_VULKAN]);;
 				fr.Close();
 			}
 			else
 			{
 				fr.OpenForRead(glslInPath.data());
 				String invalidSpvText;
-				fr.ReadAllText(invalidSpvText);
+				fr.ReadText(invalidSpvText);
 				fr.Close();
 
 				Vector<String> shaderLines;
@@ -555,7 +555,7 @@ namespace SunEngine
 						return false;
 
 					String includeText;
-					if (!includeReader.ReadAllText(includeText))
+					if (!includeReader.ReadText(includeText))
 						return false;
 
 					if (!includeReader.Close())

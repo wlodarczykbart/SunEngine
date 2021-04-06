@@ -39,6 +39,10 @@ SceneMgr.h
 SceneNode.cpp
 Shader.h
 Shader.cpp
+ShaderMgr.h
+ShaderMgr.cpp
+FilePathMgr.h
+FilePathMgr.cpp
 )
 
 target_include_directories(GameEngine PUBLIC 

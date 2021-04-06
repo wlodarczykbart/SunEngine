@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 
 #include "spdlog/spdlog.h"
+#include "ShaderCompiler.h"
 #include "GUIRenderer.h"
 
 //#define TEST_IMGUI_BASIC
@@ -221,11 +222,14 @@ namespace SunEngine
 		if (!_matrixBuffer.Create(buffInfo))
 			return false;
 
-		Editor::CompiledShaderInfo shaderInfo = {};
-		if (!_pEditor->CompileShader(shaderInfo, "EditorGUI", GUIVertexText, GUIPixelText))
+		ShaderCompiler shaderCompiler;
+		shaderCompiler.SetVertexShaderSource(GUIVertexText);
+		shaderCompiler.SetPixelShaderSource(GUIPixelText);
+
+		if (!shaderCompiler.Compile())
 			return false;
 
-		if (!_shader.Create(shaderInfo.CreateInfo))
+		if (!_shader.Create(shaderCompiler.GetCreateInfo()))
 		{
 			return false;
 		}

@@ -15,8 +15,9 @@ namespace SunEngine
 		//Must be set at some point before compiling shaders
 		static void SetAuxiliaryDir(const String& path);
 
-		void SetVertexShaderPath(const String& vertexShader);
-		void SetPixelShaderPath(const String& pixelShader);
+		void SetDefines(const Vector<String>& defines);
+		void SetVertexShaderSource(const String& vertexShader);
+		void SetPixelShaderSource(const String& pixelShader);
 
 		const String& GetLastError() const { return _lastErr; }
 		const BaseShader::CreateInfo& GetCreateInfo() const { return _shaderInfo; }
@@ -26,7 +27,7 @@ namespace SunEngine
 	private:
 		void GetBinding(const String& name, const String& type, uint* pBindings, ShaderBindingType& bindType);
 		void PreProcessText(const String& inText, String& outHLSL, String& outGLSL);
-		bool CompileShader(ShaderStage type, const String& path);
+		bool CompileShader(ShaderStage type, const String& source);
 		bool ParseShaderFile(String& output, const String& input);
 		void ConvertToLines(const String& input, Vector<String>& lines) const;
 
@@ -35,12 +36,13 @@ namespace SunEngine
 		uint _numUserTextures;
 		uint _numUserSamplers;
 
-		String _vertexPath;
-		String _pixelPath;
+		String _vertexSource;
+		String _pixelSource;
 
 		String _lastErr;
 
 		HashSet<String> _includedFiles;
+		Vector<String> _defines;
 
 	};
 }

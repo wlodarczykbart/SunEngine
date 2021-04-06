@@ -26,9 +26,10 @@ namespace SunEngine
 
 	}
 
-	void Material::SetShader(Shader* pShader)
+	void Material::SetShader(Shader* pShader, const String& variant)
 	{
 		_shader = pShader;
+		_variant = variant;
 	}
 
 	bool Material::SetMaterialVar(const String& name, const void* pData, const uint size)
@@ -89,8 +90,10 @@ namespace SunEngine
 		if (!_gpuObject.Destroy())
 			return false;
 
+		BaseShader* pVariant = _shader->GetVariant(_variant);
+
 		ShaderBindings::CreateInfo info = {};
-		info.pShader = _shader->GetGPUObject();
+		info.pShader = pVariant;
 		info.type = SBT_MATERIAL;
 
 		if (!_gpuObject.Create(info))
@@ -104,8 +107,8 @@ namespace SunEngine
 		{
 			Vector<IShaderBuffer> buffInfos;
 			Vector<IShaderResource> resInfos;
-			_shader->GetGPUObject()->GetBufferInfos(buffInfos);
-			_shader->GetGPUObject()->GetResourceInfos(resInfos);
+			pVariant->GetBufferInfos(buffInfos);
+			pVariant->GetResourceInfos(resInfos);
 
 			for (uint i = 0; i < buffInfos.size(); i++)
 			{
@@ -174,7 +177,8 @@ namespace SunEngine
 		if (!GPUResource::Write(stream))
 			return false;
 
-		if (!stream.Write((void**)&_shader)) return false;
+		if (!stream.Write(_shader)) return false;
+		if (!stream.Write(_variant)) return false;
 		if (!_memBuffer.Write(stream)) return false;
 		if (!stream.WriteSimple(_mtlVariables)) return false;
 		if (!stream.WriteSimple(_mtlTextures2D)) return false;
@@ -188,7 +192,8 @@ namespace SunEngine
 		if (!GPUResource::Read(stream))
 			return false;
 
-		if (!stream.Read((void**)&_shader)) return false;
+		if (!stream.Read(_shader)) return false;
+		if (!stream.Read(_variant)) return false;
 		if (!_memBuffer.Read(stream)) return false;
 		if (!stream.ReadSimple(_mtlVariables)) return false;
 		if (!stream.ReadSimple(_mtlTextures2D)) return false;

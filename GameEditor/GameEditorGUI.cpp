@@ -128,12 +128,12 @@ namespace SunEngine
 		if (!pShader)
 			return false;
 
-		const ConfigSection* pConfig = pShader->GetConfigSection("Editor");
-		if (!pConfig)
+		ConfigSection config;
+		if (!pShader->GetConfigSection("Editor", config))
 			return false;
 
-		OrderedStrMap<String> options;
-		if (!pConfig->GetBlock(name.c_str(), options))
+		StrMap<String> options;
+		if (!config.GetBlock(name, options))
 			return false;
 
 		auto type = options.find("ColorEdit");

@@ -8,6 +8,8 @@
 #include "Scene.h"
 #include "CommandBuffer.h"
 #include "AssetImporter.h"
+#include "ShaderMgr.h"
+#include "FilePathMgr.h"
 
 #include "FBXEditor.h"
 
@@ -42,9 +44,9 @@ namespace SunEngine
 
 		bool Init()
 		{
-			Shader* pShader = ResourceMgr::Get().GetShader(DefaultResource::Shader::StandardSpecular);
+			Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::StandardSpecular);
 			GraphicsPipeline::CreateInfo pipelineInfo = {};
-			pipelineInfo.pShader = pShader->GetGPUObject();
+			pipelineInfo.pShader = pShader->GetDefault();
 
 			if (!_opaquePipeline.Create(pipelineInfo))
 				return false;
@@ -67,7 +69,7 @@ namespace SunEngine
 				return false;
 
 			ShaderBindings::CreateInfo bindInfo = {};
-			bindInfo.pShader = pShader->GetGPUObject();
+			bindInfo.pShader = pShader->GetDefault();
 
 			bindInfo.type = SBT_OBJECT;
 			if (!_objectBuffer.second.Create(bindInfo))
@@ -210,9 +212,12 @@ namespace SunEngine
 		_currentAsset = 0;
 	}
 
-	bool FBXEditor::CustomInit(ConfigSection* pEditorConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
+	bool FBXEditor::CustomInit(ConfigFile* pConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
 	{
+		EnginePaths::Init(GetDirectory(pConfig->GetFilename()), pConfig->GetSection("Paths"));
+
 		ResourceMgr& resMgr = ResourceMgr::Get();
+		ShaderMgr& shaderMgr = ShaderMgr::Get();
 
 		if (!resMgr.CreateDefaults())
 		{
@@ -220,18 +225,18 @@ namespace SunEngine
 			return false;
 		}
 
-		Shader* pShader = resMgr.AddShader(DefaultResource::Shader::StandardSpecular);
-		CompiledShaderInfo shaderInfo = {};
-		if (!CompileShader(shaderInfo, DefaultResource::Shader::StandardSpecular))
+		if (!shaderMgr.LoadShaders())
 		{
-			spdlog::error("Failed to compile {}", pShader->GetName().c_str());
+			spdlog::error("Failed to load shaders");
 			return false;
 		}
 
-		pShader->SetCreateInfo(shaderInfo.CreateInfo);
-		pShader->LoadConfig(shaderInfo.ConfigPath);
-		if (!pShader->RegisterToGPU())
+		Shader* pShader = shaderMgr.GetShader(DefaultShaders::StandardSpecular);
+		if (!pShader)
+		{
+			spdlog::error("Failed to find {} shader", DefaultShaders::StandardSpecular);
 			return false;
+		}
 
 		Material* pMaterial = resMgr.AddMaterial(DefaultResource::Material::StandardSpecular);
 		pMaterial->SetShader(pShader);

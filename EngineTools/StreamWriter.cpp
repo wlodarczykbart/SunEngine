@@ -86,14 +86,8 @@ namespace SunEngine
 		return true;
 	}
 
-	bool StreamWriter::Write(const char * pBuffer)
+	bool StreamWriter::Write(const void* pBuffer)
 	{
-		if (!Write(pBuffer, strlen(pBuffer))) return false;
-		return true;
-	}
-
-	bool StreamWriter::Write(void* const* pBuffer)
-	{
-		return Write(pBuffer, sizeof(void*));
+		return Write(&pBuffer, sizeof(void*));
 	}
 }

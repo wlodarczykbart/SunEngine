@@ -28,7 +28,13 @@ float4 main(PS_In pIn) : SV_TARGET
 {	
 	float2 texCoord = pIn.texCoord.xy;
 
-	float3 albedo = DiffuseMap.Sample(Sampler, texCoord).rgb * Diffuse.rgb;
+	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * Diffuse;
+#ifdef ALPHA_TEST
+	if(diffuse.a < 0.5)
+		discard;
+#endif
+
+	float3 albedo = diffuse.rgb;
 	float metallic = saturate(MetallicMap.Sample(Sampler, texCoord).r * Metallic);
 	float smoothness = SmoothnessMap.Sample(Sampler, texCoord).r * Smoothness;
 	float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);

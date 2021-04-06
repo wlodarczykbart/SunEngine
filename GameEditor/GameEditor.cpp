@@ -12,7 +12,9 @@
 #include "AssetImporter.h"
 #include "StringUtil.h"
 #include "GameEditorViews.h"
+#include "ShaderMgr.h"
 #include "GameEditorGUI.h"
+#include "FilePathMgr.h"
 
 #include "GameEditor.h"
 
@@ -28,13 +30,26 @@ namespace SunEngine
 
 	}
 
-	bool GameEditor::CustomInit(ConfigSection* pEditorConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
+	bool GameEditor::CustomInit(ConfigFile* pConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
 	{
-		if (!CompileShaders())
+		EnginePaths::Init(GetDirectory(pConfig->GetFilename()), pConfig->GetSection("Paths"));
+
+		ResourceMgr& resMgr = ResourceMgr::Get();
+		ShaderMgr& shaderMgr = ShaderMgr::Get();
+
+		if (!resMgr.CreateDefaults())
 		{
-			spdlog::error("Failed to compile Shaders");
+			spdlog::error("Failed to create default resource");
 			return false;
 		}
+
+		if (!shaderMgr.LoadShaders())
+		{
+			spdlog::error("Failed to load shaders");
+			return false;
+		}
+
+		ConfigSection* pEditorConfig = pConfig->GetSection("Editor");
 
 		//Create SceneView
 		View::CreateInfo viewInfo = {};
@@ -103,59 +118,15 @@ namespace SunEngine
 		pScene->Update(1 / 60.0f, 0.0f);
 	}
 
-	bool GameEditor::CompileShaders()
-	{
-		String path = GetPathFromConfig("ShaderConfig");
-		if (!path.length())
-			return false;
-
-		String shaderDir = GetPathFromConfig("Shaders");
-
-		ConfigFile config;
-		if (!config.Load(path.data()))
-			return false;
-
-		for (auto iter = config.Begin(); iter != config.End(); ++iter)
-		{
-			CompiledShaderInfo& info = _compiledShaders[(*iter).first];
-			if (!CompileShader(info, (*iter).first))
-				return false;
-		}
-
-		auto& resMgr = ResourceMgr::Get();
-		resMgr.CreateDefaults();
-
-		for (auto iter = _compiledShaders.begin(); iter != _compiledShaders.end(); ++iter)
-		{
-			Shader* pShader = resMgr.AddShader((*iter).first);
-			pShader->SetCreateInfo((*iter).second.CreateInfo);
-			if (!pShader->RegisterToGPU())
-			{
-				spdlog::error("Failed to create shader: {}", pShader->GetGPUObject()->GetErrStr().data());
-				return false;
-			}
-
-			if ((*iter).second.ConfigPath.length())
-			{
-				if (!pShader->LoadConfig((*iter).second.ConfigPath))
-				{
-					spdlog::error("Failed to load shader config: {}", (*iter).second.ConfigPath.c_str());
-					return false;
-				}
-			}
-		}
-
-		return true;
-	}
-
 	bool GameEditor::CreateDefaultScene()
 	{
 		auto& resMgr = ResourceMgr::Get();
+		auto& shaderMgr = ShaderMgr::Get();
 
-		Shader* pMetalShader = resMgr.GetShader(DefaultResource::Shader::StandardMetallic);
+		Shader* pMetalShader = shaderMgr.GetShader(DefaultShaders::Metallic);
 		if (pMetalShader == 0)
 		{
-			spdlog::error("Failed to find {} Shader", DefaultResource::Shader::StandardMetallic.c_str());
+			spdlog::error("Failed to find {} Shader", DefaultShaders::Metallic.c_str());
 			return false;
 		}
 
@@ -168,10 +139,10 @@ namespace SunEngine
 		}
 		pMetalShader->SetDefaults(pMetalMaterial);
 
-		Shader* pSpecularShader = resMgr.GetShader(DefaultResource::Shader::StandardSpecular);
+		Shader* pSpecularShader = shaderMgr.GetShader(DefaultShaders::Specular);
 		if (pSpecularShader == 0)
 		{
-			spdlog::error("Failed to find {} Shader", DefaultResource::Shader::StandardSpecular.c_str());
+			spdlog::error("Failed to find {} Shader", DefaultShaders::Specular.c_str());
 			return false;
 		}
 

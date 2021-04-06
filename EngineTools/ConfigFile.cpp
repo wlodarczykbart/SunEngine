@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "FileBase.h"
 #include "StringUtil.h"
 
@@ -15,16 +16,16 @@ namespace SunEngine
 	{
 	}
 
-	bool ConfigFile::Load(const char * fileName)
+	bool ConfigFile::Load(const String& fileName)
 	{
 		FileStream reader;
-		if (reader.OpenForRead(fileName))
+		if (reader.OpenForRead(fileName.c_str()))
 		{
 			this->_sections.clear();
 			this->_filename = fileName;
 
 			String txtFile;
-			reader.ReadAllText(txtFile);
+			reader.ReadText(txtFile);
 			txtFile = StrRemove(txtFile, '\r');
 
 			Vector<String> lines;
@@ -42,7 +43,7 @@ namespace SunEngine
 				if (startBracket == 0 && endBracket == line.size() - 1 && startBracket < endBracket)
 				{
 					String section = line.substr(startBracket+1, endBracket - startBracket - 1);
-					pSection = &_sections[section];
+					pSection = AddSection(section);
 				}
 				else if (eqPos != String::npos)
 				{
@@ -50,7 +51,11 @@ namespace SunEngine
 					String value = line.substr(eqPos + 1, line.length() - eqPos - 1);
 
 					pSection->_dataPairs[key] = value;
-				}	
+				}
+				else if (line.length())
+				{
+					pSection->_dataPairs[line] = "";
+				}
 			}
 
 			reader.Close();
@@ -62,26 +67,26 @@ namespace SunEngine
 		}
 	}
 
-	bool ConfigFile::Save(const char * fileName)
+	bool ConfigFile::Save(const String& fileName)
 	{
 		FileStream writer;
 
-		if (writer.OpenForWrite(fileName))
+		if (writer.OpenForWrite(fileName.c_str()))
 		{
 			_filename = fileName;
 
-			OrderedStrMap<ConfigSection>::iterator sectionIt = _sections.begin();
+			StrMap<ConfigSection>::iterator sectionIt = _sections.begin();
 			while (sectionIt != _sections.end())
 			{
 				String secStr = StrFormat("[%s]\n", (*sectionIt).first.data());	
-				writer.Write(secStr.data(), secStr.length());
+				writer.WriteText(secStr);
 
-				OrderedStrMap<String> &dataPairs = (*sectionIt).second._dataPairs;
-				OrderedStrMap<String>::iterator dataIt = dataPairs.begin();
+				StrMap<String> &dataPairs = (*sectionIt).second._dataPairs;
+				StrMap<String>::iterator dataIt = dataPairs.begin();
 				while (dataIt != dataPairs.end())
 				{
 					String dataStr = StrFormat("%s=%s\n", (*dataIt).first.data(), (*dataIt).second.data());
-					writer.Write(dataStr.data(), dataStr.size());
+					writer.WriteText(dataStr);
 					dataIt++;
 				}
 
@@ -98,20 +103,20 @@ namespace SunEngine
 		}
 	}
 
-	ConfigSection * ConfigFile::AddSection(const char * section)
+	ConfigSection * ConfigFile::AddSection(const String& section)
 	{
-		ConfigSection* pSection = &_sections[section];
+		ConfigSection* pSection = GetSection(section);
+		if (pSection)
+			return pSection;
+
+		pSection = &_sections[section];
+		pSection->_name = section;
 		return pSection;
 	}
 
-	ConfigSection * ConfigFile::GetSection(const char * section)
+	ConfigSection * ConfigFile::GetSection(const String& section)
 	{
-		return operator[] (section);
-	}
-
-	ConfigSection * ConfigFile::operator[](const char * section)
-	{
-		OrderedStrMap<ConfigSection>::iterator it = _sections.find(section);
+		StrMap<ConfigSection>::iterator it = _sections.find(section);
 		if (it != _sections.end())
 		{
 			return &(*it).second;
@@ -122,14 +127,9 @@ namespace SunEngine
 		}
 	}
 
-	const ConfigSection* ConfigFile::GetSection(const char* section) const
+	const ConfigSection* ConfigFile::GetSection(const String& section) const
 	{
-		return operator[] (section);
-	}
-
-	const ConfigSection* ConfigFile::operator[](const char* section) const
-	{
-		OrderedStrMap<ConfigSection>::const_iterator it = _sections.find(section);
+		StrMap<ConfigSection>::const_iterator it = _sections.find(section);
 		if (it != _sections.end())
 		{
 			return &(*it).second;
@@ -159,7 +159,7 @@ namespace SunEngine
 	{
 	}
 
-	String ConfigSection::GetString(const char * key, const char* defaultValue) const
+	String ConfigSection::GetString(const String& key, const char* defaultValue) const
 	{
 		const String *pStr;
 		if (GetValue(key, &pStr))
@@ -168,11 +168,11 @@ namespace SunEngine
 		}
 		else
 		{
-			return defaultValue ? defaultValue : "";
+			return defaultValue;
 		}
 	}
 
-	int ConfigSection::GetInt(const char * key, int defaultValue) const
+	int ConfigSection::GetInt(const String& key, int defaultValue) const
 	{
 		const String *pStr;
 		if (GetValue(key, &pStr))
@@ -185,7 +185,7 @@ namespace SunEngine
 		}
 	}
 
-	float ConfigSection::GetFloat(const char * key, float defaultValue) const
+	float ConfigSection::GetFloat(const String& key, float defaultValue) const
 	{
 		const String *pStr;
 		if (GetValue(key, &pStr))
@@ -198,7 +198,7 @@ namespace SunEngine
 		}
 	}
 
-	bool ConfigSection::GetBlock(const char* key, OrderedStrMap<String>& block, char blockStart, char blockEnd) const
+	bool ConfigSection::GetBlock(const String& key, StrMap<String>& block, char blockStart, char blockEnd) const
 	{
 		const String *pStr;
 		if (GetValue(key, &pStr))
@@ -235,9 +235,9 @@ namespace SunEngine
 		}
 	}
 
-	bool ConfigSection::GetValue(const char * key, const String ** pStr) const
+	bool ConfigSection::GetValue(const String& key, const String ** pStr) const
 	{
-		OrderedStrMap<String>::const_iterator it = _dataPairs.find(key);
+		StrMap<String>::const_iterator it = _dataPairs.find(key);
 		if (it != _dataPairs.end())
 		{
 			*pStr = &(*it).second;
@@ -249,28 +249,28 @@ namespace SunEngine
 		}
 	}
 
-	void ConfigSection::SetString(const char * key, const char* value)
+	void ConfigSection::SetString(const String& key, const char* value)
 	{
 		_dataPairs[key] = value;
 	}
 
-	void ConfigSection::SetInt(const char * key, const int value)
+	void ConfigSection::SetInt(const String& key, const int value)
 	{
 		_dataPairs[key] = IntToStr(value);
 	}
 
-	void ConfigSection::SetFloat(const char * key, const float value)
+	void ConfigSection::SetFloat(const String& key, const float value)
 	{
 		_dataPairs[key] = FloatToStr(value);
 	}
 
-	void ConfigSection::SetBlock(const char * key, const OrderedStrMap<String>& block, char blockStart, char blockEnd)
+	void ConfigSection::SetBlock(const String& key, const StrMap<String>& block, char blockStart, char blockEnd)
 	{
 		String strBlock;	
 		if (blockStart != 0) strBlock += blockStart;
 		{
 			String strPairs;
-			OrderedStrMap<String>::const_iterator iter = block.begin();
+			StrMap<String>::const_iterator iter = block.begin();
 			while (iter != block.end())
 			{
 				strPairs += StrFormat("%s=%s,", (*iter).first.data(), (*iter).second.data());
@@ -293,7 +293,7 @@ namespace SunEngine
 		return (uint)_dataPairs.size();
 	}
 
-	bool ConfigSection::HasKey(const char * key) const
+	bool ConfigSection::HasKey(const String& key) const
 	{
 		return _dataPairs.find(key) != _dataPairs.end();
 	}

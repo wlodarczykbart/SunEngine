@@ -113,7 +113,7 @@ namespace SunEngine
 			if (_cameraBuffer->ShaderBindings.find(pShader) == _cameraBuffer->ShaderBindings.end())
 			{
 				ShaderBindings::CreateInfo bindInfo = {};
-				bindInfo.pShader = pShader->GetGPUObject();
+				bindInfo.pShader = pShader->GetDefault();
 				bindInfo.type = SBT_CAMERA;
 				if (!_cameraBuffer->ShaderBindings[pShader].Create(bindInfo))
 					return false;
@@ -124,7 +124,7 @@ namespace SunEngine
 			if (_lightBuffer->ShaderBindings.find(pShader) == _lightBuffer->ShaderBindings.end())
 			{
 				ShaderBindings::CreateInfo bindInfo = {};
-				bindInfo.pShader = pShader->GetGPUObject();
+				bindInfo.pShader = pShader->GetDefault();
 				bindInfo.type = SBT_LIGHT;
 				if (!_lightBuffer->ShaderBindings[pShader].Create(bindInfo))
 					return false;
@@ -146,7 +146,7 @@ namespace SunEngine
 			GraphicsPipeline& pipeline = *renderData.Pipeline;
 
 			//pipeline.GetShader()->getgpu
-			pShader->GetGPUObject()->Bind(cmdBuffer);
+			pShader->GetDefault()->Bind(cmdBuffer);
 			pipeline.Bind(cmdBuffer);
 			_cameraBuffer->ShaderBindings.at(pShader).Bind(cmdBuffer);
 			_lightBuffer->ShaderBindings.at(pShader).Bind(cmdBuffer);
@@ -254,7 +254,7 @@ namespace SunEngine
 						if (data.ObjectBindings->ShaderBindings.find(pShader) == data.ObjectBindings->ShaderBindings.end())
 						{
 							ShaderBindings::CreateInfo bindingInfo = {};
-							bindingInfo.pShader = pShader->GetGPUObject();
+							bindingInfo.pShader = pShader->GetDefault();
 							bindingInfo.type = SBT_OBJECT;
 							data.ObjectBindings->ShaderBindings[pShader].Create(bindingInfo);
 							data.ObjectBindings->ShaderBindings[pShader].SetUniformBuffer(ShaderStrings::ObjectBufferName, &data.ObjectBindings->Buffer);
@@ -276,7 +276,7 @@ namespace SunEngine
 
 		for (uint i = 0; i < _graphicsPipelines.size(); i++)
 		{
-			if (_graphicsPipelines[i]->GetShader() == pShader->GetGPUObject() && settings == _graphicsPipelines[i]->GetSettings())
+			if (_graphicsPipelines[i]->GetShader() == pShader->GetDefault() && settings == _graphicsPipelines[i]->GetSettings())
 			{
 				return _graphicsPipelines[i].get();
 			}
@@ -285,7 +285,7 @@ namespace SunEngine
 		GraphicsPipeline* pipeline = new GraphicsPipeline();
 
 		GraphicsPipeline::CreateInfo info = {};
-		info.pShader = pShader->GetGPUObject();
+		info.pShader = pShader->GetDefault();
 		info.settings = settings;
 
 		if (!pipeline->Create(info))

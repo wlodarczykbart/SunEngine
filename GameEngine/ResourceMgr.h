@@ -31,14 +31,6 @@ namespace SunEngine
 			static const String Plane;
 		};
 
-		class Shader
-		{
-		public:
-			static const String StandardMetallic;
-			static const String StandardSpecular;
-			static const String Gamma;
-		};
-
 		class Material
 		{
 		public:
@@ -73,13 +65,11 @@ namespace SunEngine
 		bool CreateDefaults();
 
 		Asset* AddAsset(const String& name);
-		Shader* AddShader(const String& name);
 		Mesh* AddMesh(const String& name);
 		Material* AddMaterial(const String& name);
 		Texture2D* AddTexture2D(const String& name);
 
 		Asset* GetAsset(const String& name) const;
-		Shader* GetShader(const String& name) const;
 		Mesh* GetMesh(const String& name) const;
 		Material* GetMaterial(const String& name) const;
 		Texture2D* GetTexture2D(const String& name) const;
@@ -106,7 +96,6 @@ namespace SunEngine
 		~ResourceMgr();
 
 		StrMap<UniquePtr<Asset>> _assets;
-		StrMap<UniquePtr<Shader>> _shaders;
 		StrMap<UniquePtr<Mesh>> _meshes;
 		StrMap<UniquePtr<Material>> _materials;
 		StrMap<UniquePtr<Texture2D>> _textures2D;

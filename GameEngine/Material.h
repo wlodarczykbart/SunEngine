@@ -3,10 +3,10 @@
 #include "BaseShader.h"
 #include "GPUResource.h"
 #include "UniformBuffer.h"
+#include "Shader.h"
 
 namespace SunEngine
 {
-	class Shader;
 	class Texture2D;
 	class Sampler;
 
@@ -37,8 +37,9 @@ namespace SunEngine
 		Material();
 		~Material();
 
-		void SetShader(Shader* pShader);
+		void SetShader(Shader* pShader, const String& variant = Shader::Default);
 		Shader* GetShader() const { return _shader; }
+		const String& GetVariant() const { return _variant; }
 
 		template<typename T>
 		bool SetMaterialVar(const String& name, const T value)
@@ -88,6 +89,7 @@ namespace SunEngine
 		};
 
 		Shader* _shader;
+		String _variant;
 		MemBuffer _memBuffer;
 		StrMap<ShaderBufferVariable> _mtlVariables;
 		StrMap<MaterialTextureData> _mtlTextures2D;

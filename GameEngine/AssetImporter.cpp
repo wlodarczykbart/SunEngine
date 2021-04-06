@@ -1,7 +1,7 @@
 #include "StringUtil.h"
 #include "ResourceMgr.h"
 #include "MeshRenderer.h"
-#include "Shader.h"
+#include "ShaderMgr.h"
 #include "glm/gtx/matrix_decompose.hpp"
 
 #include "AssetImporter.h"
@@ -126,7 +126,7 @@ namespace SunEngine
 			String strShader;
 			StrMap<Texture2D*> textures;
 			PickMaterialShader(iMtl, strShader, textures);
-			pMtl->SetShader(resMgr.GetShader(strShader));
+			pMtl->SetShader(ShaderMgr::Get().GetShader(strShader));
 
 			if (!pMtl->RegisterToGPU())
 				return false;
@@ -225,7 +225,7 @@ namespace SunEngine
 
 		if (StrContains(strRoughness, "gloss") || StrContains(strRoughness, "rough"))
 		{
-			shader = DefaultResource::Shader::StandardMetallic;
+			shader = DefaultShaders::Metallic;
 
 			importerTextures[MaterialStrings::SmoothnessMap] = pMtl->ShininessExponentMap;
 
@@ -241,7 +241,7 @@ namespace SunEngine
 		}
 		else
 		{
-			shader = DefaultResource::Shader::StandardSpecular;
+			shader = DefaultShaders::Specular;
 
 			if (pMtl->DiffuseMap) importerTextures[MaterialStrings::DiffuseMap] = pMtl->DiffuseMap;
 

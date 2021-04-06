@@ -10,29 +10,32 @@ namespace SunEngine
 		ConfigSection();
 		~ConfigSection();
 
-		String GetString(const char * key, const char* defaultValue = NULL) const;
-		int GetInt(const char* key, int defaultValue = 0) const;
-		float GetFloat(const char* key, float defaultValue = 0.0f) const;
-		bool GetBlock(const char* key, OrderedStrMap<String>& block, char blockStart = 0, char blockEnd = 0) const;
+		const String& GetName() const { return _name; }
 
-		void SetString(const char * key, const char * value);
-		void SetInt(const char* key, const int value);
-		void SetFloat(const char* key, const float value);
-		void SetBlock(const char* key, const OrderedStrMap<String>& block, char blockStart = 0, char blockEnd = 0);
+		String GetString(const String& key, const char* defaultValue = "") const;
+		int GetInt(const String& key, int defaultValue = 0) const;
+		float GetFloat(const String& key, float defaultValue = 0.0f) const;
+		bool GetBlock(const String& key, StrMap<String>& block, char blockStart = 0, char blockEnd = 0) const;
 
-		bool HasKey(const char* key) const;
+		void SetString(const String& key, const char* value);
+		void SetInt(const String& key, const int value);
+		void SetFloat(const String& key, const float value);
+		void SetBlock(const String& key, const StrMap<String>& block, char blockStart = 0, char blockEnd = 0);
+
+		bool HasKey(const String& key) const;
 		
 		uint GetCount() const;
 
-		typedef OrderedStrMap<String>::const_iterator Iterator;
+		typedef StrMap<String>::const_iterator Iterator;
 		Iterator Begin() const;
 		Iterator End() const;
 
 	private:
-		bool GetValue(const char *key, const String** pStr) const;
+		bool GetValue(const String& key, const String** pStr) const;
 
 		friend class ConfigFile;
-		OrderedStrMap<String> _dataPairs;
+		StrMap<String> _dataPairs;
+		String _name;
 	};
 
 	class ConfigFile
@@ -41,26 +44,24 @@ namespace SunEngine
 		ConfigFile();
 		~ConfigFile();
 
-		bool Load(const char * fileName);
-		bool Save(const char * fileName);
+		bool Load(const String& fileName);
+		bool Save(const String& fileName);
 
-		ConfigSection* AddSection(const char * section);
-		ConfigSection* GetSection(const char * section);
-		ConfigSection* operator[](const char * section);
-		const ConfigSection* GetSection(const char* section) const;
-		const ConfigSection* operator[](const char* section) const;
+		ConfigSection* AddSection(const String& section);
+		ConfigSection* GetSection(const String& section);
+		const ConfigSection* GetSection(const String& section) const;
 
 		const String& GetFilename() const;
 
 		void Clear();
 
-		typedef OrderedStrMap<ConfigSection>::const_iterator Iterator;
+		typedef StrMap<ConfigSection>::const_iterator Iterator;
 		Iterator Begin() const;
 		Iterator End() const;
 
 	private:
 		String _filename;
-		OrderedStrMap<ConfigSection> _sections;
+		StrMap<ConfigSection> _sections;
 
 	};
 }

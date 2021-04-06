@@ -29,14 +29,23 @@ namespace SunEngine
 		}
 	}
 
-	bool StreamBase::ReadAll(MemBuffer& buffer)
+	bool StreamBase::ReadBuffer(MemBuffer& buffer)
 	{
 		buffer.SetSize(Size());
+
 		Seek(0, START);
-		return Read(buffer.GetData(), buffer.GetSize());
+		bool bRead = Read(buffer.GetData(), buffer.GetSize());
+		if (bRead)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
-	bool StreamBase::ReadAllText(String& buffer)
+	bool StreamBase::ReadText(String& buffer)
 	{
 		buffer.resize(Size());
 
@@ -50,6 +59,11 @@ namespace SunEngine
 		{
 			return false;
 		}
+	}
+
+	bool StreamBase::WriteText(const String& buffer)
+	{
+		return Write(buffer.data(), buffer.length());
 	}
 
 	bool StreamBase::SeekStart()

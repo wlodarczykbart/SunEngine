@@ -12,21 +12,26 @@ namespace SunEngine
 		StreamReader();
 		virtual ~StreamReader();
 
-		virtual bool Read(void *pBuffer, const usize size);
+		bool Read(void *pBuffer, const usize size);
 
-		virtual bool Read(bool &buffer);
-		virtual bool Read(char &buffer);
-		virtual bool Read(uchar &buffer);
-		virtual bool Read(short &buffer);
-		virtual bool Read(ushort &buffer);
-		virtual bool Read(int &buffer);
-		virtual bool Read(uint &buffer);
-		virtual bool Read(float &buffer);
-		virtual bool Read(double &buffer);
-		virtual bool Read(long &buffer);
-		virtual bool Read(unsigned long &buffer);
-		virtual bool Read(String& buffer);
-		virtual bool Read(void** buffer);
+		bool Read(bool &buffer);
+		bool Read(char &buffer);
+		bool Read(uchar &buffer);
+		bool Read(short &buffer);
+		bool Read(ushort &buffer);
+		bool Read(int &buffer);
+		bool Read(uint &buffer);
+		bool Read(float &buffer);
+		bool Read(double &buffer);
+		bool Read(long &buffer);
+		bool Read(unsigned long &buffer);
+		bool Read(String& buffer);
+
+		template<typename T>
+		bool Read(T*& buffer)
+		{
+			return Read(&buffer, sizeof(T*));
+		}
 
 		template<typename K, typename V>
 		bool ReadSimple( Map<K, V>& map)

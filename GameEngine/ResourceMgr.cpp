@@ -16,10 +16,6 @@ namespace SunEngine
 		DefineStaticStr(Mesh, Sphere);
 		DefineStaticStr(Mesh, Plane);
 
-		DefineStaticStr(Shader, StandardMetallic);
-		DefineStaticStr(Shader, StandardSpecular);
-		DefineStaticStr(Shader, Gamma);
-
 		DefineStaticStr(Material, StandardMetallic);
 		DefineStaticStr(Material, StandardSpecular);
 	}
@@ -128,12 +124,6 @@ namespace SunEngine
 		return pRes;
 	}
 
-	Shader* ResourceMgr::AddShader(const String& name)
-	{
-		Shader* pRes = AddResourceToMap(_shaders, name);
-		return pRes;
-	}
-
 	Mesh* ResourceMgr::AddMesh(const String& name)
 	{
 		Mesh* pRes = AddResourceToMap(_meshes, name);
@@ -156,12 +146,6 @@ namespace SunEngine
 	{
 		auto found = _assets.find(name);
 		return found != _assets.end() ? (*found).second.get() : 0;
-	}
-
-	Shader* ResourceMgr::GetShader(const String& name) const
-	{
-		auto found = _shaders.find(name);
-		return found != _shaders.end() ? (*found).second.get() : 0;
 	}
 
 	Mesh* ResourceMgr::GetMesh(const String& name) const

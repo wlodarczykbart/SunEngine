@@ -4,8 +4,11 @@
 #include "StreamReader.h"
 #include "StreamWriter.h"
 
+
 namespace SunEngine
 {
+	class MemBuffer;
+
 	class StreamBase : public StreamWriter, public StreamReader
 	{
 	public:
@@ -23,12 +26,14 @@ namespace SunEngine
 		virtual bool Seek(const uint offset, const Position pos) = 0;
 		uint Size();
 
-		bool ReadAll(MemBuffer& buffer);
-		bool ReadAllText(String& buffer);
+		bool ReadBuffer(MemBuffer& buffer);
+		bool ReadText(String& buffer);
+		bool WriteText(const String& buffer);
 
 		bool SeekStart();
 	};
 
+	//Useful to determining the size of a object that can be streamed
 	class NullStream final : public StreamBase
 	{
 	public:

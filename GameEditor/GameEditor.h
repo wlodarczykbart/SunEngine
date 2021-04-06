@@ -14,16 +14,14 @@ namespace SunEngine
 		GameEditor& operator = (const GameEditor&) = delete;
 		~GameEditor();
 
-		bool CustomInit(ConfigSection* pEditorConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) override;
+		bool CustomInit(ConfigFile* pConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) override;
 		Asset* ImportAsset(const String& filename, const AssetImporter::Options& options);
 	private:
 
 		void CustomUpdate() override;
-		bool CompileShaders();
 		bool CreateDefaultScene();
 
 		SceneRenderer _sceneRenderer;
-		StrMap<CompiledShaderInfo> _compiledShaders;
 		Asset* _queuedAsset;
 	};
 }

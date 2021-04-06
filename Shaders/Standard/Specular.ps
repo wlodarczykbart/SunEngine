@@ -27,7 +27,13 @@ float4 main(PS_In pIn) : SV_TARGET
 {	
 	float2 texCoord = pIn.texCoord.xy;
 
-	float3 albedo = DiffuseMap.Sample(Sampler, texCoord).rgb * Diffuse.rgb;
+	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * Diffuse;
+#ifdef ALPHA_TEST
+	if(diffuse.a < 0.5)
+		discard;
+#endif
+
+	float3 albedo = diffuse.rgb;
 	float3 f0 = Specular * SpecularMap.Sample(Sampler, texCoord).r;
 	float smoothness = Smoothness;
 		

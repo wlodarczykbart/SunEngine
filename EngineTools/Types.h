@@ -37,12 +37,6 @@ namespace SunEngine
 	template<typename V>
 	using StrMap = Map<String, V>;
 
-	template<typename K, typename V>
-	using OrderedMap = std::map<K, V>;
-
-	template<typename V>
-	using OrderedStrMap = OrderedMap<String, V>;
-
 	template<typename T, usize size = 0>
 	using Array = std::array<T, size>;
 

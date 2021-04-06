@@ -90,14 +90,4 @@ namespace SunEngine
 		}
 		return true;
 	}
-
-	bool StreamReader::Read(void** buffer)
-	{
-		void* ptr;
-		if (!Read(&ptr, sizeof(void*)))
-			return false;
-
-		*buffer = ptr;
-		return true;;
-	}
 }

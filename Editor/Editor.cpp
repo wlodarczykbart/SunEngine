@@ -45,7 +45,7 @@ namespace SunEngine
 			}
 		}
 
-		if (!_config.Load(configPath.data()))
+		if (!_config.Load(configPath))
 		{
 			spdlog::error("Failed to load editor config file: {}", configPath);
 			return false;
@@ -57,6 +57,8 @@ namespace SunEngine
 			spdlog::error("Failed to find [Editor] section within config file: {}", configPath);
 			return false;
 		}
+
+		ConfigSection* shaderSection = _config.GetSection("Shaders");
 
 		GraphicsWindow::CreateInfo windowInfo = {};
 		windowInfo.title = editorSection->GetString("Title", "SunEngine Editor");
@@ -95,8 +97,9 @@ namespace SunEngine
 
 		ShaderCompiler::SetAuxiliaryDir(GetPathFromConfig("Shaders"));
 
+
 		GUIRenderer* pGUI = 0;
-		if (!CustomInit(editorSection, &_graphicsWindow, &pGUI))
+		if (!CustomInit(&_config, &_graphicsWindow, &pGUI))
 			return false;
 
 		if (pGUI == 0)
@@ -145,121 +148,6 @@ namespace SunEngine
 		_views[pView->GetName()] = UniquePtr<View>(pView);
 	}
 
-	bool Editor::CompileShader(CompiledShaderInfo& info, const String& name, const String& vertexText, const String& pixelText) const
-	{
-		ShaderCompiler compiler;
-
-		String shaderOutputDir = _appDir + name + "/";
-		CreateDirectory(shaderOutputDir.data(), NULL);
-
-		if (vertexText.length())
-		{
-			String vertexPath = shaderOutputDir + name + ".vs";
-
-			FileStream fw;
-			if (!fw.OpenForWrite(vertexPath.data()))
-				return false;
-
-			if (!fw.Write(vertexText.data()))
-				return false;
-
-			if (!fw.Close())
-				return false;
-
-			compiler.SetVertexShaderPath(vertexPath);
-		}
-
-		if (pixelText.length())
-		{
-			String pixelPath = shaderOutputDir + name + ".ps";
-
-			FileStream fw;
-			if (!fw.OpenForWrite(pixelPath.data()))
-				return false;
-
-			if (!fw.Write(pixelText.data()))
-				return false;
-
-			if (!fw.Close())
-				return false;
-
-			compiler.SetPixelShaderPath(pixelPath);
-		}
-
-		if (!compiler.Compile())
-		{
-			spdlog::error("Shader Error: {}", compiler.GetLastError().data());
-			return false;
-		}
-
-		info.CreateInfo = compiler.GetCreateInfo();
-		info.ConfigPath.clear();
-		return true;
-	}
-
-	bool Editor::CompileShader(CompiledShaderInfo& info, const String& name) const
-	{
-		String path = GetPathFromConfig("ShaderConfig");
-		if (!path.length())
-			return false;
-
-		String shaderDir = GetPathFromConfig("Shaders");
-
-		ConfigFile config;
-		if (!config.Load(path.data()))
-			return false;
-
-		const ConfigSection* pSection = config.GetSection(name.data());
-		if (pSection)
-		{
-
-			String vertexText, pixelText;
-
-			FileStream fr;
-			String shaderFile;
-
-			shaderFile = shaderDir + pSection->GetString("vs");
-			if (fr.OpenForRead(shaderFile.data()))
-			{
-				fr.ReadAllText(vertexText);
-			}
-			else
-			{
-				spdlog::error("Failed to read required vertex shader file: {}", shaderFile.data());
-				return false;
-			}
-
-			shaderFile = shaderDir + pSection->GetString("ps");
-			if (fr.OpenForRead(shaderFile.data()))
-			{
-				fr.ReadAllText(pixelText);
-			}
-			else
-			{
-				spdlog::error("Failed to read required pixel shader file: {}", shaderFile.data());
-				return false;
-			}
-
-			info = {};
-			if (!CompileShader(info, name, vertexText, pixelText))
-			{
-				return false;
-			}
-
-			String configPath = pSection->GetString("config");
-			if (configPath.length())
-			{
-				info.ConfigPath = shaderDir + configPath;
-			}
-
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
 	uint Editor::GetViews(Vector<View*>& views) const
 	{
 		views.clear();
@@ -276,7 +164,7 @@ namespace SunEngine
 		if (paths == NULL)
 			return "";
 
-		String path = paths->GetString(key.data());
+		String path = paths->GetString(key);
 		if (path.length() == 0)
 			return "";
 
