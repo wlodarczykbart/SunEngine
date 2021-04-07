@@ -15,14 +15,15 @@ namespace SunEngine
 	{
 	public:
 		static const String Default;
+		static const String Deferred;
 		static const String Shadow;
 
 		Shader();
 		~Shader();
 
-		bool Compile(const String& vertexSource, const String& pixelSource);
-		bool Compile(const String& path);
-		bool Compile(const ConfigFile& config);
+		bool Compile(const String& vertexSource, const String& pixelSource, String* pErrStr = 0);
+		bool Compile(const String& path, String* pErrStr = 0);
+		bool Compile(const ConfigFile& config, String* pErrStr = 0);
 
 		void SetDefaults(Material* pMtl) const;
 
@@ -69,6 +70,5 @@ namespace SunEngine
 
 		ConfigFile _config;
 		StrMap<UniquePtr<ShaderVariant>> _variants;
-		String _shaderError;
 	};
 }

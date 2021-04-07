@@ -14,7 +14,8 @@ namespace SunEngine
 		GameEditor& operator = (const GameEditor&) = delete;
 		~GameEditor();
 
-		bool CustomInit(ConfigFile* pConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) override;
+		bool CustomParseConfig(ConfigFile* pConfig) override;
+		bool CustomLoad(GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) override;
 		Asset* ImportAsset(const String& filename, const AssetImporter::Options& options);
 	private:
 

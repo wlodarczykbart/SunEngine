@@ -60,10 +60,12 @@ namespace SunEngine
 
 	struct IRenderTargetCreateInfo
 	{
+		static const uint MAX_TARGETS = 8;
+
 		uint numTargets;
 		uint width;
 		uint height;
-		ITexture* colorBuffer;
+		ITexture* colorBuffers[MAX_TARGETS];
 		ITexture* depthBuffer;
 	};
 
@@ -146,6 +148,8 @@ namespace SunEngine
 			type = SRT_UNSUPPORTED;
 			dimension = SRD_TEXTURE_2D;
 			stages = 0;
+			bindingCount = 0;
+			name[0] = '\0';
 		}
 
 		char name[MAX_GRAPHICS_FIELD_LENGTH];

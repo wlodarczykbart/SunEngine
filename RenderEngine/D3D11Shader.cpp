@@ -330,7 +330,8 @@ namespace SunEngine
 		for (auto iter = _bindingMap.begin(); iter != _bindingMap.end(); ++iter)
 		{
 			D3D11ShaderResource* pRes = (*iter).second.second;
-			pRes->BindToShader(dxCmd->GetCurrentShader(), (*iter).first, (*iter).second.first, pBindState);
+			if(pRes)
+				pRes->BindToShader(dxCmd->GetCurrentShader(), (*iter).first, (*iter).second.first, pBindState);
 		}
 	}
 

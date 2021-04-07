@@ -7,14 +7,21 @@ namespace SunEngine
 
 	VulkanRenderTarget::VulkanRenderTarget()
 	{
+		_renderPass = VK_NULL_HANDLE;
+		_noClearRenderPass = VK_NULL_HANDLE;
+		_framebuffer = VK_NULL_HANDLE;
+
 		_clearColor.color.float32[0] = 0.5f;
 		_clearColor.color.float32[1] = 0.5f;
 		_clearColor.color.float32[2] = 0.5f;
 		_clearColor.color.float32[3] = 0.5f;
+		_clearDepth = {};
 
 		_clearOnBind = true;
-		_hasColor = false;
+		_numTargets = 0;
 		_hasDepth = false;
+
+		_viewport = {};
 	}
 
 
@@ -27,11 +34,15 @@ namespace SunEngine
 		_extent.width = info.width;
 		_extent.height = info.height;
 
-		_hasColor = info.colorBuffer != 0;
+		_numTargets = info.numTargets;
 		_hasDepth = info.depthBuffer != 0;
 
-		if (!createRenderPass(static_cast<VulkanTexture*>(info.colorBuffer), static_cast<VulkanTexture*>(info.depthBuffer))) return false;
-		if (!createFramebuffer(static_cast<VulkanTexture*>(info.colorBuffer), static_cast<VulkanTexture*>(info.depthBuffer))) return false;
+		VulkanTexture* vkColorTextures[IRenderTargetCreateInfo::MAX_TARGETS];
+		for (uint i = 0; i < info.numTargets; i++)
+			vkColorTextures[i] = static_cast<VulkanTexture*>(info.colorBuffers[i]);
+
+		if (!createRenderPass(vkColorTextures, static_cast<VulkanTexture*>(info.depthBuffer))) return false;
+		if (!createFramebuffer(vkColorTextures, static_cast<VulkanTexture*>(info.depthBuffer))) return false;
 
 		_viewport = {};
 		_viewport.extent = _extent;
@@ -42,14 +53,15 @@ namespace SunEngine
 	void VulkanRenderTarget::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		uint clearValueCount = 0;
-		VkClearValue clearValues[2];
+		VkClearValue clearValues[IRenderTargetCreateInfo::MAX_TARGETS + 1];
 
 		VkRenderPass renderpass;
 
 		if (_clearOnBind)
 		{
-			if (_hasColor)
+			for (uint i = 0; i < _numTargets; i++)
 				clearValues[clearValueCount++] = _clearColor;
+
 			if (_hasDepth)
 				clearValues[clearValueCount++] = _clearDepth;
 
@@ -68,7 +80,7 @@ namespace SunEngine
 		info.clearValueCount = clearValueCount;
 		info.pClearValues = clearValues;
 
-		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info);
+		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info, _numTargets);
 			
 	}
 
@@ -98,28 +110,28 @@ namespace SunEngine
 		_viewport.offset.y = (uint)y;
 	}
 
-	VkImageLayout VulkanRenderTarget::GetColorFinalLayout() const
+	VkImageLayout VulkanRenderTarget::GetColorFinalLayout()
 	{
 		return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	}
 
-	VkImageLayout VulkanRenderTarget::GetDepthFinalLayout() const
+	VkImageLayout VulkanRenderTarget::GetDepthFinalLayout()
 	{
-		return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 	}
 
-	bool VulkanRenderTarget::createRenderPass(VulkanTexture* pColorTexture, VulkanTexture* pDepthTexture)
+	bool VulkanRenderTarget::createRenderPass(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture)
 	{
 		Vector<VkAttachmentDescription> attachments;
 		Vector<VkAttachmentReference> colorRefAttachments;
 		Vector<VkAttachmentReference> depthRefAttachment;
 
-		if (pColorTexture)
+		for(uint i = 0; i < _numTargets; i++)
 		{
 			VkAttachmentDescription desc = {};
 			desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			desc.finalLayout = GetColorFinalLayout();
-			desc.format = pColorTexture->GetFormat();
+			desc.format = pColorTextures[i]->GetFormat();
 			desc.samples = VK_SAMPLE_COUNT_1_BIT;
 			desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 			desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -128,7 +140,7 @@ namespace SunEngine
 			attachments.push_back(desc);
 
 			VkAttachmentReference ref = {};
-			ref.attachment = 0;
+			ref.attachment = i;
 			ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			colorRefAttachments.push_back(ref);
 
@@ -143,7 +155,7 @@ namespace SunEngine
 		{
 			VkAttachmentDescription desc = {};
 			desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			desc.finalLayout = GetDepthFinalLayout();
 			desc.format = pDepthTexture->GetFormat();
 			desc.samples = VK_SAMPLE_COUNT_1_BIT;
 			desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -200,7 +212,7 @@ namespace SunEngine
 
 		for (uint i = 0; i < attachments.size(); i++)
 		{
-			if (attachments[i].format == pColorTexture->GetFormat())
+			//if (attachments[i].format == pColorTexture->GetFormat()) TODO???
 				attachments[i].initialLayout = attachments[i].finalLayout;
 		}
 
@@ -209,10 +221,11 @@ namespace SunEngine
 		return true;
 	}
 
-	bool VulkanRenderTarget::createFramebuffer(VulkanTexture* pColorTexture, VulkanTexture* pDepthTexture)
+	bool VulkanRenderTarget::createFramebuffer(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture)
 	{
 		Vector<VkImageView> attachments;
-		if (pColorTexture) attachments.push_back(pColorTexture->GetView());
+		for(uint i = 0; i < _numTargets; i++)
+			attachments.push_back(pColorTextures[i]->GetView());
 		if (pDepthTexture) attachments.push_back(pDepthTexture->GetView());
 
 		VkFramebufferCreateInfo info = {};

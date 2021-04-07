@@ -50,6 +50,7 @@ namespace SunEngine
 	struct SunlightBufferData
 	{
 		ShaderVec4 Direction;
+		ShaderVec4 ViewDirection;
 		ShaderVec4 Color;
 	};
 

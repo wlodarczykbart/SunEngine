@@ -13,7 +13,24 @@ namespace SunEngine
 	class CameraComponentData;
 	class LightComponentData;
 	class RenderNode;
-	class Shader;
+	class BaseShader;
+	class RenderTarget;
+
+	struct RenderTargetPassInfo
+	{
+		RenderTarget* pTarget;
+		GraphicsPipeline* pPipeline;
+		ShaderBindings* pBindings;
+	};
+
+	struct DeferredRenderTargetPassInfo : public RenderTargetPassInfo
+	{
+		RenderTarget* pDeferredResolveTarget;
+		GraphicsPipeline* pDeferredCopyPipeline;
+		ShaderBindings* pDeferredCopyBindings;
+		GraphicsPipeline* pSSRPipeline;
+		ShaderBindings* pSSRBindings;
+	};
 
 	class SceneRenderer
 	{
@@ -23,7 +40,7 @@ namespace SunEngine
 
 		bool Init();
 		bool PrepareFrame(CameraComponentData* pCamera = 0);
-		bool RenderFrame(CommandBuffer* cmdBuffer);
+		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo);
 
 	private:
 		struct UniformBufferData
@@ -31,7 +48,7 @@ namespace SunEngine
 			uint ArrayIndex;
 			uint UpdateIndex;
 			UniformBuffer Buffer;
-			Map<Shader*, ShaderBindings> ShaderBindings;
+			Map<BaseShader*, ShaderBindings> ShaderBindings;
 		};
 
 		struct RenderNodeData
@@ -45,6 +62,7 @@ namespace SunEngine
 
 		static void TraverseFunc(SceneNode* pNode, void* pUserData);
 		void ProcessNode(SceneNode* pNode);
+		void ProcessRenderQueue(CommandBuffer* cmdBuffer, Queue<RenderNodeData>& queue);
 		GraphicsPipeline* GetPipeline(const RenderNode& node);
 
 		bool _bInit;
@@ -55,8 +73,10 @@ namespace SunEngine
 		UniformBufferData* _currentObjectBuffer;
 		CameraComponentData* _currentCamera;
 		LightComponentData* _currentSunlight;
-		HashSet<Shader*> _currentShaders;
-		Queue<RenderNodeData> _renderQueue;
+		HashSet<BaseShader*> _currentShaders;
+		Queue<RenderNodeData> _deferredRenderQueue;
+		Queue<RenderNodeData> _opaqueRenderQueue;
+		Queue<RenderNodeData> _sortedRenderQueue;
 		Vector<ObjectBufferData> _objectBufferData;
 
 	};

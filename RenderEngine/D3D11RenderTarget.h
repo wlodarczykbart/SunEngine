@@ -23,13 +23,13 @@ namespace SunEngine
 
 	private:
 		friend class D3D11Shader;
-		bool createViews(ITexture* pColorTex, ITexture* pDepthTex);
+		bool createViews(ITexture* const* pColorTextures, ITexture* pDepthTex);
 
 		uint _numTargets;
 		uint _width;
 		uint _height;
 
-		ID3D11RenderTargetView* _rtv;
+		ID3D11RenderTargetView* _rtv[IRenderTargetCreateInfo::MAX_TARGETS];
 		ID3D11DepthStencilView* _dsv;
 
 		D3D11_VIEWPORT _viewport;

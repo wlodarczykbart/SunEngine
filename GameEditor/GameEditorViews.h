@@ -44,12 +44,20 @@ namespace SunEngine
 
 		void BuildSceneTree(SceneNode* pNode);
 		void BuildSelectedNodeGUI(Scene* pScene);
+		bool CreateRenderPassData(const String& shader, Pair<GraphicsPipeline, ShaderBindings>& data);
 
 		SceneRenderer* _renderer;
 		String _selNodeName;
-		RenderTarget _sceneTarget;
+		RenderTarget _opaqueTarget;
+		RenderTarget _outputTarget;
+		RenderTarget _deferredTarget;
+		RenderTarget _deferredResolveTarget;
 
 		Pair<GraphicsPipeline, ShaderBindings> _gammaData;
+		Pair<GraphicsPipeline, ShaderBindings> _outputData;
+		Pair<GraphicsPipeline, ShaderBindings> _deferredData;
+		Pair<GraphicsPipeline, ShaderBindings> _deferredCopyData;
+		Pair<GraphicsPipeline, ShaderBindings> _ssrData;
 	};
 
 }

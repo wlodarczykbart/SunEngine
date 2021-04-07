@@ -8,6 +8,7 @@
 namespace SunEngine
 {
 	const String Shader::Default = "DefaultPass";
+	const String Shader::Deferred = "DeferredPass";
 	const String Shader::Shadow = "ShadowPass";
 
 	Shader::Shader()
@@ -19,26 +20,28 @@ namespace SunEngine
 	{
 	}
 
-	bool Shader::Compile(const String& vertexSource, const String& pixelSource)
+	bool Shader::Compile(const String& vertexSource, const String& pixelSource, String* pErrStr)
 	{
 		ConfigFile config;
 		ConfigSection* section = config.AddSection(Default);
 		section->SetString("vs", vertexSource.c_str());
 		section->SetString("ps", pixelSource.c_str());
 		section->SetInt("isText", 1);
-		return Compile(config);
+		return Compile(config, pErrStr);
 	}
 
-	bool Shader::Compile(const String& path)
+	bool Shader::Compile(const String& path, String* pErrStr)
 	{
 		ConfigFile config;
 		if (config.Load(path))
-			return Compile(config);
+			return Compile(config, pErrStr);
 
+		if (pErrStr)
+			*pErrStr = "Failed to open " + path;
 		return false;
 	}
 
-	bool Shader::Compile(const ConfigFile& config)
+	bool Shader::Compile(const ConfigFile& config, String* pErrStr)
 	{
 		LinkedList<ConfigFile> configList;
 		HashSet<String> configMap;
@@ -65,9 +68,10 @@ namespace SunEngine
 
 		Vector<ConfigSection*> variantSections;
 		variantSections.push_back(_config.GetSection(Default));
+		variantSections.push_back(_config.GetSection(Deferred));
 		variantSections.push_back(_config.GetSection(Shadow));
 
-		String sourceDir = EnginePaths::ShaderSourceDir();
+		String sourceDir = EngineInfo::GetPaths().ShaderSourceDir();
 
 		for (ConfigSection* section : variantSections)
 		{
@@ -111,7 +115,8 @@ namespace SunEngine
 
 			if (!compiler.Compile())
 			{
-				_shaderError = compiler.GetLastError();
+				if(pErrStr) 
+					*pErrStr = compiler.GetLastError();
 				return false;
 			}
 
@@ -119,7 +124,8 @@ namespace SunEngine
 			_variants[section->GetName()] = UniquePtr<ShaderVariant>(pVariant);
 			if (!pVariant->shader.Create(compiler.GetCreateInfo()))
 			{
-				_shaderError = pVariant->shader.GetErrStr();
+				if (pErrStr)
+					*pErrStr = pVariant->shader.GetErrStr();
 				return false;
 			}
 		}

@@ -51,14 +51,18 @@ namespace SunEngine
 			return false;
 		}
 
+		if (!CustomParseConfig(&_config))
+		{
+			spdlog::error("Failed to parse config file correct: {}", configPath);
+			return false;
+		}
+
 		ConfigSection* editorSection = _config.GetSection("Editor");
 		if (editorSection == NULL)
 		{
 			spdlog::error("Failed to find [Editor] section within config file: {}", configPath);
 			return false;
 		}
-
-		ConfigSection* shaderSection = _config.GetSection("Shaders");
 
 		GraphicsWindow::CreateInfo windowInfo = {};
 		windowInfo.title = editorSection->GetString("Title", "SunEngine Editor");
@@ -69,16 +73,6 @@ namespace SunEngine
 		{
 			spdlog::error("Failed to create GraphicsWindow based on config file: {}", configPath);
 			return false;
-		}
-
-		String strGraphicsAPI = StrToLower(editorSection->GetString("Graphics", "Vulkan"));
-		if (strGraphicsAPI == "vulkan")
-		{
-			SetGraphicsAPI(SE_GFX_VULKAN);
-		}
-		if (strGraphicsAPI == "d3d11")
-		{
-			SetGraphicsAPI(SE_GFX_D3D11);
 		}
 
 		GraphicsContext::CreateInfo contextInfo = {};
@@ -99,7 +93,7 @@ namespace SunEngine
 
 
 		GUIRenderer* pGUI = 0;
-		if (!CustomInit(&_config, &_graphicsWindow, &pGUI))
+		if (!CustomLoad(&_graphicsWindow, &pGUI))
 			return false;
 
 		if (pGUI == 0)

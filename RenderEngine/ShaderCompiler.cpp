@@ -291,6 +291,7 @@ namespace SunEngine
 	bool ShaderCompiler::CompileShader(ShaderStage type, const String& source)
 	{
 		String shaderText;
+		_includedFiles.clear();
 		ParseShaderFile(shaderText, source);
 
 		String targetHLSL, targetGLSL;
@@ -377,6 +378,9 @@ namespace SunEngine
 					{
 						D3D11_SIGNATURE_PARAMETER_DESC inputDesc;
 						pReflector->GetInputParameterDesc(i, &inputDesc);
+
+						if (StrContains(inputDesc.SemanticName, "SV_"))
+							continue;
 
 						uint mask = inputDesc.Mask;
 						IVertexElement elem = {};
@@ -549,6 +553,8 @@ namespace SunEngine
 					String includeName = StrTrim(line.substr(includeStart + 1, includeEnd - includeStart - 1));
 					if (_includedFiles.count(includeName))
 						continue;
+
+					_includedFiles.insert(includeName);
 
 					FileStream includeReader;
 					if (!includeReader.OpenForRead((g_ShaderAuxDir + includeName).data()))

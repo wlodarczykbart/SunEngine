@@ -23,6 +23,8 @@ namespace SunEngine
 		static const String SpecularColor;
 		static const String Smoothness;
 		static const String Sampler;
+		static const String PositionMap;
+		static const String DepthMap;
 	};
 
 	class Material : public GPUResource<ShaderBindings>
@@ -37,7 +39,10 @@ namespace SunEngine
 		Material();
 		~Material();
 
-		void SetShader(Shader* pShader, const String& variant = Shader::Default);
+		//Set shader and let the engine determine what variant to use depending on rendering mode, which should only var between application runs
+		void SetShader(Shader* pShader);
+		//Set shader with specified variant
+		void SetShader(Shader* pShader, const String& variant);
 		Shader* GetShader() const { return _shader; }
 		const String& GetVariant() const { return _variant; }
 

@@ -13,8 +13,12 @@ namespace SunEngine
 		_clearColor[2] = 0.0f;
 		_clearColor[3] = 0.0f;
 
-		_rtv = 0;
+		_numTargets = 0;
 		_dsv = 0;
+		_width = 0;
+		_height = 0;
+
+
 	}
 
 
@@ -28,7 +32,7 @@ namespace SunEngine
 		_numTargets = info.numTargets;
 		_width = info.width;
 		_height = info.height;
-		if (!createViews(info.colorBuffer, info.depthBuffer)) return false;
+		if (!createViews(info.colorBuffers, info.depthBuffer)) return false;
 
 		_viewport = {};
 		_viewport.Width = (float)_width;
@@ -41,8 +45,11 @@ namespace SunEngine
 
 	bool D3D11RenderTarget::Destroy()
 	{
-		COM_RELEASE(_rtv);
+		for(uint i = 0; i < _numTargets; i++)
+			COM_RELEASE(_rtv[i]);
 		COM_RELEASE(_dsv);
+
+		_numTargets = 0;
 		return true;
 	}
 
@@ -50,11 +57,12 @@ namespace SunEngine
 	{
 		D3D11CommandBuffer* dxCmd = (D3D11CommandBuffer*)cmdBuffer;
 
-		dxCmd->BindRenderTargets(1, &_rtv, _dsv);
+		dxCmd->BindRenderTargets(_numTargets, _rtv, _dsv);
 
-		if (_rtv && _clearOnBind)
+		if (_numTargets && _clearOnBind)
 		{
-			dxCmd->ClearRenderTargetView(_rtv, _clearColor);
+			for(uint i = 0; i < _numTargets; i++)
+				dxCmd->ClearRenderTargetView(_rtv[i], _clearColor);
 		}
 
 		if (_dsv && _clearOnBind)
@@ -71,9 +79,9 @@ namespace SunEngine
 		D3D11CommandBuffer* dxCmd = (D3D11CommandBuffer*)cmdBuffer;
 
 		ID3D11DepthStencilView* nullDSV = 0;
-		ID3D11RenderTargetView* nullRTV = 0;
+		ID3D11RenderTargetView* nullRTV[IRenderTargetCreateInfo::MAX_TARGETS] = {};
 
-		dxCmd->BindRenderTargets(1, &nullRTV, nullDSV);
+		dxCmd->BindRenderTargets(_numTargets, nullRTV, nullDSV);
 	}
 
 	void D3D11RenderTarget::SetClearColor(const float r, const float g, const float b, const float a)
@@ -97,18 +105,18 @@ namespace SunEngine
 		_viewport.Height = height;
 	}
 
-	bool D3D11RenderTarget::createViews(ITexture* pColorTex, ITexture* pDepthTex)
+	bool D3D11RenderTarget::createViews(ITexture*const *pColorTexures, ITexture* pDepthTex)
 	{
-		if (pColorTex)
+		for (uint i = 0; i < _numTargets; i++)
 		{
 			//DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
-			D3D11Texture* pTex = static_cast<D3D11Texture*>(pColorTex);
+			D3D11Texture* pTex = static_cast<D3D11Texture*>(pColorTexures[i]);
 
 			//_device->Get
 			D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 			rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 			rtvDesc.Format = pTex->_format;		
-			if (!_device->CreateRenderTargetView(rtvDesc, pTex->_texture, &_rtv)) return false;
+			if (!_device->CreateRenderTargetView(rtvDesc, pTex->_texture, &_rtv[i])) return false;
 		}
 
 		if (pDepthTex)

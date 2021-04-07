@@ -29,6 +29,8 @@ namespace SunEngine
 			bool hasDepthBuffer;
 			bool floatingPointColorBuffer;
 
+			BaseTexture* pSharedDepthBuffer;
+
 			CreateInfo();
 		};
 
@@ -50,18 +52,19 @@ namespace SunEngine
 		uint Width() const;
 		uint Height() const;
 
-		BaseTexture* GetColorTexture() const;
+		BaseTexture* GetColorTexture(uint target = 0) const;
 		BaseTexture* GetDepthTexture() const;
 
 	private:
 		IRenderTarget * _iRenderTarget;
-		BaseTexture* _colorTexture;
+		BaseTexture* _colorTextures[IRenderTargetCreateInfo::MAX_TARGETS];
 		BaseTexture* _depthTexture;
 		float _clearColor[4];
 		uint _width;
 		uint _height;
 		uint _numTargets;
 		bool _clearOnBind;
+		bool _ownsDepthTexture;
 	};
 
 }

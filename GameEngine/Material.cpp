@@ -1,6 +1,7 @@
 #include "Shader.h"
 #include "Texture2D.h"
 #include "ResourceMgr.h"
+#include "FilePathMgr.h"
 #include "Material.h"
 
 namespace SunEngine
@@ -15,6 +16,8 @@ namespace SunEngine
 	DefineStaticStr(MaterialStrings, SpecularColor);
 	DefineStaticStr(MaterialStrings, Smoothness);
 	DefineStaticStr(MaterialStrings, Sampler);
+	DefineStaticStr(MaterialStrings, PositionMap);
+	DefineStaticStr(MaterialStrings, DepthMap);
 
 	Material::Material()
 	{
@@ -24,6 +27,29 @@ namespace SunEngine
 	Material::~Material()
 	{
 
+	}
+
+	void Material::SetShader(Shader* pShader)
+	{
+		String strVariant;
+
+		switch (EngineInfo::GetRenderer().RenderMode())
+		{
+		case EngineInfo::Renderer::Forward:
+			strVariant = Shader::Default;
+			break;
+		case EngineInfo::Renderer::Deferred:
+			strVariant = Shader::Deferred;
+			break;
+		default:
+			strVariant = Shader::Default;
+			break;
+		}
+
+		if(!pShader->GetVariant(strVariant))
+			strVariant = Shader::Default;
+
+		SetShader(pShader, strVariant);
 	}
 
 	void Material::SetShader(Shader* pShader, const String& variant)

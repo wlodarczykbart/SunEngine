@@ -1,0 +1,43 @@
+#include "PixelShader.hlsl"
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+Texture2D DiffuseMap;
+Texture2D SpecularMap;
+Texture2D NormalMap;
+Texture2D PositionMap;
+Texture2D DepthMap;
+
+SamplerState Sampler;
+
+struct DeferredOut
+{
+	float4 color : SV_TARGET;
+	float depth : SV_DEPTH;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	DeferredOut dOut;
+
+	float4 albedo = DiffuseMap.Sample(Sampler, pIn.texCoord);
+	float depth = DepthMap.Sample(Sampler, pIn.texCoord).r;
+	
+	//dont shade things that are the background
+	if(depth == 1.0)
+	{
+		return float4(albedo.rgb, 1.0);
+	}
+	
+	float4 specular = SpecularMap.Sample(Sampler, pIn.texCoord);
+	float4 normal = NormalMap.Sample(Sampler, pIn.texCoord);
+	float4 position = PositionMap.Sample(Sampler, pIn.texCoord);
+	
+	PS_Out pOut;
+	ShadePixel(albedo.rgb, albedo.a, specular.rgb, specular.a, normal.xyz, position.xyz, pOut);
+	return float4(pOut.color.rgb, 1.0);
+}

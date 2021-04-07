@@ -31,7 +31,8 @@ namespace SunEngine
 			AF_PREVIEW = 1 << 2,
 		};
 
-		bool CustomInit(ConfigFile* pConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) override;
+		bool CustomParseConfig(ConfigFile* pConfig) override;
+		bool CustomLoad(GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) override;
 		void CustomUpdate() override;
 
 		bool Import(const String& path);

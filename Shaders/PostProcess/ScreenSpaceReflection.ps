@@ -1,0 +1,28 @@
+#include "CameraBuffer.hlsl"
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+Texture2D DiffuseMap;
+Texture2D SpecularMap;
+Texture2D NormalMap;
+Texture2D PositionMap;
+SamplerState Sampler;
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float2 texCoord = pIn.texCoord;
+
+	float3 p = PositionMap.Sample(Sampler, texCoord).xyz;
+	float3 n = normalize(NormalMap.Sample(Sampler, texCoord)).xyz;	
+	float3 v = normalize(InvViewMatrix[3].xyz - p);
+	float3 r = reflect(v, n);
+	
+	return float4(DiffuseMap.Sample(Sampler, texCoord).xyz, length(r));
+	return float4(r, 1.0);
+	
+	
+}

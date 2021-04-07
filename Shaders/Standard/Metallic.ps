@@ -1,5 +1,5 @@
-#include "LightBuffer.hlsl"
 #include "CameraBuffer.hlsl"
+#include "PixelShader.hlsl"
 
 Texture2D DiffuseMap;
 Texture2D MetallicMap;
@@ -24,7 +24,7 @@ struct PS_In
 	float4 tangent : TANGENT;
 };
 
-float4 main(PS_In pIn) : SV_TARGET
+PS_Out main(PS_In pIn)
 {	
 	float2 texCoord = pIn.texCoord.xy;
 
@@ -39,6 +39,7 @@ float4 main(PS_In pIn) : SV_TARGET
 	float smoothness = SmoothnessMap.Sample(Sampler, texCoord).r * Smoothness;
 	float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
 	albedo *= (1.0 - metallic);
+	float ao = AOMap.Sample(Sampler, texCoord).r;
 		
 	float3x3 tbn;
 	tbn[0] = normalize(pIn.tangent.xyz);
@@ -46,13 +47,8 @@ float4 main(PS_In pIn) : SV_TARGET
 	tbn[1] = -cross(tbn[2], tbn[0]);
 	
 	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
-	float3 v = normalize((InvViewMatrix[3] - pIn.position).xyz);
 		
-	float3 l = normalize(SunDirection.xyz);	
-	float3 litColor = BRDF_CookTorrance(l, n, v, SunColor, albedo, f0, smoothness, 0.001);
-	
-	float ao = AOMap.Sample(Sampler, texCoord).r;	
-    float3 ambient = 0.03 * albedo * ao;	
-	
-	return float4(litColor + ambient, 1.0);
+	PS_Out pOut;
+	ShadePixel(albedo, ao, f0, smoothness, n, pIn.position.xyz, pOut);
+	return pOut;
 }

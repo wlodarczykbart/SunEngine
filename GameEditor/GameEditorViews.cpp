@@ -5,6 +5,7 @@
 #include "ResourceMgr.h"
 #include "CommandBuffer.h"
 #include "ShaderMgr.h"
+#include "FilePathMgr.h"
 #include "GameEditorViews.h"
 
 namespace SunEngine
@@ -46,17 +47,31 @@ namespace SunEngine
 		if (!_renderer)
 			return false;
 
-		//Render the scene
-		if (!_sceneTarget.Bind(cmdBuffer))
-			return false;
-
 		if (!_renderer->PrepareFrame(GetCameraData()))
 			return false;
 
-		if (!_renderer->RenderFrame(cmdBuffer))
-			return false;
+		RenderTargetPassInfo outputInfo = {};
+		outputInfo.pTarget = &_outputTarget;
+		outputInfo.pPipeline = &_outputData.first;
+		outputInfo.pBindings = &_outputData.second;
 
-		if (!_sceneTarget.Unbind(cmdBuffer))
+		bool bDeferred = EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred;
+		DeferredRenderTargetPassInfo deferredInfo = {};
+		if (bDeferred)
+		{
+			deferredInfo.pTarget = &_deferredTarget;
+			deferredInfo.pPipeline = &_deferredData.first;
+			deferredInfo.pBindings = &_deferredData.second;
+
+			deferredInfo.pDeferredResolveTarget = &_deferredResolveTarget;
+			deferredInfo.pDeferredCopyPipeline = &_deferredCopyData.first;
+			deferredInfo.pDeferredCopyBindings = &_deferredCopyData.second;
+
+			deferredInfo.pSSRPipeline = &_ssrData.first;
+			deferredInfo.pSSRBindings = &_ssrData.second;
+		}
+
+		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0))
 			return false;
 
 		//Apply gamma correction
@@ -101,25 +116,26 @@ namespace SunEngine
 
 	bool SceneView::OnCreate(const CreateInfo& info)
 	{
-		Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::Gamma);
-		assert(pShader);
-
-		if (!pShader)
+		if (!CreateRenderPassData(DefaultShaders::SceneCopy, _outputData))
 			return false;
 
-		GraphicsPipeline::CreateInfo pipelineInfo = {};
-		pipelineInfo.pShader = pShader->GetDefault();
-		if (!_gammaData.first.Create(pipelineInfo))
+		if (!CreateRenderPassData(DefaultShaders::Gamma, _gammaData))
 			return false;
 
-		ShaderBindings::CreateInfo bindingInfo = {};
-		bindingInfo.pShader = pShader->GetDefault();
-		bindingInfo.type = SBT_MATERIAL;
+		//TODO lots of duplicate code basically
+		bool bDeferred = EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred;
+		if (bDeferred)
+		{
+			if (!CreateRenderPassData(DefaultShaders::Deferred, _deferredData))
+				return false;
 
-		if (!_gammaData.second.Create(bindingInfo))
-			return false;
+			if (!CreateRenderPassData(DefaultShaders::SceneCopy, _deferredCopyData))
+				return false;
 
-		_gammaData.second.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE, SE_AM_OFF));
+			if (!CreateRenderPassData(DefaultShaders::ScreenSpaceReflection, _ssrData))
+				return false;
+		}
+
 		return OnResize(info);
 	}
 
@@ -132,11 +148,43 @@ namespace SunEngine
 		sceneInfo.hasDepthBuffer = true;
 		sceneInfo.floatingPointColorBuffer = true;
 
-		if (!_sceneTarget.Create(sceneInfo))
+		if (!_outputTarget.Create(sceneInfo))
 			return false;
 
-		if (!_gammaData.second.SetTexture(MaterialStrings::DiffuseMap, _sceneTarget.GetColorTexture()))
+		if (!_gammaData.second.SetTexture(MaterialStrings::DiffuseMap, _outputTarget.GetColorTexture()))
 			return false;
+
+		if (!_opaqueTarget.Create(sceneInfo))
+			return false;
+
+		_outputData.second.SetTexture(MaterialStrings::DiffuseMap, _opaqueTarget.GetColorTexture());
+		_outputData.second.SetTexture(MaterialStrings::DepthMap, _opaqueTarget.GetDepthTexture());
+
+		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
+		{
+			sceneInfo.hasDepthBuffer = false;
+			if (!_deferredResolveTarget.Create(sceneInfo))
+				return false;
+
+			sceneInfo.hasDepthBuffer = true;
+			sceneInfo.numTargets = 4;
+			if (!_deferredTarget.Create(sceneInfo))
+				return false;
+
+			_deferredData.second.SetTexture(MaterialStrings::DiffuseMap, _deferredTarget.GetColorTexture(0));
+			_deferredData.second.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1));
+			_deferredData.second.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
+			_deferredData.second.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
+			_deferredData.second.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture());
+
+			_deferredCopyData.second.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
+			_deferredCopyData.second.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture()); //used for blend factor blend
+
+			_ssrData.second.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
+			_ssrData.second.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1)); //used for blend factor blend
+			_ssrData.second.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
+			_ssrData.second.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
+		}
 
 		return true;
 	}
@@ -186,6 +234,39 @@ namespace SunEngine
 		{
 			pScene->RemoveNode(pNode);
 		}
+	}
+
+	bool SceneView::CreateRenderPassData(const String& shader, Pair<GraphicsPipeline, ShaderBindings>& data)
+	{
+		BaseShader* pShader = ShaderMgr::Get().GetShader(shader)->GetDefault();
+		assert(pShader);
+
+		if (!pShader)
+			return false;
+
+		GraphicsPipeline::CreateInfo pipelineInfo = {};
+		pipelineInfo.pShader = pShader;
+
+		//TODO: specific pipelineInfo based on shader string name
+		if (shader == DefaultShaders::ScreenSpaceReflection)
+		{
+			pipelineInfo.settings.EnableAlphaBlend();
+			//pipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_GREATER; //we only want to test pixels which have depths < 1, the quad will have depth == 1, so pixels which are the background wont be tested
+		}
+
+		if (!data.first.Create(pipelineInfo))
+			return false;
+
+		ShaderBindings::CreateInfo bindingInfo = {};
+		bindingInfo.pShader = pShader;
+		bindingInfo.type = SBT_MATERIAL;
+
+		if (!data.second.Create(bindingInfo))
+			return false;
+
+		data.second.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_NEAREST, SE_WM_CLAMP_TO_EDGE, SE_AM_OFF));
+
+		return true;
 	}
 
 }

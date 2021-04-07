@@ -26,7 +26,8 @@ namespace SunEngine
 		bool SelectFile(String& file, const String& fileTypeDescription, const String& fileTypeFilter) const;
 	protected:
 
-		virtual bool CustomInit(ConfigFile* pConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) = 0;
+		virtual bool CustomParseConfig(ConfigFile* pConfig) = 0;
+		virtual bool CustomLoad(GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) = 0;
 		virtual void CustomUpdate() = 0;
 
 		void AddView(View* pView);

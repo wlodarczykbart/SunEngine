@@ -1,29 +1,71 @@
 #pragma once
 
-#include "Types.h"
+#include "GraphicsAPIDef.h"
 
 namespace SunEngine
 {
-	class ConfigSection;
+	class ConfigFile;
 
-	class EnginePaths
+	class EngineInfo
 	{
 	public:
-		static const String& ShaderSourceDir();
-		static const String& ShaderListFile();
+		static void Init(ConfigFile* pConfig);
 
-		static const String& Find(const String& key);
+		class Renderer
+		{
+		public:
+			enum ERenderMode
+			{
+				Forward,
+				Deferred,
+			};
 
-		static void Init(const String& rootDir, ConfigSection* configSection);
+			GraphicsAPI API() const { return _api; }
+			ERenderMode RenderMode() const { return _renderMode; }
+
+		private:
+			friend class EngineInfo;
+			Renderer() = default;
+			Renderer(const Renderer&) = delete;
+			Renderer& operator = (const Renderer&) = delete;
+
+			void Init(ConfigFile* pConfig);
+
+			GraphicsAPI _api;
+			ERenderMode _renderMode;
+		};
+
+		class Paths
+		{
+		public:
+			const String& ShaderSourceDir() const;
+			const String& ShaderListFile() const;
+			const String& Find(const String& key) const;
+
+		private:
+			friend class EngineInfo;
+			Paths() = default;
+			Paths(const Paths&) = delete;
+			Paths& operator = (const Paths&) = delete;
+
+			void Init(ConfigFile* pConfig);
+
+			StrMap<String> _paths;
+		};
+
+		static const Renderer& GetRenderer()  { return Get()._renderer; }
+		static const Paths& GetPaths() { return Get()._paths; }
 
 	private:
-		static EnginePaths& Get();
+		static EngineInfo& Get();
 
-		EnginePaths() = default;
-		EnginePaths(const EnginePaths&) = delete;
-		EnginePaths& operator = (const EnginePaths&) = delete;
-		~EnginePaths() = default;
+		EngineInfo() = default;
+		EngineInfo(const EngineInfo&) = delete;
+		EngineInfo& operator = (const EngineInfo&) = delete;
+		~EngineInfo() = default;
 
-		StrMap<String> _paths;
+		Renderer _renderer;
+		Paths _paths;
+		
 	};
 }

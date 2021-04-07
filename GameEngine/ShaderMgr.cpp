@@ -8,7 +8,10 @@ namespace SunEngine
 	DefineStaticStr(DefaultShaders, Metallic)
 	DefineStaticStr(DefaultShaders, Specular)
 	DefineStaticStr(DefaultShaders, Gamma)
-				
+	DefineStaticStr(DefaultShaders, Deferred)
+	DefineStaticStr(DefaultShaders, ScreenSpaceReflection)
+	DefineStaticStr(DefaultShaders, SceneCopy)
+
 	ShaderMgr& ShaderMgr::Get()
 	{
 		static ShaderMgr mgr;
@@ -21,14 +24,14 @@ namespace SunEngine
 		return found != _shaders.end() ? (*found).second.get() : 0;
 	}
 
-	bool ShaderMgr::LoadShaders()
+	bool ShaderMgr::LoadShaders(String& errMsg)
 	{
-		String path = EnginePaths::ShaderListFile();
+		String path = EngineInfo::GetPaths().ShaderListFile();
 		ConfigFile config;
 		if (!config.Load(path))
 			return false;
 		
-		String shaderDir = EnginePaths::ShaderSourceDir();
+		String shaderDir = EngineInfo::GetPaths().ShaderSourceDir();
 
 		ConfigSection* pList = config.GetSection("Shaders");
 		for (auto iter = pList->Begin(); iter != pList->End(); ++iter)
@@ -41,7 +44,7 @@ namespace SunEngine
 			Shader* pShader = new Shader();
 			_shaders[shaderName] = UniquePtr<Shader>(pShader);
 
-			if (!pShader->Compile(shaderConfig))
+			if (!pShader->Compile(shaderConfig, &errMsg))
 				return false;
 		}
 

@@ -7,6 +7,7 @@
 cbuffer SunlightBuffer
 {
 	float4 SunDirection;
+	float4 SunViewDirection;
 	float4 SunColor;
 };
 

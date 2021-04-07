@@ -1,5 +1,5 @@
-#include "LightBuffer.hlsl"
 #include "CameraBuffer.hlsl"
+#include "PixelShader.hlsl"
 
 Texture2D DiffuseMap;
 Texture2D SpecularMap;
@@ -23,8 +23,8 @@ struct PS_In
 	float4 tangent : TANGENT;
 };
 
-float4 main(PS_In pIn) : SV_TARGET
-{	
+PS_Out main(PS_In pIn)
+{		
 	float2 texCoord = pIn.texCoord.xy;
 
 	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * Diffuse;
@@ -36,6 +36,7 @@ float4 main(PS_In pIn) : SV_TARGET
 	float3 albedo = diffuse.rgb;
 	float3 f0 = Specular * SpecularMap.Sample(Sampler, texCoord).r;
 	float smoothness = Smoothness;
+	float ao = AOMap.Sample(Sampler, texCoord).r;
 		
 	float3x3 tbn;
 	tbn[0] = normalize(pIn.tangent.xyz);
@@ -43,13 +44,8 @@ float4 main(PS_In pIn) : SV_TARGET
 	tbn[1] = -cross(tbn[2], tbn[0]);
 	
 	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
-	float3 v = normalize((InvViewMatrix[3] - pIn.position).xyz);
 		
-	float3 l = normalize(SunDirection.xyz);	
-	float3 litColor = BRDF_CookTorrance(l, n, v, SunColor.rgb, albedo, f0, smoothness, 0.001);
-	
-	float ao = AOMap.Sample(Sampler, texCoord).r;
-    float3 ambient = 0.03 * albedo * ao;	
-	
-	return float4(litColor + ambient, 1.0);
+	PS_Out pOut;
+	ShadePixel(albedo, ao, f0, smoothness, n, pIn.position.xyz, pOut);
+	return pOut;
 }

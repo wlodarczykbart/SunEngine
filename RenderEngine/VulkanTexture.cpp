@@ -2,7 +2,6 @@
 
 namespace SunEngine
 {
-
 	VulkanTexture::VulkanTexture()
 	{
 		_image = VK_NULL_HANDLE;
@@ -54,7 +53,7 @@ namespace SunEngine
 		else if (info.image.Flags & ImageData::DEPTH_BUFFER)
 		{
 			imgInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-			imgInfo.format = VK_FORMAT_D24_UNORM_S8_UINT;
+			imgInfo.format = VK_FORMAT_D32_SFLOAT;
 		}
 		else if (info.image.Flags & ImageData::COMPRESSED_BC1)
 		{
@@ -105,7 +104,7 @@ namespace SunEngine
 		}
 		else if (info.image.Flags & ImageData::DEPTH_BUFFER)
 		{
-			viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+			viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 		}
 
 		if (!_device->CreateImageView(viewInfo, &_view)) return false;

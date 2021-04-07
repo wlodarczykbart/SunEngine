@@ -9,6 +9,7 @@ namespace SunEngine
 		_currentPipeline = VK_NULL_HANDLE;
 		_cmdBuffer = VK_NULL_HANDLE;
 		_fence = VK_NULL_HANDLE;
+		_currentNumTargerts = 0;
 	}
 
 	VulkanCommandBuffer::~VulkanCommandBuffer()
@@ -52,11 +53,12 @@ namespace SunEngine
 		_device->ProcessFences(&_fence, 1, UINT64_MAX, true);
 	}
 
-	void VulkanCommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo & info)
+	void VulkanCommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo & info, uint numTargets)
 	{
 		vkCmdBeginRenderPass(_cmdBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 		
 		_currentRenderPass = info;
+		_currentNumTargerts = numTargets;
 
 		VkViewport viewport = {};
 		viewport.width = (float)_currentRenderPass.renderArea.extent.width;
@@ -77,6 +79,7 @@ namespace SunEngine
 
 		_currentRenderPass = {};
 		_currentPipeline = VK_NULL_HANDLE;
+		_currentNumTargerts = 0;
 	}
 
 	void VulkanCommandBuffer::BindPipeline(VkPipelineBindPoint bindPoint, VkPipeline pipeline)
@@ -154,5 +157,10 @@ namespace SunEngine
 	VkFramebuffer VulkanCommandBuffer::GetCurrentFramebuffer() const
 	{
 		return _currentRenderPass.framebuffer;
+	}
+
+	uint VulkanCommandBuffer::GetCurrentNumTargets() const
+	{
+		return _currentNumTargerts;
 	}
 }

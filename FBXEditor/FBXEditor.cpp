@@ -44,7 +44,7 @@ namespace SunEngine
 
 		bool Init()
 		{
-			Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::StandardSpecular);
+			Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::Specular);
 			GraphicsPipeline::CreateInfo pipelineInfo = {};
 			pipelineInfo.pShader = pShader->GetDefault();
 
@@ -212,9 +212,13 @@ namespace SunEngine
 		_currentAsset = 0;
 	}
 
-	bool FBXEditor::CustomInit(ConfigFile* pConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
+	bool FBXEditor::CustomParseConfig(ConfigFile* pConfig)
 	{
-		EnginePaths::Init(GetDirectory(pConfig->GetFilename()), pConfig->GetSection("Paths"));
+		EngineInfo::Init(pConfig);
+	}
+
+	bool FBXEditor::CustomLoad(GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
+	{
 
 		ResourceMgr& resMgr = ResourceMgr::Get();
 		ShaderMgr& shaderMgr = ShaderMgr::Get();
@@ -231,10 +235,10 @@ namespace SunEngine
 			return false;
 		}
 
-		Shader* pShader = shaderMgr.GetShader(DefaultShaders::StandardSpecular);
+		Shader* pShader = shaderMgr.GetShader(DefaultShaders::Specular);
 		if (!pShader)
 		{
-			spdlog::error("Failed to find {} shader", DefaultShaders::StandardSpecular);
+			spdlog::error("Failed to find {} shader", DefaultShaders::Specular);
 			return false;
 		}
 

@@ -43,6 +43,8 @@ namespace SunEngine
 		{ SE_DC_LESS_EQUAL, VK_COMPARE_OP_LESS_OR_EQUAL },
 		{ SE_DC_EQUAL, VK_COMPARE_OP_EQUAL },
 		{ SE_DC_ALWAYS, VK_COMPARE_OP_ALWAYS },
+		{ SE_DC_GREATER, VK_COMPARE_OP_GREATER },
+		{ SE_DC_NOT_EQUAL, VK_COMPARE_OP_NOT_EQUAL },
 	};
 
 	Map<BlendFactor, VkBlendFactor> BlendFactorMap =
@@ -65,6 +67,7 @@ namespace SunEngine
 
 	VulkanGraphicsPipeline::VulkanGraphicsPipeline()
 	{
+		_shader = 0;
 	}
 
 
@@ -106,7 +109,7 @@ namespace SunEngine
 		Map<VkRenderPass, Map<IShader*, VkPipeline>>::iterator iter = _renderPassPipelines.find(vkCmd->GetCurrentRenderPass());
 		if (iter == _renderPassPipelines.end())
 		{
-			pipeline = createPipeline(vkCmd->GetCurrentRenderPass());
+			pipeline = createPipeline(vkCmd->GetCurrentRenderPass(), vkCmd->GetCurrentNumTargets());
 			_renderPassPipelines[vkCmd->GetCurrentRenderPass()][_shader] = pipeline;
 		}
 		else
@@ -114,7 +117,7 @@ namespace SunEngine
 			Map<IShader*, VkPipeline>::iterator passIter = (*iter).second.find(_shader);
 			if (passIter == (*iter).second.end())
 			{
-				pipeline = createPipeline(vkCmd->GetCurrentRenderPass());
+				pipeline = createPipeline(vkCmd->GetCurrentRenderPass(), vkCmd->GetCurrentNumTargets());
 				_renderPassPipelines[vkCmd->GetCurrentRenderPass()][_shader] = pipeline;
 			}
 			else
@@ -151,7 +154,7 @@ namespace SunEngine
 		}
 	}
 
-	VkPipeline VulkanGraphicsPipeline::createPipeline(VkRenderPass renderPass)
+	VkPipeline VulkanGraphicsPipeline::createPipeline(VkRenderPass renderPass, uint numTargets)
 	{
 		Vector<VkPipelineShaderStageCreateInfo> shaderStages;
 
@@ -199,17 +202,20 @@ namespace SunEngine
 
 		VkPipelineColorBlendStateCreateInfo       colorBlendState = {};
 		colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-		VkPipelineColorBlendAttachmentState blendAttachment;
-		blendAttachment.blendEnable = _settings.blendState.enableBlending;
-		blendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-		blendAttachment.srcColorBlendFactor = BlendFactorMap[_settings.blendState.srcColorBlendFactor];
-		blendAttachment.dstColorBlendFactor = BlendFactorMap[_settings.blendState.dstColorBlendFactor];
-		blendAttachment.srcAlphaBlendFactor = BlendFactorMap[_settings.blendState.srcAlphaBlendFactor];
-		blendAttachment.dstAlphaBlendFactor = BlendFactorMap[_settings.blendState.dstAlphaBlendFactor];
-		blendAttachment.colorBlendOp = BlendOpMap[_settings.blendState.colorBlendOp];
-		blendAttachment.alphaBlendOp = BlendOpMap[_settings.blendState.alphaBlendOp];
-		colorBlendState.attachmentCount = 1;
-		colorBlendState.pAttachments = &blendAttachment;
+		VkPipelineColorBlendAttachmentState blendAttachments[IRenderTargetCreateInfo::MAX_TARGETS];
+		for (uint i = 0; i < numTargets; i++)
+		{
+			blendAttachments[i].blendEnable = _settings.blendState.enableBlending;
+			blendAttachments[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+			blendAttachments[i].srcColorBlendFactor = BlendFactorMap[_settings.blendState.srcColorBlendFactor];
+			blendAttachments[i].dstColorBlendFactor = BlendFactorMap[_settings.blendState.dstColorBlendFactor];
+			blendAttachments[i].srcAlphaBlendFactor = BlendFactorMap[_settings.blendState.srcAlphaBlendFactor];
+			blendAttachments[i].dstAlphaBlendFactor = BlendFactorMap[_settings.blendState.dstAlphaBlendFactor];
+			blendAttachments[i].colorBlendOp = BlendOpMap[_settings.blendState.colorBlendOp];
+			blendAttachments[i].alphaBlendOp = BlendOpMap[_settings.blendState.alphaBlendOp];
+		}
+		colorBlendState.attachmentCount = numTargets;
+		colorBlendState.pAttachments = blendAttachments;
 
 		Vector<VkDynamicState> states;
 		states.push_back(VK_DYNAMIC_STATE_SCISSOR);

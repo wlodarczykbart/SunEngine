@@ -22,14 +22,14 @@ namespace SunEngine
 		void SetClearOnBind(const bool clear) override;
 		void SetViewport(float x, float y, float width, float height) override;
 
-		VkImageLayout GetColorFinalLayout() const;
-		VkImageLayout GetDepthFinalLayout() const;
+		static VkImageLayout GetColorFinalLayout();
+		static VkImageLayout GetDepthFinalLayout();
 
 	private:
 		friend class VulkanShaderBindings;
 		
-		bool createRenderPass(VulkanTexture* pColorTexture, VulkanTexture* pDepthTexture);
-		bool createFramebuffer(VulkanTexture* pColorTexture, VulkanTexture* pDepthTexture);
+		bool createRenderPass(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture);
+		bool createFramebuffer(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture);
 
 		VkFramebuffer _framebuffer;
 
@@ -38,7 +38,7 @@ namespace SunEngine
 
 		VkRect2D _viewport;
 
-		bool _hasColor;
+		uint _numTargets;
 		bool _hasDepth;
 		bool _clearOnBind;
 		VkRenderPass _noClearRenderPass;

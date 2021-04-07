@@ -10,6 +10,9 @@ namespace SunEngine
 		static const String Metallic;
 		static const String Specular;
 		static const String Gamma;
+		static const String Deferred;
+		static const String ScreenSpaceReflection;
+		static const String SceneCopy;
 
 	private:
 		DefaultShaders() = delete;
@@ -27,7 +30,7 @@ namespace SunEngine
 
 		Shader* GetShader(const String& name) const;
 
-		bool LoadShaders();
+		bool LoadShaders(String& errMsg);
 	private:
 		ShaderMgr();
 		~ShaderMgr();

@@ -12,6 +12,7 @@ namespace SunEngine
 		numTargets = 0;
 		hasDepthBuffer = true;
 		floatingPointColorBuffer = false;
+		pSharedDepthBuffer = 0;
 	}
 
 	RenderTarget::RenderTarget() : GraphicsObject(GraphicsObject::RENDER_TARGET)
@@ -22,8 +23,17 @@ namespace SunEngine
 		_width = 0;
 		_height = 0;
 		_numTargets = 0;
-		_colorTexture = 0;
 		_depthTexture = 0;
+
+		_clearColor[0] = 0.0f;
+		_clearColor[1] = 0.0f;
+		_clearColor[2] = 0.0f;
+		_clearColor[3] = 1.0f;
+
+		for (uint i = 0; i < IRenderTargetCreateInfo::MAX_TARGETS; i++)
+			_colorTextures[i] = 0;
+
+		_ownsDepthTexture = true;
 	}
 
 
@@ -37,9 +47,9 @@ namespace SunEngine
 		if (!Destroy())
 			return false;
 
-		if (info.numTargets)
+		for (uint i = 0; i < info.numTargets; i++)
 		{
-			_colorTexture = new BaseTexture();
+			BaseTexture* pTexture = new BaseTexture();
 			BaseTexture::CreateInfo texInfo = {};
 			texInfo.image.Width = info.width;
 			texInfo.image.Height = info.height;
@@ -49,19 +59,29 @@ namespace SunEngine
 			else
 				texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
 
-			if (!_colorTexture->Create(texInfo))
-				_errStr = _colorTexture->GetErrStr();
+			if (!pTexture->Create(texInfo))
+				_errStr = pTexture->GetErrStr();
+
+			_colorTextures[i] = pTexture;
 		}
 
 		if (info.hasDepthBuffer)
 		{
-			_depthTexture = new BaseTexture();
-			BaseTexture::CreateInfo texInfo = {};
-			texInfo.image.Width = info.width;
-			texInfo.image.Height = info.height;
-			texInfo.image.Flags = ImageData::DEPTH_BUFFER;
-			if (!_depthTexture->Create(texInfo))
-				_errStr = _depthTexture->GetErrStr();
+			if (!info.pSharedDepthBuffer)
+			{
+				_depthTexture = new BaseTexture();
+				BaseTexture::CreateInfo texInfo = {};
+				texInfo.image.Width = info.width;
+				texInfo.image.Height = info.height;
+				texInfo.image.Flags = ImageData::DEPTH_BUFFER;
+				if (!_depthTexture->Create(texInfo))
+					_errStr = _depthTexture->GetErrStr();
+			}
+			else
+			{
+				_depthTexture = info.pSharedDepthBuffer;
+				_ownsDepthTexture = false;
+			}
 		}
 
 		if (!_iRenderTarget)
@@ -71,7 +91,8 @@ namespace SunEngine
 		IRenderTargetCreateInfo apiInfo = {};
 		apiInfo.width = info.width;
 		apiInfo.height = info.height;
-		apiInfo.colorBuffer = _colorTexture ? (ITexture*)_colorTexture->GetAPIHandle() : 0;
+		for (uint i = 0; i < info.numTargets; i++)
+			apiInfo.colorBuffers[i] = (ITexture*)_colorTextures[i]->GetAPIHandle();
 		apiInfo.depthBuffer = _depthTexture ? (ITexture*)_depthTexture->GetAPIHandle() : 0;
 		apiInfo.numTargets = info.numTargets;
 
@@ -92,21 +113,26 @@ namespace SunEngine
 
 		_iRenderTarget = 0;
 
-		if (_colorTexture)
+		for (uint i = 0; i < _numTargets; i++)
 		{
-			if (!_colorTexture->Destroy())
+			if (!_colorTextures[i]->Destroy())
 				return false;
-			delete _colorTexture;
-			_colorTexture = 0;
+			delete _colorTextures[i];
 		}
 
 		if (_depthTexture)
 		{
-			if (!_depthTexture->Destroy())
-				return false;
-			delete _depthTexture;
+			if (_ownsDepthTexture)
+			{
+				if (!_depthTexture->Destroy())
+					return false;
+				delete _depthTexture;
+			}
 			_depthTexture = 0;
 		}
+
+		_numTargets = 0;
+		_ownsDepthTexture = true;
 
 		return true;
 	}
@@ -159,9 +185,12 @@ namespace SunEngine
 		return _height;
 	}
 
-	BaseTexture* RenderTarget::GetColorTexture() const
+	BaseTexture* RenderTarget::GetColorTexture(uint target) const
 	{
-		return _colorTexture;
+		if(target < IRenderTargetCreateInfo::MAX_TARGETS)
+			return _colorTextures[target];
+
+		return 0;
 	}
 
 	BaseTexture* RenderTarget::GetDepthTexture() const

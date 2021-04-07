@@ -11,6 +11,12 @@ namespace SunEngine
 		_depthImage = VK_NULL_HANDLE;
 		_depthView = VK_NULL_HANDLE;
 		_depthMem = VK_NULL_HANDLE;
+		_renderFinishedFence = VK_NULL_HANDLE;
+		_renderFinishedSemaphore = VK_NULL_HANDLE;
+		_swapchain = VK_NULL_HANDLE;
+		_imgAvailableSemaphore = VK_NULL_HANDLE;
+		_format = VK_FORMAT_UNDEFINED;
+		_window = 0;
 	}
 
 
@@ -120,7 +126,7 @@ namespace SunEngine
 		info.renderArea.extent.height = _window->Height();
 		info.framebuffer = _frames[_currFrame]._framebuffer;
 
-		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info);
+		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info, 1);
 	}
 
 	void VulkanSurface::Unbind(ICommandBuffer * cmdBuffer)

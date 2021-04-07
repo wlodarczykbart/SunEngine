@@ -30,10 +30,14 @@ namespace SunEngine
 
 	}
 
-	bool GameEditor::CustomInit(ConfigFile* pConfig, GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
+	bool GameEditor::CustomParseConfig(ConfigFile* pConfig)
 	{
-		EnginePaths::Init(GetDirectory(pConfig->GetFilename()), pConfig->GetSection("Paths"));
+		EngineInfo::Init(pConfig);
+		return true;
+	}
 
+	bool GameEditor::CustomLoad(GraphicsWindow* pWindow, GUIRenderer** ppOutGUI)
+	{
 		ResourceMgr& resMgr = ResourceMgr::Get();
 		ShaderMgr& shaderMgr = ShaderMgr::Get();
 
@@ -43,20 +47,22 @@ namespace SunEngine
 			return false;
 		}
 
-		if (!shaderMgr.LoadShaders())
+		String shaderErr;
+		if (!shaderMgr.LoadShaders(shaderErr))
 		{
-			spdlog::error("Failed to load shaders");
+			spdlog::error("Failed to load shaders: \n{}", shaderErr);
 			return false;
 		}
 
-		ConfigSection* pEditorConfig = pConfig->GetSection("Editor");
+		//TODO?
+		//ConfigSection* pEditorConfig = pConfig->GetSection("Editor");
 
 		//Create SceneView
 		View::CreateInfo viewInfo = {};
-		String sceneViewConfig = pEditorConfig->GetString("SceneView");
-		if (!viewInfo.ParseConfigString(sceneViewConfig))
+		//String sceneViewConfig = pEditorConfig->GetString("SceneView");
+		//if (!viewInfo.ParseConfigString(sceneViewConfig))
 		{
-			viewInfo.width = pWindow->Width() / 2;;
+			viewInfo.width = pWindow->Width() / 2;
 			viewInfo.height = pWindow->Height() / 2;
 			viewInfo.visibile = true;
 		}
