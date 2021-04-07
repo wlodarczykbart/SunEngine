@@ -95,6 +95,7 @@ namespace SunEngine
 
 	enum IVertexInputFormat
 	{
+		VIF_UNDEFINED,
 		VIF_FLOAT2,
 		VIF_FLOAT3,
 		VIF_FLOAT4,
@@ -102,6 +103,14 @@ namespace SunEngine
 
 	struct IVertexElement
 	{
+		IVertexElement()
+		{
+			format = VIF_UNDEFINED;
+			offset = 0;
+			size = 0;
+			semantic[0] = '\0';
+		}
+
 		IVertexInputFormat format;
 		uint size;
 		uint offset;
@@ -190,6 +199,7 @@ namespace SunEngine
 		{
 			size = 0;
 			stages = 0;
+			name[0] = '\0';
 		}
 
 		char name[MAX_GRAPHICS_FIELD_LENGTH];

@@ -23,8 +23,15 @@ void ShadePixel(float3 albedo, float ambient, float3 specular, float smoothness,
 	pOut.Normal = float4(normal, 0.0);
 	pOut.Position = float4(position, 0.0);
 #else
+
+#if 1
+	float3 l = normalize(SunViewDirection.xyz);	
+	float3 v = -normalize(position.xyz);
+#else
 	float3 l = normalize(SunDirection.xyz);	
 	float3 v = normalize(InvViewMatrix[3].xyz - position);
+#endif	
+
 	float3 litColor = BRDF_CookTorrance(l, normal, v, SunColor.rgb, albedo, specular, smoothness, 0.001);
 	
     float3 ambientColor = 0.03 * albedo * ambient;	

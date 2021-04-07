@@ -64,6 +64,7 @@ namespace SunEngine
 		void ProcessNode(SceneNode* pNode);
 		void ProcessRenderQueue(CommandBuffer* cmdBuffer, Queue<RenderNodeData>& queue);
 		GraphicsPipeline* GetPipeline(const RenderNode& node);
+		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer) const;
 
 		bool _bInit;
 		UniquePtr<UniformBufferData> _cameraBuffer;

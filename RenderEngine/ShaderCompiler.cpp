@@ -67,6 +67,28 @@ namespace SunEngine
 				return false;
 		}
 
+		Vector<String> unusedBuffers, unusedResources;
+
+		for (auto iter = _shaderInfo.buffers.begin(); iter != _shaderInfo.buffers.end(); ++iter)
+		{
+			if (strlen((*iter).second.name) == 0)
+				unusedBuffers.push_back((*iter).first);
+		}
+		for (uint i = 0; i < unusedBuffers.size(); i++)
+		{
+			_shaderInfo.buffers.erase(unusedBuffers[i]);
+		}
+
+		for (auto iter = _shaderInfo.resources.begin(); iter != _shaderInfo.resources.end(); ++iter)
+		{
+			if (strlen((*iter).second.name) == 0)
+				unusedResources.push_back((*iter).first);
+		}
+		for (uint i = 0; i < unusedResources.size(); i++)
+		{
+			_shaderInfo.resources.erase(unusedResources[i]);
+		}
+
 		return true;
 	}
 

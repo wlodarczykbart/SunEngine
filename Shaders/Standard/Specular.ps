@@ -46,6 +46,6 @@ PS_Out main(PS_In pIn)
 	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
 		
 	PS_Out pOut;
-	ShadePixel(albedo, ao, f0, smoothness, n, pIn.position.xyz, pOut);
+	ShadePixel(albedo, ao, f0, smoothness, n, pIn.position.xyz, pOut);		
 	return pOut;
 }

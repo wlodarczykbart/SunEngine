@@ -154,6 +154,7 @@ namespace SunEngine
 		inline BaseShader* GetShader() const { return _shader; }
 		//bool UpdateIfChanged();
 
+		bool ContainsBuffer(const String& name) const;
 		bool ContainsResource(const String& name) const;
 
 	private:
@@ -197,6 +198,9 @@ namespace SunEngine
 
 		void GetBufferInfos(Vector<IShaderBuffer>& infos) const;
 		void GetResourceInfos(Vector<IShaderResource>& infos) const;
+
+		bool ContainsBuffer(const String& name) const;
+		bool ContainsResource(const String& name) const;
 
 	protected:
 

@@ -110,6 +110,16 @@ namespace SunEngine
 		}
 	}
 
+	bool BaseShader::ContainsBuffer(const String& name) const
+	{
+		return _buffers.find(name) != _buffers.end();
+	}
+
+	bool BaseShader::ContainsResource(const String& name) const
+	{
+		return _resources.find(name) != _resources.end();
+	}
+
 	ShaderBindings::ShaderBindings() : GraphicsObject(GraphicsObject::SHADER_BINDINGS)
 	{
 		_shader = 0;
