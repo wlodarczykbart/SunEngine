@@ -83,7 +83,7 @@ namespace SunEngine
 
 	struct ShadowBufferData
 	{
-		ShaderMat4 ShadowMatrix;
+		ShaderMat4* ShadowMatrices;
 	};
 
 	struct SampleSceneBufferData
@@ -92,16 +92,14 @@ namespace SunEngine
 		ShaderVec4 TexCoordRanges; //x,z = x range    y,w = y range
 	};
 
-	static const uint MAX_SHADER_TEXTURE_TRANSFORMS = 32;
 	struct TextureTransformBufferData
 	{
-		ShaderVec4 Transforms[MAX_SHADER_TEXTURE_TRANSFORMS];
+		ShaderVec4* Transforms;
 	};
 
-	static const uint MAX_SHADER_SKINNED_BONES = 256;
 	struct SkinnedBonesBufferData
 	{
-		ShaderMat4 SkinnedBones[MAX_SHADER_SKINNED_BONES];
+		ShaderMat4* SkinnedBones;
 	};
 
 	class ShaderStrings
@@ -183,9 +181,9 @@ namespace SunEngine
 			StrMap<IShaderResource> resources;
 			Vector<IVertexElement> vertexElements;
 
-			MemBuffer vertexBinaries[8];
-			MemBuffer pixelBinaries[8];
-			MemBuffer geometryBinaries[8];
+			MemBuffer vertexBinaries[MAX_GRAPHICS_API_TYPES];
+			MemBuffer pixelBinaries[MAX_GRAPHICS_API_TYPES];
+			MemBuffer geometryBinaries[MAX_GRAPHICS_API_TYPES];
 		};
 
 		BaseShader();

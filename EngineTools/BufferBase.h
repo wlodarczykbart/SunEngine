@@ -11,6 +11,8 @@ namespace SunEngine
 		~BufferStream();
 
 		void SetSize(uint size);
+		const uchar* GetData() const;
+		uchar* GetData();
 
 	private:
 		uint Tell() const override;

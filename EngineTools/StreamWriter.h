@@ -46,6 +46,22 @@ namespace SunEngine
 			return true;
 		}
 
+		template<typename T>
+		bool WriteSimple(Vector<T>& vec)
+		{
+			uint size = (uint)vec.size();
+			if (!Write(size))
+				return false;
+
+			if (size)
+			{
+				if (!Write(vec.data(), sizeof(T) * size))
+					return false;
+			}
+
+			return true;
+		}
+
 	protected:
 		virtual bool DerivedWrite(const void *pBuffer, const usize size) = 0;
 	};

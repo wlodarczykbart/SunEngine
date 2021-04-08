@@ -1,15 +1,20 @@
 #include <d3dcompiler.h>
-
+#include <direct.h>
 #include "GraphicsAPIDef.h"
 #include "FileBase.h"
 #include "StringUtil.h"
 #include "BaseShader.h"
 
 #include "MemBuffer.h"
+#include "BufferBase.h"
 #include "ShaderCompiler.h"
+
 
 namespace SunEngine
 {
+	//Make sure this is updated when something related to the compiler changes
+	const uint SHADER_COMPILER_VERSION = 1;
+
 	const uint HLSL_MASK_XYZW = (D3D_COMPONENT_MASK_X | D3D_COMPONENT_MASK_Y | D3D_COMPONENT_MASK_Z | D3D_COMPONENT_MASK_W);
 	const uint HLSL_MASK_XYZ = (D3D_COMPONENT_MASK_X | D3D_COMPONENT_MASK_Y | D3D_COMPONENT_MASK_Z);
 	const uint HLSL_MASK_XY = (D3D_COMPONENT_MASK_X | D3D_COMPONENT_MASK_Y);
@@ -48,22 +53,47 @@ namespace SunEngine
 		_pixelSource = pixelShader;
 	}
 
-	bool ShaderCompiler::Compile()
+	bool ShaderCompiler::Compile(const String& uniqueName)
 	{
 		_shaderInfo.resources.clear();
 		_shaderInfo.buffers.clear();
 		_numUserTextures = 0;
 		_numUserSamplers = 0;
+		_uniqueName = uniqueName;
+
+		uint shaderFlags = 0;
 
 		if (_vertexSource.length())
 		{
-			if (!CompileShader(SS_VERTEX, _vertexSource))
+			PreProcessText(_vertexSource, _vertexHLSL, _vertexGLSL);
+			shaderFlags |= SS_VERTEX;
+		}
+
+		if (_pixelSource.length())
+		{
+			PreProcessText(_pixelSource, _pixelHLSL, _pixelGLSL);
+			shaderFlags |= SS_PIXEL;
+		}
+
+		String cacheDir =  g_ShaderAuxDir + "Cached/";
+		int dirStatus = _mkdir(cacheDir.c_str());
+
+		String cachedFile = cacheDir + _uniqueName + ".scached";
+		if (_uniqueName.length())
+		{
+			if (MatchesCachedFile(cachedFile, shaderFlags))
+				return true;
+		}
+
+		if (_vertexSource.length())
+		{
+			if (!CompileShader(SS_VERTEX))
 				return false;
 		}
 
 		if (_pixelSource.length())
 		{
-			if (!CompileShader(SS_PIXEL, _pixelSource))
+			if (!CompileShader(SS_PIXEL))
 				return false;
 		}
 
@@ -87,6 +117,12 @@ namespace SunEngine
 		for (uint i = 0; i < unusedResources.size(); i++)
 		{
 			_shaderInfo.resources.erase(unusedResources[i]);
+		}
+
+		if (_uniqueName.length())
+		{
+			if (WriteCachedFile(cachedFile, shaderFlags))
+				return true;
 		}
 
 		return true;
@@ -238,8 +274,12 @@ namespace SunEngine
 
 	void ShaderCompiler::PreProcessText(const String& inText, String& outHLSL, String& outGLSL)
 	{
+		String parsedText;
+		HashSet<String> includedFiles;
+		ParseShaderFile(parsedText, inText, includedFiles);
+
 		Vector<String> lines;
-		StrSplit(StrRemove(inText, '\r'), lines, '\n');
+		StrSplit(StrRemove(parsedText, '\r'), lines, '\n');
 
 		outGLSL.clear();
 		outHLSL.clear();
@@ -308,28 +348,6 @@ namespace SunEngine
 			outGLSL += glslLine;
 			outGLSL += "\n";
 		}
-	}
-
-	bool ShaderCompiler::CompileShader(ShaderStage type, const String& source)
-	{
-		String shaderText;
-		_includedFiles.clear();
-		ParseShaderFile(shaderText, source);
-
-		String targetHLSL, targetGLSL;
-		if (type == SS_VERTEX)
-		{
-			targetHLSL = "vs_5_0";
-			targetGLSL = "vert";
-		}
-		else if (type == SS_PIXEL)
-		{
-			targetHLSL = "ps_5_0";
-			targetGLSL = "frag";
-		}
-
-		String hlslText, glslText;
-		PreProcessText(shaderText, hlslText, glslText);
 
 		String shaderHeader = "#pragma pack_matrix( row_major )\n";
 		for (uint i = 0; i < _defines.size(); i++)
@@ -337,7 +355,34 @@ namespace SunEngine
 			shaderHeader += "#define " + _defines[i] + "\n";
 		}
 
-		hlslText = shaderHeader + hlslText;
+		outHLSL = shaderHeader + outHLSL;
+		outGLSL = shaderHeader + outGLSL;
+	}
+
+	bool ShaderCompiler::CompileShader(ShaderStage type)
+	{
+		String targetHLSL, targetGLSL;
+		String* pHLSL = NULL;
+		String* pGLSL = NULL;
+		if (type == SS_VERTEX)
+		{
+			targetHLSL = "vs_5_0";
+			targetGLSL = "vert";
+			pHLSL = &_vertexHLSL;
+			pGLSL = &_vertexGLSL;
+		}
+		else if (type == SS_PIXEL)
+		{
+			targetHLSL = "ps_5_0";
+			targetGLSL = "frag";
+			pHLSL = &_pixelHLSL;
+			pGLSL = &_pixelGLSL;
+		}
+		else
+		{
+			return false;
+		}
+
 		BaseShader::CreateInfo& shader = _shaderInfo;
 
 		MemBuffer* pBinBuffer = 0;
@@ -345,23 +390,21 @@ namespace SunEngine
 		if (type == SS_PIXEL) pBinBuffer = shader.pixelBinaries;
 		if (type == SS_GEOMETRY) pBinBuffer = shader.geometryBinaries;
 
+		FileStream fr;
+
 		ID3DBlob* pShaderBlod = NULL;
 		ID3DBlob* pErrorBlod = NULL;
-		if (D3DCompile(hlslText.data(), hlslText.size(), NULL, NULL, NULL, "main", targetHLSL.data(), 0, 0, &pShaderBlod, &pErrorBlod) == S_OK)
+		if (D3DCompile(pHLSL->data(), pHLSL->size(), NULL, NULL, NULL, "main", targetHLSL.data(), 0, 0, &pShaderBlod, &pErrorBlod) == S_OK)
 		{
 			pBinBuffer[SE_GFX_D3D11].SetSize((uint)pShaderBlod->GetBufferSize());
 			pBinBuffer[SE_GFX_D3D11].SetData(pShaderBlod->GetBufferPointer(), (uint)pShaderBlod->GetBufferSize());
-
-			glslText = shaderHeader + glslText;
 
 			String glslInPath = "ShaderCompilerTempShader.glsl";
 			String glslOutPath = "ShaderCompilerTempShader.spv";
 			FileStream fw;
 			fw.OpenForWrite(glslInPath.data());
-			fw.WriteText(glslText);
+			fw.WriteText(*pGLSL);
 			fw.Close();
-
-			FileStream fr;
 
 			String compileSpvCmd = StrFormat("glslangValidator -D -S %s -e main -o %s -V %s", targetGLSL.data(), glslOutPath.data(), glslInPath.data());
 			int compiled = system(compileSpvCmd.data());
@@ -496,7 +539,7 @@ namespace SunEngine
 								var.type = SDT_STRUCT;
 							}
 
-							buffer.Variables.push_back(var);
+							buffer.variables[buffer.numVariables++] = var;
 						}
 					}
 					else
@@ -545,7 +588,7 @@ namespace SunEngine
 		{
 			_lastErr = (char*)pErrorBlod->GetBufferPointer();
 			Vector<String> shaderLines;
-			StrSplit(hlslText, shaderLines, '\n');
+			StrSplit(*pHLSL, shaderLines, '\n');
 			for (uint l = 0; l < shaderLines.size(); l++)
 			{
 				_lastErr += StrFormat("%d\t%s\n", l + 1, shaderLines[l].data());
@@ -556,7 +599,7 @@ namespace SunEngine
 		return true;
 	}
 
-	bool ShaderCompiler::ParseShaderFile(String& output, const String& input)
+	bool ShaderCompiler::ParseShaderFile(String& output, const String& input, HashSet<String>& includeFiles)
 	{
 		Vector<String> lines;
 		ConvertToLines(input, lines);
@@ -573,10 +616,10 @@ namespace SunEngine
 				if (includeStart != includeEnd && includeStart != String::npos)
 				{
 					String includeName = StrTrim(line.substr(includeStart + 1, includeEnd - includeStart - 1));
-					if (_includedFiles.count(includeName))
+					if (includeFiles.count(includeName))
 						continue;
 
-					_includedFiles.insert(includeName);
+					includeFiles.insert(includeName);
 
 					FileStream includeReader;
 					if (!includeReader.OpenForRead((g_ShaderAuxDir + includeName).data()))
@@ -590,7 +633,7 @@ namespace SunEngine
 						return false;
 
 					String includeTextParsed;
-					ParseShaderFile(includeTextParsed, includeText);
+					ParseShaderFile(includeTextParsed, includeText, includeFiles);
 					output += includeTextParsed;
 				}
 			}
@@ -621,5 +664,146 @@ namespace SunEngine
 			if (line.length())
 				lines.push_back(line);
 		}
+	}
+
+	bool CloseStreamFunc(FileStream& stream)
+	{
+		stream.Close();
+		return false;
+	}
+#define CLOSE_AND_RETURN return CloseStreamFunc(stream)
+
+	bool ShaderCompiler::MatchesCachedFile(const String& path, uint stageFlags)
+	{
+		FileStream stream;
+		if (!stream.OpenForRead(path.c_str()))
+		{
+			stream.Close();
+			return false;
+		}
+
+		uint version;
+		if (!stream.Read(version))
+			CLOSE_AND_RETURN;
+		if (version != SHADER_COMPILER_VERSION)
+			CLOSE_AND_RETURN;
+
+		uint cachedFlags;
+		if (!stream.Read(cachedFlags))
+			CLOSE_AND_RETURN;
+
+		if (cachedFlags != stageFlags)
+			CLOSE_AND_RETURN;
+
+		uint numStages = 0;
+		if (stageFlags & SS_VERTEX) numStages++;
+		if (stageFlags & SS_PIXEL) numStages++;
+
+		for (uint i = 0; i < numStages; i++)
+		{
+			uint currStage;
+			if (!stream.Read(currStage))
+				CLOSE_AND_RETURN;
+
+			String currText;
+			if (!stream.Read(currText))
+				CLOSE_AND_RETURN;
+
+			bool textMatches = false;
+			switch (currStage)
+			{
+			case SS_VERTEX:
+				textMatches = currText == _vertexHLSL;
+				break;
+			case SS_PIXEL:
+				textMatches = currText == _pixelHLSL;
+				break;
+			default:
+				break;
+			}
+
+			if (!textMatches)
+				CLOSE_AND_RETURN;
+		}
+
+		BaseShader::CreateInfo newInfo;
+
+		if (!stream.ReadSimple(newInfo.buffers))
+			CLOSE_AND_RETURN;
+		if (!stream.ReadSimple(newInfo.resources))
+			CLOSE_AND_RETURN;
+		if (!stream.ReadSimple(newInfo.vertexElements))
+			CLOSE_AND_RETURN;
+
+		for (uint i = 0; i < MAX_GRAPHICS_API_TYPES; i++)
+		{
+			if (!newInfo.vertexBinaries[i].Read(stream))
+				CLOSE_AND_RETURN;
+			if (!newInfo.pixelBinaries[i].Read(stream))
+				CLOSE_AND_RETURN;
+			if (!newInfo.geometryBinaries[i].Read(stream))
+				CLOSE_AND_RETURN;
+		}
+
+		_shaderInfo = newInfo;
+
+		stream.Close();
+		return true;
+	}
+
+	bool ShaderCompiler::WriteCachedFile(const String& path, uint stageFlags)
+	{
+		FileStream stream;
+		if (!stream.OpenForWrite(path.c_str()))
+		{
+			stream.Close();
+			return false;
+		}
+
+		if (!stream.Write(SHADER_COMPILER_VERSION))
+			CLOSE_AND_RETURN;
+
+		if (!stream.Write(stageFlags))
+			CLOSE_AND_RETURN;
+
+		if (stageFlags & SS_VERTEX)
+		{
+			uint currStage = SS_VERTEX;
+			if (!stream.Write(currStage))
+				CLOSE_AND_RETURN;
+
+			if (!stream.Write(_vertexHLSL))
+				CLOSE_AND_RETURN;
+		}
+
+		if (stageFlags & SS_PIXEL)
+		{
+			uint currStage = SS_PIXEL;
+			if (!stream.Write(currStage))
+				CLOSE_AND_RETURN;
+
+			if (!stream.Write(_pixelHLSL))
+				CLOSE_AND_RETURN;
+		}
+
+		if (!stream.WriteSimple(_shaderInfo.buffers))
+			CLOSE_AND_RETURN;
+		if (!stream.WriteSimple(_shaderInfo.resources))
+			CLOSE_AND_RETURN;
+		if (!stream.WriteSimple(_shaderInfo.vertexElements))
+			CLOSE_AND_RETURN;
+
+		for (uint i = 0; i < MAX_GRAPHICS_API_TYPES; i++)
+		{
+			if (!_shaderInfo.vertexBinaries[i].Write(stream))
+				CLOSE_AND_RETURN;
+			if (!_shaderInfo.pixelBinaries[i].Write(stream))
+				CLOSE_AND_RETURN;
+			if (!_shaderInfo.geometryBinaries[i].Write(stream))
+				CLOSE_AND_RETURN;
+		}
+
+		stream.Close();
+		return true;
 	}
 }

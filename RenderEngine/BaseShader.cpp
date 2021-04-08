@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "IShader.h"
 #include "IUniformBuffer.h"
 #include "IShaderBindings.h"
@@ -255,6 +257,7 @@ namespace SunEngine
 
 				ResourceInfo resInfo = {};
 				resInfo.Name = buff.name;
+				assert(resInfo.Name.length());
 				_resourceMap[buff.name] = resInfo;
 			}
 		}
@@ -268,6 +271,7 @@ namespace SunEngine
 
 				ResourceInfo resInfo = {};
 				resInfo.Name = res.name;
+				assert(resInfo.Name.length());
 				_resourceMap[res.name] = resInfo;
 			}
 		}

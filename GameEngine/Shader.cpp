@@ -9,7 +9,7 @@ namespace SunEngine
 {
 	const String Shader::Default = "DefaultPass";
 	const String Shader::Deferred = "DeferredPass";
-	const String Shader::Shadow = "ShadowPass";
+	const String Shader::Depth = "DepthPass";
 
 	Shader::Shader()
 	{
@@ -20,28 +20,28 @@ namespace SunEngine
 	{
 	}
 
-	bool Shader::Compile(const String& vertexSource, const String& pixelSource, String* pErrStr)
+	bool Shader::Compile(const String& vertexSource, const String& pixelSource, String* pErrStr, Vector<String>* pDefines)
 	{
 		ConfigFile config;
 		ConfigSection* section = config.AddSection(Default);
 		section->SetString("vs", vertexSource.c_str());
 		section->SetString("ps", pixelSource.c_str());
 		section->SetInt("isText", 1);
-		return Compile(config, pErrStr);
+		return Compile(config, pErrStr, pDefines);
 	}
 
-	bool Shader::Compile(const String& path, String* pErrStr)
+	bool Shader::Compile(const String& path, String* pErrStr, Vector<String>* pDefines)
 	{
 		ConfigFile config;
 		if (config.Load(path))
-			return Compile(config, pErrStr);
+			return Compile(config, pErrStr, pDefines);
 
 		if (pErrStr)
 			*pErrStr = "Failed to open " + path;
 		return false;
 	}
 
-	bool Shader::Compile(const ConfigFile& config, String* pErrStr)
+	bool Shader::Compile(const ConfigFile& config, String* pErrStr, Vector<String>* pDefines)
 	{
 		LinkedList<ConfigFile> configList;
 		HashSet<String> configMap;
@@ -69,7 +69,9 @@ namespace SunEngine
 		Vector<ConfigSection*> variantSections;
 		variantSections.push_back(_config.GetSection(Default));
 		variantSections.push_back(_config.GetSection(Deferred));
-		variantSections.push_back(_config.GetSection(Shadow));
+		variantSections.push_back(_config.GetSection(Depth));
+
+		String shaderName = GetFileNameNoExt(config.GetFilename());
 
 		String sourceDir = EngineInfo::GetPaths().ShaderSourceDir();
 
@@ -85,6 +87,9 @@ namespace SunEngine
 
 			Vector<String> defines;
 			StrSplit(section->GetString("defines"), defines, ',');
+
+			if (pDefines)
+				defines.insert(defines.end(), pDefines->begin(), pDefines->end());
 		
 			compiler.SetDefines(defines);
 
@@ -113,7 +118,8 @@ namespace SunEngine
 				}
 			}
 
-			if (!compiler.Compile())
+			String variantName = shaderName.size() ? shaderName + "_" + section->GetName() : "";
+			if (!compiler.Compile(variantName))
 			{
 				if(pErrStr) 
 					*pErrStr = compiler.GetLastError();
@@ -322,9 +328,9 @@ namespace SunEngine
 				const IShaderBuffer& buff = (*iter);
 				if (buff.bindType == SBT_MATERIAL)
 				{
-					for (uint i = 0; i < buff.Variables.size(); i++)
+					for (uint i = 0; i < buff.numVariables; i++)
 					{
-						const ShaderBufferVariable& var = buff.Variables[i];
+						const ShaderBufferVariable& var = buff.variables[i];
 						switch (var.type)
 						{
 						case SDT_FLOAT:

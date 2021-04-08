@@ -113,7 +113,9 @@ namespace SunEngine
 		if (pDeferredInfo)
 		{
 			_currentShaders.insert(pDeferredInfo->pPipeline->GetShader());
-			_currentShaders.insert(pDeferredInfo->pSSRPipeline->GetShader());
+
+			if(pDeferredInfo->pSSRPipeline)
+				_currentShaders.insert(pDeferredInfo->pSSRPipeline->GetShader());
 		}
 
 		for (auto iter = _currentShaders.begin(); iter != _currentShaders.end(); ++iter)
@@ -151,7 +153,6 @@ namespace SunEngine
 			ProcessRenderQueue(cmdBuffer, _deferredRenderQueue);
 			pDeferredInfo->pTarget->Unbind(cmdBuffer);
 
-			pDeferredInfo->pDeferredResolveTarget->SetClearColor(1, 0, 0, 1);
 			//Draw deferred objects to the deferred resolve render target
 			pDeferredInfo->pDeferredResolveTarget->Bind(cmdBuffer);
 
@@ -172,7 +173,6 @@ namespace SunEngine
 
 			pDeferredInfo->pDeferredResolveTarget->Unbind(cmdBuffer);
 
-			pOpaqueTarget->SetClearColor(0, 1, 0, 1);
 			pOpaqueTarget->Bind(cmdBuffer);
 
 			//copy deferred resolve to opaque render target
@@ -215,7 +215,6 @@ namespace SunEngine
 
 		pOpaqueTarget->Unbind(cmdBuffer);
 
-		pOutputInfo->pTarget->SetClearColor(0, 0, 1, 1);
 		pOutputInfo->pTarget->Bind(cmdBuffer);
 		if(true)
 		{

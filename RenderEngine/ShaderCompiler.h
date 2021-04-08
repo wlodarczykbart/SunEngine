@@ -22,14 +22,16 @@ namespace SunEngine
 		const String& GetLastError() const { return _lastErr; }
 		const BaseShader::CreateInfo& GetCreateInfo() const { return _shaderInfo; }
 
-		bool Compile();
+		bool Compile(const String& uniqueName = "");
 
 	private:
 		void GetBinding(const String& name, const String& type, uint* pBindings, ShaderBindingType& bindType);
 		void PreProcessText(const String& inText, String& outHLSL, String& outGLSL);
-		bool CompileShader(ShaderStage type, const String& source);
-		bool ParseShaderFile(String& output, const String& input);
+		bool CompileShader(ShaderStage type);
+		bool ParseShaderFile(String& output, const String& input, HashSet<String>& includeFiles);
 		void ConvertToLines(const String& input, Vector<String>& lines) const;
+		bool MatchesCachedFile(const String& path, uint stageFlags);
+		bool WriteCachedFile(const String& path, uint stageFlags);
 
 		BaseShader::CreateInfo _shaderInfo;
 
@@ -37,11 +39,16 @@ namespace SunEngine
 		uint _numUserSamplers;
 
 		String _vertexSource;
+		String _vertexHLSL;
+		String _vertexGLSL;
+
 		String _pixelSource;
+		String _pixelHLSL;
+		String _pixelGLSL;
 
 		String _lastErr;
+		String _uniqueName;
 
-		HashSet<String> _includedFiles;
 		Vector<String> _defines;
 
 	};

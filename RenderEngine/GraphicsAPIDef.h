@@ -7,6 +7,9 @@
 #include "MemBuffer.h"
 
 #define MAX_GRAPHICS_FIELD_LENGTH 64
+#define MAX_SHADER_BUFFER_VARIABLES 16
+#define MAX_GRAPHICS_API_TYPES 4
+#define MAX_SUPPORTED_RENDER_TARGETS 8
 
 namespace SunEngine
 {
@@ -60,12 +63,10 @@ namespace SunEngine
 
 	struct IRenderTargetCreateInfo
 	{
-		static const uint MAX_TARGETS = 8;
-
 		uint numTargets;
 		uint width;
 		uint height;
-		ITexture* colorBuffers[MAX_TARGETS];
+		ITexture* colorBuffers[MAX_SUPPORTED_RENDER_TARGETS];
 		ITexture* depthBuffer;
 	};
 
@@ -165,7 +166,7 @@ namespace SunEngine
 		ShaderResourceType type;
 		ShaderResourceDimension dimension;
 		ShaderBindingType bindType;
-		uint binding[8];
+		uint binding[MAX_GRAPHICS_API_TYPES];
 		uint bindingCount;
 		uint stages;
 	};
@@ -186,6 +187,14 @@ namespace SunEngine
 
 	struct ShaderBufferVariable
 	{
+		ShaderBufferVariable()
+		{
+			name[0] = '\0';
+			size = 0;
+			offset  = 0;
+			numElements = 0;
+		}
+
 		char name[MAX_GRAPHICS_FIELD_LENGTH];
 		ShaderDataType type;
 		uint size;
@@ -200,14 +209,16 @@ namespace SunEngine
 			size = 0;
 			stages = 0;
 			name[0] = '\0';
+			numVariables = 0;
 		}
 
 		char name[MAX_GRAPHICS_FIELD_LENGTH];
 		ShaderBindingType bindType;
-		uint binding[8];
+		uint binding[MAX_GRAPHICS_API_TYPES];
 		uint stages;
 		uint size;
-		Vector<ShaderBufferVariable> Variables;
+		uint numVariables;
+		ShaderBufferVariable variables[MAX_SHADER_BUFFER_VARIABLES];
 	};
 
 	struct IUniformBufferCreateInfo
@@ -222,9 +233,9 @@ namespace SunEngine
 		StrMap<IShaderResource> resources;
 		Vector<IVertexElement> vertexElements;
 
-		MemBuffer vertexBinaries[8];
-		MemBuffer pixelBinaries[8];
-		MemBuffer geometryBinaries[8];
+		MemBuffer vertexBinaries[MAX_GRAPHICS_API_TYPES];
+		MemBuffer pixelBinaries[MAX_GRAPHICS_API_TYPES];
+		MemBuffer geometryBinaries[MAX_GRAPHICS_API_TYPES];
 	};
 
 	struct IShaderBindingCreateInfo

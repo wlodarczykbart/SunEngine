@@ -33,6 +33,12 @@ namespace SunEngine
 		
 		String shaderDir = EngineInfo::GetPaths().ShaderSourceDir();
 
+		//Make sure these line up with what is in the shaders...
+		Vector<String> defines;
+		defines.push_back(StrFormat("MAX_SKINNED_BONES %d", EngineInfo::GetRenderer().MaxSkinnedBoneMatrices()));
+		defines.push_back(StrFormat("MAX_TEXTURE_TRANSFORMS %d", EngineInfo::GetRenderer().MaxTextureTransforms()));
+		defines.push_back(StrFormat("MAX_SHADOW_CASCADE_SPLITS %d", EngineInfo::GetRenderer().MaxShadowCascadeSplits()));
+
 		ConfigSection* pList = config.GetSection("Shaders");
 		for (auto iter = pList->Begin(); iter != pList->End(); ++iter)
 		{
@@ -44,8 +50,11 @@ namespace SunEngine
 			Shader* pShader = new Shader();
 			_shaders[shaderName] = UniquePtr<Shader>(pShader);
 
-			if (!pShader->Compile(shaderConfig, &errMsg))
+			if (!pShader->Compile(shaderConfig, &errMsg, &defines))
+			{
+				errMsg = shaderConfig + "\n" + errMsg;
 				return false;
+			}
 		}
 
 		return true;

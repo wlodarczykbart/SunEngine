@@ -202,7 +202,7 @@ namespace SunEngine
 
 		VkPipelineColorBlendStateCreateInfo       colorBlendState = {};
 		colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-		VkPipelineColorBlendAttachmentState blendAttachments[IRenderTargetCreateInfo::MAX_TARGETS];
+		VkPipelineColorBlendAttachmentState blendAttachments[MAX_SUPPORTED_RENDER_TARGETS];
 		for (uint i = 0; i < numTargets; i++)
 		{
 			blendAttachments[i].blendEnable = _settings.blendState.enableBlending;

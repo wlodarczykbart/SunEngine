@@ -79,7 +79,7 @@ namespace SunEngine
 		D3D11CommandBuffer* dxCmd = (D3D11CommandBuffer*)cmdBuffer;
 
 		ID3D11DepthStencilView* nullDSV = 0;
-		ID3D11RenderTargetView* nullRTV[IRenderTargetCreateInfo::MAX_TARGETS] = {};
+		ID3D11RenderTargetView* nullRTV[MAX_SUPPORTED_RENDER_TARGETS] = {};
 
 		dxCmd->BindRenderTargets(_numTargets, nullRTV, nullDSV);
 	}

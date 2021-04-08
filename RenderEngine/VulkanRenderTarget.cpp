@@ -37,7 +37,7 @@ namespace SunEngine
 		_numTargets = info.numTargets;
 		_hasDepth = info.depthBuffer != 0;
 
-		VulkanTexture* vkColorTextures[IRenderTargetCreateInfo::MAX_TARGETS];
+		VulkanTexture* vkColorTextures[MAX_SUPPORTED_RENDER_TARGETS];
 		for (uint i = 0; i < info.numTargets; i++)
 			vkColorTextures[i] = static_cast<VulkanTexture*>(info.colorBuffers[i]);
 
@@ -53,7 +53,7 @@ namespace SunEngine
 	void VulkanRenderTarget::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		uint clearValueCount = 0;
-		VkClearValue clearValues[IRenderTargetCreateInfo::MAX_TARGETS + 1];
+		VkClearValue clearValues[MAX_SUPPORTED_RENDER_TARGETS + 1];
 
 		VkRenderPass renderpass;
 

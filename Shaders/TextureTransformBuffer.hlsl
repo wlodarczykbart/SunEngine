@@ -1,6 +1,6 @@
 cbuffer TextureTransformBuffer
 {
-	float4 TextureTransforms[32];
+	float4 TextureTransforms[MAX_TEXTURE_TRANSFORMS];
 };
 
 float4 SampleTextureArray(Texture2DArray texArray, SamplerState texArraySampler, float3 texArrayCoord)

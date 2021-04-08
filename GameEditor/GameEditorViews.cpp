@@ -67,8 +67,10 @@ namespace SunEngine
 			deferredInfo.pDeferredCopyPipeline = &_deferredCopyData.first;
 			deferredInfo.pDeferredCopyBindings = &_deferredCopyData.second;
 
+#ifdef SUPPORT_SSR
 			deferredInfo.pSSRPipeline = &_ssrData.first;
 			deferredInfo.pSSRBindings = &_ssrData.second;
+#endif
 		}
 
 		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0))
@@ -132,8 +134,10 @@ namespace SunEngine
 			if (!CreateRenderPassData(DefaultShaders::SceneCopy, _deferredCopyData))
 				return false;
 
+#ifdef SUPPORT_SSR
 			if (!CreateRenderPassData(DefaultShaders::ScreenSpaceReflection, _ssrData))
 				return false;
+#endif
 		}
 
 		return OnResize(info);
@@ -180,10 +184,12 @@ namespace SunEngine
 			_deferredCopyData.second.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
 			_deferredCopyData.second.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture()); //used for blend factor blend
 
+#ifdef SUPPORT_SSR
 			_ssrData.second.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
 			_ssrData.second.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1)); //used for blend factor blend
 			_ssrData.second.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
 			_ssrData.second.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
+#endif
 		}
 
 		return true;
@@ -251,7 +257,11 @@ namespace SunEngine
 		if (shader == DefaultShaders::ScreenSpaceReflection)
 		{
 			pipelineInfo.settings.EnableAlphaBlend();
-			//pipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_GREATER; //we only want to test pixels which have depths < 1, the quad will have depth == 1, so pixels which are the background wont be tested
+			pipelineInfo.settings.blendState.srcAlphaBlendFactor = SE_BF_ONE;
+			pipelineInfo.settings.blendState.dstAlphaBlendFactor = SE_BF_ZERO;
+			//pipelineInfo.settings.blendState.srcColorBlendFactor = SE_BF_SRC_ALPHA;
+			//pipelineInfo.settings.blendState.dstColorBlendFactor = SE_BF_ONE_MINUS_SRC_ALPHA;
+			//pipelineInfo.settings.depthStencil.depthCompareOp = se; //we only want to test pixels which have depths < 1, the quad will have depth == 1, so pixels which are the background wont be tested
 		}
 
 		if (!data.first.Create(pipelineInfo))

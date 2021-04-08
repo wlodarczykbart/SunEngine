@@ -152,9 +152,9 @@ namespace SunEngine
 					if (!_gpuObject.SetUniformBuffer(buff.name, &_mtlBuffer))
 						return false;
 
-					for (uint j = 0; j < buff.Variables.size(); j++)
+					for (uint j = 0; j < buff.numVariables; j++)
 					{
-						_mtlVariables[buff.Variables[j].name] = buff.Variables[j];
+						_mtlVariables[buff.variables[j].name] = buff.variables[j];
 					}
 
 					break;

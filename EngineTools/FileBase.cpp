@@ -22,7 +22,8 @@ namespace SunEngine
 
 	bool FileStream::OpenForWrite(const char* filename)
 	{
-		return fopen_s(&_fh, filename, "wb") == 0;
+		errno_t ferr = fopen_s(&_fh, filename, "wb");
+		return ferr == 0;
 	}
 
 	uint FileStream::Tell() const

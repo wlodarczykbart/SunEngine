@@ -56,6 +56,23 @@ namespace SunEngine
 			return true;
 		}
 
+		template<typename T>
+		bool ReadSimple(Vector<T>& vec)
+		{
+			uint size = 0;
+			if (!Read(size))
+				return false;
+
+			if (size)
+			{
+				vec.resize(size);
+				if (!Read(vec.data(), sizeof(T) * size))
+					return false;
+			}
+
+			return true;
+		}
+
 	protected:
 		virtual bool DerivedRead(void *pBuffer, const usize size) = 0;
 	};

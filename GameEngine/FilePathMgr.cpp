@@ -73,5 +73,11 @@ namespace SunEngine
 			_renderMode = Deferred;
 
 		SetGraphicsAPI(_api);
+
+		_cascadeShadowMapResolution = configSection->GetInt("CascadeShadowMapResolution", 2048);
+		
+		_maxSkinnedBoneMatrices = configSection->GetInt("MaxSkinnedBoneMatrices", 64);
+		_maxTextureTransforms = configSection->GetInt("MaxTextureTransforms", 32);
+		_maxShadowCascadeSplits = configSection->GetInt("MaxShadowCascadeSplits", 1);
 	}
 }

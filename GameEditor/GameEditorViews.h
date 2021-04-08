@@ -4,6 +4,8 @@
 #include "GraphicsPipeline.h"
 #include "Shader.h"
 
+//#define SUPPORT_SSR
+
 namespace SunEngine
 {
 	class ICameraView : public View
@@ -57,7 +59,9 @@ namespace SunEngine
 		Pair<GraphicsPipeline, ShaderBindings> _outputData;
 		Pair<GraphicsPipeline, ShaderBindings> _deferredData;
 		Pair<GraphicsPipeline, ShaderBindings> _deferredCopyData;
+#ifdef SUPPORT_SSR
 		Pair<GraphicsPipeline, ShaderBindings> _ssrData;
+#endif
 	};
 
 }

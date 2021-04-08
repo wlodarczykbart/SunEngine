@@ -30,7 +30,7 @@ namespace SunEngine
 		_clearColor[2] = 0.0f;
 		_clearColor[3] = 1.0f;
 
-		for (uint i = 0; i < IRenderTargetCreateInfo::MAX_TARGETS; i++)
+		for (uint i = 0; i < MAX_SUPPORTED_RENDER_TARGETS; i++)
 			_colorTextures[i] = 0;
 
 		_ownsDepthTexture = true;
@@ -187,7 +187,7 @@ namespace SunEngine
 
 	BaseTexture* RenderTarget::GetColorTexture(uint target) const
 	{
-		if(target < IRenderTargetCreateInfo::MAX_TARGETS)
+		if(target < MAX_SUPPORTED_RENDER_TARGETS)
 			return _colorTextures[target];
 
 		return 0;

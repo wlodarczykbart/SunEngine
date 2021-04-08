@@ -12,6 +12,18 @@ Texture2D NormalMap;
 Texture2D PositionMap;
 SamplerState Sampler;
 
+float4 textureGL(Texture2D tex, float2 texCoord)
+{
+	return tex.Sample(Sampler, texCoord);
+}
+
+float2 textureSizeGL(Texture2D tex, int tmp)
+{
+	float w, h;
+	tex.GetDimensions(w, h);
+	return float2(w, h);
+}
+
 float4 main(PS_In pIn) : SV_TARGET
 {
 	float2 texCoord = pIn.texCoord;
@@ -22,7 +34,5 @@ float4 main(PS_In pIn) : SV_TARGET
 	float3 r = reflect(v, n);
 	
 	//return float4(DiffuseMap.Sample(Sampler, texCoord).xyz, length(r));
-	return float4(r, 1.0);
-	
-	
+	return float4(1, 0, 0, 0.6);
 }

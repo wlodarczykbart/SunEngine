@@ -19,6 +19,16 @@ namespace SunEngine
 		_pos = 0;
 	}
 
+	const uchar* BufferStream::GetData() const
+	{
+		return _data.data();
+	}
+
+	uchar* BufferStream::GetData()
+	{
+		return _data.data();
+	}
+
 	uint BufferStream::Tell() const
 	{
 		return _pos;

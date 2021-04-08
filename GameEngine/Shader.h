@@ -16,14 +16,14 @@ namespace SunEngine
 	public:
 		static const String Default;
 		static const String Deferred;
-		static const String Shadow;
+		static const String Depth;
 
 		Shader();
 		~Shader();
 
-		bool Compile(const String& vertexSource, const String& pixelSource, String* pErrStr = 0);
-		bool Compile(const String& path, String* pErrStr = 0);
-		bool Compile(const ConfigFile& config, String* pErrStr = 0);
+		bool Compile(const String& vertexSource, const String& pixelSource, String* pErrStr = 0, Vector<String>* pDefines = 0);
+		bool Compile(const String& path, String* pErrStr = 0, Vector<String>* pDefines = 0);
+		bool Compile(const ConfigFile& config, String* pErrStr = 0, Vector<String>* pDefines = 0);
 
 		void SetDefaults(Material* pMtl) const;
 

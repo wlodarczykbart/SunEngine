@@ -18,14 +18,25 @@ cbuffer MaterialBuffer
 struct PS_In
 {
 	float4 clipPos : SV_POSITION;
+#if !defined(DEPTH) || (defined(DEPTH) && defined(ALPHA_TEST))	
+	float4 texCoord : TEXCOORD;	
+#endif
+#ifndef DEPTH	
 	float4 position : POSITION;
-	float4 texCoord : TEXCOORD;
 	float4 normal : NORMAL;
 	float4 tangent : TANGENT;
+#endif	
 };
 
 PS_Out main(PS_In pIn)
 {	
+	PS_Out pOut;
+	
+#if defined(DEPTH) && !defined(ALPHA_TEST)	
+	pOut.color = float4(0,0,0,1);
+	return pOut;
+#else
+
 	float2 texCoord = pIn.texCoord.xy;
 
 	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * Diffuse;
@@ -34,6 +45,12 @@ PS_Out main(PS_In pIn)
 		discard;
 #endif
 
+#if defined(DEPTH) && defined(ALPHA_TEST)	
+	pOut.color = float4(0,0,0,1);
+	return pOut;
+#endif
+
+#ifndef DEPTH
 	float3 albedo = diffuse.rgb;
 	float metallic = saturate(MetallicMap.Sample(Sampler, texCoord).r * Metallic);
 	float smoothness = SmoothnessMap.Sample(Sampler, texCoord).r * Smoothness;
@@ -48,7 +65,8 @@ PS_Out main(PS_In pIn)
 	
 	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
 		
-	PS_Out pOut;
 	ShadePixel(albedo, ao, f0, smoothness, n, pIn.position.xyz, pOut);
 	return pOut;
+#endif
+#endif
 }

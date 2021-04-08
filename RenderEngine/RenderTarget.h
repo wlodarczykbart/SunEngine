@@ -57,7 +57,7 @@ namespace SunEngine
 
 	private:
 		IRenderTarget * _iRenderTarget;
-		BaseTexture* _colorTextures[IRenderTargetCreateInfo::MAX_TARGETS];
+		BaseTexture* _colorTextures[MAX_SUPPORTED_RENDER_TARGETS];
 		BaseTexture* _depthTexture;
 		float _clearColor[4];
 		uint _width;

@@ -23,6 +23,12 @@ namespace SunEngine
 			GraphicsAPI API() const { return _api; }
 			ERenderMode RenderMode() const { return _renderMode; }
 
+			uint CascadeShadowMapResolution() const { return _cascadeShadowMapResolution; }
+
+			uint MaxSkinnedBoneMatrices() const { return _maxSkinnedBoneMatrices; }
+			uint MaxTextureTransforms() const { return _maxTextureTransforms; }
+			uint MaxShadowCascadeSplits() const { return _maxShadowCascadeSplits; }
+
 		private:
 			friend class EngineInfo;
 			Renderer() = default;
@@ -33,6 +39,10 @@ namespace SunEngine
 
 			GraphicsAPI _api;
 			ERenderMode _renderMode;
+			uint _maxSkinnedBoneMatrices;
+			uint _maxTextureTransforms;
+			uint _maxShadowCascadeSplits;
+			uint _cascadeShadowMapResolution;
 		};
 
 		class Paths
