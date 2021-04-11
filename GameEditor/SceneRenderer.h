@@ -6,6 +6,7 @@
 #include "GraphicsPipeline.h"
 #include "UniformBuffer.h"
 #include "BaseShader.h"
+#include "RenderTarget.h"
 
 namespace SunEngine
 {
@@ -15,6 +16,7 @@ namespace SunEngine
 	class RenderNode;
 	class BaseShader;
 	class RenderTarget;
+	class Material;
 
 	struct RenderTargetPassInfo
 	{
@@ -51,6 +53,22 @@ namespace SunEngine
 			Map<BaseShader*, ShaderBindings> ShaderBindings;
 		};
 
+		template<typename T>
+		class UniformBufferGroup
+		{
+		public:
+			UniformBufferGroup();
+			bool Init();
+			void Flush();
+			void Reset();
+			void Update(const T& dataBlock, uint& updatedIndex, UniformBufferData** ppUpdatedBuffer = 0, BaseShader* pShader = 0);
+
+		private:
+			Vector<UniquePtr<UniformBufferData>> _buffers;
+			UniformBufferData* _current;
+			Vector<T> _data;
+		};
+
 		struct RenderNodeData
 		{
 			SceneNode* SceneNode;
@@ -58,28 +76,39 @@ namespace SunEngine
 			GraphicsPipeline* Pipeline;
 			UniformBufferData* ObjectBindings;
 			uint ObjectBufferIndex;
+			Material* MaterialOverride;
 		};
 
-		static void TraverseFunc(SceneNode* pNode, void* pUserData);
+		struct DepthRenderData
+		{
+			UniformBufferGroup<ObjectBufferData> ObjectBufferGroup;
+			Queue<RenderNodeData> RenderQueue;
+			Viewport Viewport;
+		};
+
+		static void TraverseFunc(SceneNode* data, void* pUserData);
 		void ProcessNode(SceneNode* pNode);
-		void ProcessRenderQueue(CommandBuffer* cmdBuffer, Queue<RenderNodeData>& queue);
-		GraphicsPipeline* GetPipeline(const RenderNode& node);
-		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer) const;
+		void ProcessRenderQueue(CommandBuffer* cmdBuffer, Queue<RenderNodeData>& queue, uint cameraUpdateIndex);
+		bool GetPipeline(RenderNodeData& node);
+		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
 
 		bool _bInit;
-		UniquePtr<UniformBufferData> _cameraBuffer;
+		UniformBufferGroup<CameraBufferData> _cameraGroup;
+		UniformBufferData* _cameraBuffer;
 		UniquePtr<UniformBufferData> _lightBuffer;
+		UniquePtr<UniformBufferData> _shadowMatrixBuffer;
 		Vector<UniquePtr<GraphicsPipeline>> _graphicsPipelines;
-		Vector<UniquePtr<UniformBufferData>> _objectBuffers;
-		UniformBufferData* _currentObjectBuffer;
+		UniformBufferGroup<ObjectBufferData> _objectBufferGroup;
 		CameraComponentData* _currentCamera;
 		LightComponentData* _currentSunlight;
 		HashSet<BaseShader*> _currentShaders;
-		Queue<RenderNodeData> _deferredRenderQueue;
+		Queue<RenderNodeData> _gbufferRenderQueue;
 		Queue<RenderNodeData> _opaqueRenderQueue;
 		Queue<RenderNodeData> _sortedRenderQueue;
-		Vector<ObjectBufferData> _objectBufferData;
 
+		Map<usize, UniquePtr<Material>> _depthMaterials;
+		RenderTarget _depthTarget;
+		Vector<UniquePtr<DepthRenderData>> _depthPasses;
 	};
 
 }

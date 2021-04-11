@@ -25,13 +25,20 @@ namespace SunEngine
 		bool Compile(const String& uniqueName = "");
 
 	private:
-		void GetBinding(const String& name, const String& type, uint* pBindings, ShaderBindingType& bindType);
+		struct ShaderBindingNames
+		{
+			Vector<String> bufferNames;
+			Vector<String> textureNames;
+			Vector<String> samplerNames;
+		};
+
 		void PreProcessText(const String& inText, String& outHLSL, String& outGLSL);
 		bool CompileShader(ShaderStage type);
 		bool ParseShaderFile(String& output, const String& input, HashSet<String>& includeFiles);
 		void ConvertToLines(const String& input, Vector<String>& lines) const;
 		bool MatchesCachedFile(const String& path, uint stageFlags);
 		bool WriteCachedFile(const String& path, uint stageFlags);
+		void InitShaderBindingNames(ShaderBindingType type);
 
 		BaseShader::CreateInfo _shaderInfo;
 
@@ -50,6 +57,9 @@ namespace SunEngine
 		String _uniqueName;
 
 		Vector<String> _defines;
+
+		HashSet<String> _bindingNameLookup;
+		Map<ShaderBindingType, ShaderBindingNames> _bindingNames;
 
 	};
 }

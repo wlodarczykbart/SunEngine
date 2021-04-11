@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GraphicsAPIDef.h"
+#include "glm/gtc/matrix_transform.hpp"
 
 namespace SunEngine
 {
@@ -29,6 +30,10 @@ namespace SunEngine
 			uint MaxTextureTransforms() const { return _maxTextureTransforms; }
 			uint MaxShadowCascadeSplits() const { return _maxShadowCascadeSplits; }
 
+			bool ShadowsEnabled() const { return _shadowsEnabled; }
+
+			const glm::mat4& ProjectionCorrection() const { return _projectionCorrection; }
+
 		private:
 			friend class EngineInfo;
 			Renderer() = default;
@@ -38,11 +43,13 @@ namespace SunEngine
 			void Init(ConfigFile* pConfig);
 
 			GraphicsAPI _api;
+			glm::mat4 _projectionCorrection;
 			ERenderMode _renderMode;
 			uint _maxSkinnedBoneMatrices;
 			uint _maxTextureTransforms;
 			uint _maxShadowCascadeSplits;
 			uint _cascadeShadowMapResolution;
+			bool _shadowsEnabled;
 		};
 
 		class Paths

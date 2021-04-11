@@ -19,7 +19,61 @@ namespace SunEngine
 	const uint HLSL_MASK_XYZ = (D3D_COMPONENT_MASK_X | D3D_COMPONENT_MASK_Y | D3D_COMPONENT_MASK_Z);
 	const uint HLSL_MASK_XY = (D3D_COMPONENT_MASK_X | D3D_COMPONENT_MASK_Y);
 
-	const uint ENGINE_RESOURCE_COUNT = 2;
+	const uint ENGINE_RESOURCE_COUNT = 3;
+
+	void ShaderCompiler::InitShaderBindingNames(ShaderBindingType type)
+	{
+		ShaderBindingNames names;
+		switch (type)
+		{
+		case SunEngine::SBT_CAMERA:
+			names.bufferNames.push_back(ShaderStrings::CameraBufferName);
+			break;
+		case SunEngine::SBT_OBJECT:
+			names.bufferNames.push_back(ShaderStrings::ObjectBufferName);
+			break;
+		case SunEngine::SBT_LIGHT:
+			names.bufferNames.push_back(ShaderStrings::SunlightBufferName);
+			names.bufferNames.push_back(ShaderStrings::PointlightBufferName);
+			names.bufferNames.push_back(ShaderStrings::SpotlightBufferName);
+			break;
+		case SunEngine::SBT_ENVIRONMENT:
+			names.bufferNames.push_back(ShaderStrings::EnvBufferName);
+			names.bufferNames.push_back(ShaderStrings::FogBufferName);
+			break;
+		case SunEngine::SBT_SHADOW:
+			names.bufferNames.push_back(ShaderStrings::ShadowBufferName);
+			names.textureNames.push_back(ShaderStrings::ShadowTextureName);
+			names.samplerNames.push_back(ShaderStrings::ShadowSamplerName);
+			break;
+		case SunEngine::SBT_SCENE:
+			names.textureNames.push_back(ShaderStrings::SceneTextureName);
+			names.textureNames.push_back(ShaderStrings::SceneSamplerName);
+			names.samplerNames.push_back(ShaderStrings::DepthTextureName);
+			names.samplerNames.push_back(ShaderStrings::DepthSamplerName);
+			break;
+		case SunEngine::SBT_BONES:
+			names.bufferNames.push_back(ShaderStrings::SkinnedBoneBufferName);
+			break;
+		case SunEngine::SBT_MATERIAL:
+			names.bufferNames.push_back(ShaderStrings::MaterialBufferName);
+			names.bufferNames.push_back(ShaderStrings::TextureTransformBufferName);
+			break;
+		default:
+			break;
+		}
+
+		for (uint i = 0; i < names.bufferNames.size(); i++)
+			_bindingNameLookup.insert(names.bufferNames[i]);
+
+		for (uint i = 0; i < names.textureNames.size(); i++)
+			_bindingNameLookup.insert(names.textureNames[i]);
+
+		for (uint i = 0; i < names.samplerNames.size(); i++)
+			_bindingNameLookup.insert(names.samplerNames[i]);
+
+		_bindingNames[type] = names;
+	}
    
 	String g_ShaderAuxDir = "";
 
@@ -57,9 +111,13 @@ namespace SunEngine
 	{
 		_shaderInfo.resources.clear();
 		_shaderInfo.buffers.clear();
+		_bindingNames.clear();
 		_numUserTextures = 0;
 		_numUserSamplers = 0;
 		_uniqueName = uniqueName;
+
+		for (uint i = 0; i <= SBT_MATERIAL; i++)
+			InitShaderBindingNames((ShaderBindingType)i);
 
 		uint shaderFlags = 0;
 
@@ -128,150 +186,6 @@ namespace SunEngine
 		return true;
 	}
 
-	void ShaderCompiler::GetBinding(const String& name, const String& type, uint* pBindings, ShaderBindingType& bindType)
-	{
-		if (type == "cbuffer")
-		{
-			auto found = _shaderInfo.buffers.find(name);
-			if (found != _shaderInfo.buffers.end())
-			{
-				pBindings[SE_GFX_VULKAN] = (*found).second.binding[SE_GFX_VULKAN];
-				pBindings[SE_GFX_D3D11] = (*found).second.binding[SE_GFX_D3D11];
-				bindType = (*found).second.bindType;
-				return;
-			}
-		}
-		else 
-		{
-			auto found = _shaderInfo.resources.find(name);
-			if (found != _shaderInfo.resources.end())
-			{
-				pBindings[SE_GFX_VULKAN] = (*found).second.binding[SE_GFX_VULKAN];
-				pBindings[SE_GFX_D3D11] = (*found).second.binding[SE_GFX_D3D11];
-				bindType = (*found).second.bindType;
-				return;
-			}
-		}
-
-		if (name == ShaderStrings::CameraBufferName)
-		{
-			pBindings[SE_GFX_D3D11] =  0;
-			pBindings[SE_GFX_VULKAN] =  0;
-			bindType = SBT_CAMERA;
-		}
-		else if (name == ShaderStrings::ObjectBufferName)
-		{
-			pBindings[SE_GFX_D3D11] =  1;
-			pBindings[SE_GFX_VULKAN] =  0;
-			bindType = SBT_OBJECT;
-		}
-		else if (name == ShaderStrings::SkinnedBoneBufferName)
-		{
-			pBindings[SE_GFX_D3D11] = 2;
-			pBindings[SE_GFX_VULKAN] = 1;
-			bindType = SBT_BONES;
-		}
-		else if (name == ShaderStrings::SunlightBufferName)
-		{
-			pBindings[SE_GFX_D3D11] = 3;
-			pBindings[SE_GFX_VULKAN] = 0;
-			bindType = SBT_LIGHT;
-		}
-		else if (name == ShaderStrings::PointlightBufferName)
-		{
-			pBindings[SE_GFX_D3D11] = 4;
-			pBindings[SE_GFX_VULKAN] = 1;
-			bindType = SBT_LIGHT;
-		}
-		else if (name == ShaderStrings::SpotlightBufferName)
-		{
-			pBindings[SE_GFX_D3D11] = 5;
-			pBindings[SE_GFX_VULKAN] = 2;
-			bindType = SBT_LIGHT;
-		}
-		else if (name == ShaderStrings::EnvBufferName)
-		{
-			pBindings[SE_GFX_D3D11] =  6;
-			pBindings[SE_GFX_VULKAN] =  0;
-			bindType = SBT_ENVIRONMENT;
-		}
-		else if (name == ShaderStrings::FogBufferName)
-		{
-			pBindings[SE_GFX_D3D11] =  7;
-			pBindings[SE_GFX_VULKAN] =  1;
-			bindType = SBT_ENVIRONMENT;
-		}
-		else if (name == ShaderStrings::MaterialBufferName)
-		{
-			pBindings[SE_GFX_D3D11] = 8;
-			pBindings[SE_GFX_VULKAN] = 0;
-			bindType = SBT_MATERIAL;
-		}
-		else if (name == ShaderStrings::TextureTransformBufferName)
-		{
-			pBindings[SE_GFX_D3D11] = 9;
-			pBindings[SE_GFX_VULKAN] = 1;
-			bindType = SBT_MATERIAL;
-		}
-		else if (name == ShaderStrings::SceneTextureName)
-		{
-			pBindings[SE_GFX_D3D11] =  0;
-			pBindings[SE_GFX_VULKAN] =  0;
-			bindType = SBT_SCENE;
-		}
-		else if (name == ShaderStrings::DepthTextureName)
-		{
-			pBindings[SE_GFX_D3D11] =  1;
-			pBindings[SE_GFX_VULKAN] =  1;
-			bindType = SBT_SCENE;
-		}
-		else if (name == ShaderStrings::SceneSamplerName)
-		{
-			pBindings[SE_GFX_D3D11] =  0;
-			pBindings[SE_GFX_VULKAN] =  2;
-			bindType = SBT_SCENE;
-		}
-		else if (name == ShaderStrings::DepthSamplerName)
-		{
-			pBindings[SE_GFX_D3D11] =  1;
-			pBindings[SE_GFX_VULKAN] =  3;
-			bindType = SBT_SCENE;
-		}
-		else
-		{
-			if (type != "cbuffer")
-			{
-				bool isSampler = type == "SamplerState";
-
-				pBindings[SE_GFX_D3D11] = ENGINE_RESOURCE_COUNT + (isSampler ? _numUserSamplers : _numUserTextures);
-				pBindings[SE_GFX_VULKAN] =  (ushort)(2 + _numUserSamplers + _numUserTextures);
-				bindType = SBT_MATERIAL;
-
-				if (isSampler) _numUserSamplers++;
-				else _numUserTextures++;
-			}
-			else
-			{
-				//TODO SUMTHIN FAIL??
-			}
-		}
-
-		if (type == "cbuffer")
-		{
-			_shaderInfo.buffers[name].binding[SE_GFX_VULKAN] = pBindings[SE_GFX_VULKAN];
-			_shaderInfo.buffers[name].binding[SE_GFX_D3D11] = pBindings[SE_GFX_D3D11];
-			_shaderInfo.buffers[name].bindType = bindType;
-			_shaderInfo.buffers[name].size = 0;
-		}
-		else
-		{
-			_shaderInfo.resources[name].binding[SE_GFX_VULKAN] = pBindings[SE_GFX_VULKAN];
-			_shaderInfo.resources[name].binding[SE_GFX_D3D11] = pBindings[SE_GFX_D3D11];
-			_shaderInfo.resources[name].bindType = bindType;
-			_shaderInfo.resources[name].bindingCount = 0;
-		}
-	}
-
 	void ShaderCompiler::PreProcessText(const String& inText, String& outHLSL, String& outGLSL)
 	{
 		String parsedText;
@@ -292,17 +206,18 @@ namespace SunEngine
 			{"s", "SamplerState"},
 		};
 
+		const String STR_REGISTER_PLACEHOLDER = "SHADER_COMPILER_REGISTER=";
+		Vector<String> registerUpdateLines;
+
 		for (uint i = 0; i < lines.size(); i++)
 		{
-			String hlslLine = lines[i];
-			String glslLine = lines[i];
+			String line = lines[i];
 
 			for (uint j = 0; j < ResourceDefintions.size(); j++)
 			{
 				usize resPos = lines[i].find(ResourceDefintions[j].second);
 				if (resPos != String::npos)
 				{
-
 					bool valid = true;
 					for (uint k = i; k < lines.size() && valid; k++)
 					{
@@ -326,27 +241,115 @@ namespace SunEngine
 							}
 						}
 
-						uint bindings[32] = {};
-						ShaderBindingType bindType;
-						GetBinding(resName, ResourceDefintions[j].second, bindings, bindType);
+						String strResType = ResourceDefintions[j].first;
+						if (_bindingNameLookup.count(resName) == 0)
+						{
+							if (strResType == "b")
+							{
+								_bindingNames[SBT_MATERIAL].bufferNames.push_back(resName);
+							}
+							else if (strResType == "t")
+							{
+								_bindingNames[SBT_MATERIAL].textureNames.push_back(resName);
+							}
+							else if (strResType == "s")
+							{
+								_bindingNames[SBT_MATERIAL].samplerNames.push_back(resName);
+							}
+							_bindingNameLookup.insert(resName);
+						}
 
-						hlslLine = StrRemove(hlslLine, ';');
-						bool removedEnd = hlslLine.length() != lines[i].length();
-						hlslLine += StrFormat(": register(%s%d)", ResourceDefintions[j].first.data(), bindings[SE_GFX_D3D11]);
-						if (removedEnd)
-							hlslLine += ";";
-
-						glslLine = StrFormat("[[vk::binding(%d, %d)]]\n", bindings[SE_GFX_VULKAN], (uint)bindType) + glslLine;
+						line = line + STR_REGISTER_PLACEHOLDER + resName;
 					}
-
 					break;
 				}
 			}
 
-			outHLSL += hlslLine;
-			outHLSL += "\n";
-			outGLSL += glslLine;
-			outGLSL += "\n";
+			registerUpdateLines.push_back(line);
+		}
+
+		struct NamedBindingInfo
+		{
+			ShaderBindingType bindType;
+			String hlslRegister;
+			uint bindings[MAX_GRAPHICS_API_TYPES];
+		};
+
+		uint bufferIndexCounter = 0;
+		uint textureIndexCounter = 0;
+		uint samplerIndexCounter = 0;
+		StrMap<NamedBindingInfo> knownBindingInfo;
+
+		for (uint i = 0; i <= SBT_MATERIAL; i++)
+		{
+			auto& names = _bindingNames.at((ShaderBindingType)i);
+
+			uint vulkanBinding = 0; //vulkan bindings are local to the 'set' they are in, the set being '(ShaderBindingType)i';
+			for (uint j = 0; j < names.bufferNames.size(); j++)
+			{
+				auto& namedBinding = knownBindingInfo[names.bufferNames[j]];
+				namedBinding.bindType = (ShaderBindingType)i;
+				namedBinding.bindings[SE_GFX_VULKAN] = vulkanBinding++;
+				namedBinding.bindings[SE_GFX_D3D11] = bufferIndexCounter++;
+				namedBinding.hlslRegister = "b";
+
+				auto& shaderBuffer = _shaderInfo.buffers[names.bufferNames[j]];
+				shaderBuffer.binding[SE_GFX_VULKAN] = namedBinding.bindings[SE_GFX_VULKAN];
+				shaderBuffer.binding[SE_GFX_D3D11] = namedBinding.bindings[SE_GFX_D3D11];
+				shaderBuffer.bindType = (ShaderBindingType)i;
+				shaderBuffer.size = 0;
+			}
+
+			for (uint j = 0; j < names.textureNames.size(); j++)
+			{
+				auto& namedBinding = knownBindingInfo[names.textureNames[j]];
+				namedBinding.bindType = (ShaderBindingType)i;
+				namedBinding.bindings[SE_GFX_VULKAN] = vulkanBinding++;
+				namedBinding.bindings[SE_GFX_D3D11] = textureIndexCounter++;
+				namedBinding.hlslRegister ="t";
+
+				auto& shaderResource = _shaderInfo.resources[names.textureNames[j]];
+				shaderResource.binding[SE_GFX_VULKAN] = namedBinding.bindings[SE_GFX_VULKAN];
+				shaderResource.binding[SE_GFX_D3D11] = namedBinding.bindings[SE_GFX_D3D11];
+				shaderResource.bindType = (ShaderBindingType)i;
+				shaderResource.bindingCount = 0;
+			}
+
+			for (uint j = 0; j < names.samplerNames.size(); j++)
+			{
+				auto& namedBinding = knownBindingInfo[names.samplerNames[j]];
+				namedBinding.bindType = (ShaderBindingType)i;
+				namedBinding.bindings[SE_GFX_VULKAN] = vulkanBinding++;
+				namedBinding.bindings[SE_GFX_D3D11] = samplerIndexCounter++;
+				namedBinding.hlslRegister = "s";
+
+				auto& shaderResource = _shaderInfo.resources[names.samplerNames[j]];
+				shaderResource.binding[SE_GFX_VULKAN] = namedBinding.bindings[SE_GFX_VULKAN];
+				shaderResource.binding[SE_GFX_D3D11] = namedBinding.bindings[SE_GFX_D3D11];
+				shaderResource.bindType = (ShaderBindingType)i;
+				shaderResource.bindingCount = 0;
+			}
+		}
+
+		for (uint i = 0; i < registerUpdateLines.size(); i++)
+		{
+			usize placeholderPos = registerUpdateLines[i].find(STR_REGISTER_PLACEHOLDER);
+			if (placeholderPos != String::npos)
+			{
+				auto& namedBinding = knownBindingInfo.at(registerUpdateLines[i].substr(placeholderPos + STR_REGISTER_PLACEHOLDER.length()));
+				String line = registerUpdateLines[i].substr(0, placeholderPos);
+
+				if(StrContains(line, ";"))
+					outHLSL += StrFormat("%s: register(%s%d);\n", StrRemove(line, ';').c_str(), namedBinding.hlslRegister.c_str(), namedBinding.bindings[SE_GFX_D3D11]);
+				else
+					outHLSL += StrFormat("%s: register(%s%d)\n", line.c_str(), namedBinding.hlslRegister.c_str(), namedBinding.bindings[SE_GFX_D3D11]);
+				outGLSL += StrFormat("[[vk::binding(%d, %d)]]\n%s\n", namedBinding.bindings[SE_GFX_VULKAN], (uint)namedBinding.bindType, line.c_str());
+			}
+			else
+			{
+				outHLSL += registerUpdateLines[i] + "\n";
+				outGLSL += registerUpdateLines[i] + "\n";
+			}
 		}
 
 		String shaderHeader = "#pragma pack_matrix( row_major )\n";

@@ -150,17 +150,19 @@ namespace SunEngine
 		D3D11CommandBuffer* dxCmd = (D3D11CommandBuffer*)cmdBuffer;
 		dxCmd->SetCurrentShader(this);
 
-		if(_inputLayout) dxCmd->BindInputLayout(_inputLayout);
-		if(_vertexShader) dxCmd->BindVertexShader(_vertexShader);
-		if(_pixelShader) dxCmd->BindPixelShader(_pixelShader);
-		if(_geometryShader) dxCmd->BindGeometryShader(_geometryShader);
+		dxCmd->BindInputLayout(_inputLayout);
+		dxCmd->BindVertexShader(_vertexShader);
+		dxCmd->BindPixelShader(_pixelShader);
+		dxCmd->BindGeometryShader(_geometryShader);
 	}
 
 	void D3D11Shader::Unbind(ICommandBuffer * cmdBuffer)
 	{
 		D3D11CommandBuffer* dxCmd = (D3D11CommandBuffer*)cmdBuffer;
-		dxCmd->BindGeometryShader(0);
 		dxCmd->BindInputLayout(0);
+		dxCmd->BindVertexShader(0);
+		dxCmd->BindPixelShader(0);
+		dxCmd->BindGeometryShader(0);
 
 		(void)cmdBuffer;
 		ID3D11ShaderResourceView* pNullSRV = 0;

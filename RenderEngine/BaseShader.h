@@ -115,6 +115,7 @@ namespace SunEngine
 		static String SpotlightBufferName;
 		static String TextureTransformBufferName;
 		static String MaterialBufferName;
+		static String ShadowBufferName;
 
 		static String SceneTextureName;
 		static String SceneSamplerName;

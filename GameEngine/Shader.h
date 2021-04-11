@@ -11,11 +11,35 @@ namespace SunEngine
 	class Texture2D;
 	class Sampler;
 
+	enum ShaderPropType
+	{
+		SPT_TEXTURE2D,
+		SPT_SAMPLER,
+		SPT_FLOAT,
+		SPT_FLOAT2,
+		SPT_FLOAT3,
+		SPT_FLOAT4,
+	};
+
+	struct ShaderProp
+	{
+		ShaderPropType Type;
+		union
+		{
+			Texture2D* pTexture2D;
+			Sampler* pSampler;
+			float float1;
+			glm::vec2 float2;
+			glm::vec3 float3;
+			glm::vec4 float4;
+		};
+	};
+
 	class Shader
 	{
 	public:
 		static const String Default;
-		static const String Deferred;
+		static const String GBuffer;
 		static const String Depth;
 
 		Shader();
@@ -31,6 +55,7 @@ namespace SunEngine
 		BaseShader* GetVariant(const String& variant) const;
 
 		bool GetConfigSection(const String& name, ConfigSection& section) const;
+		bool GetVariantProps(const String& name, StrMap<ShaderProp>& props) const;
 
 	private:
 		void CollectConfigFiles(LinkedList<ConfigFile>& configList, HashSet<String>& configMap);
@@ -38,34 +63,10 @@ namespace SunEngine
 		void ParseSamplerAnisotropy(const String& str, FilterMode& fm, WrapMode& wm, AnisotropicMode& am) const;
 		void ParseFloats(const String& str, uint maxComponents, float* pData) const;
 
-		enum DefaultValueDataType
-		{
-			DV_TEXTURE2D,
-			DV_SAMPLER,
-			DV_FLOAT,
-			DV_FLOAT2,
-			DV_FLOAT3,
-			DV_FLOAT4,
-		};
-
-		struct DefaultValue
-		{
-			DefaultValueDataType Type;
-			union
-			{
-				Texture2D* pTexture2D;
-				Sampler* pSampler;
-				float float1;
-				glm::vec2 float2;
-				glm::vec3 float3;
-				glm::vec4 float4;
-			};
-		};
-
 		struct ShaderVariant
 		{
 			BaseShader shader;
-			StrMap<DefaultValue> defaults;
+			StrMap<ShaderProp> defaults;
 		};
 
 		ConfigFile _config;

@@ -61,11 +61,21 @@ namespace SunEngine
 
 		String strAPI = configSection->GetString("API", "vulkan");
 		String strRenderMode = configSection->GetString("RenderMode", "forward");
+		
+		_projectionCorrection = glm::mat4(1.0);
 
 		if (strAPI == "vulkan")
+		{
 			_api = SE_GFX_VULKAN;
+			_projectionCorrection = glm::translate(_projectionCorrection, glm::vec3(0.0f, 0.0f, 0.5f));
+			_projectionCorrection = glm::scale(_projectionCorrection, glm::vec3(1.0f, 1.0f, 0.5f));
+		}
 		else if (strAPI == "d3d11")
+		{
 			_api = SE_GFX_D3D11;
+			_projectionCorrection = glm::translate(_projectionCorrection, glm::vec3(0.0f, 0.0f, 0.5f));
+			_projectionCorrection = glm::scale(_projectionCorrection, glm::vec3(1.0f, 1.0f, 0.5f));
+		}
 
 		if (strRenderMode == "forward")
 			_renderMode = Forward;
@@ -79,5 +89,7 @@ namespace SunEngine
 		_maxSkinnedBoneMatrices = configSection->GetInt("MaxSkinnedBoneMatrices", 64);
 		_maxTextureTransforms = configSection->GetInt("MaxTextureTransforms", 32);
 		_maxShadowCascadeSplits = configSection->GetInt("MaxShadowCascadeSplits", 1);
+
+		_shadowsEnabled = configSection->GetInt("shadowsEnabled", 1) == 1;
 	}
 }

@@ -263,7 +263,7 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 			
 			SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(-3.0f, 0.0f, -10.0f);
+			pSceneNode->Position = glm::vec3(2.0f, 0.0f, 1.0f);
 		}
 
 		Asset* pAssetBlinnPhong = resMgr.AddAsset("AssetBlinnPhong");
@@ -275,7 +275,7 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 
 			SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(+3.0f, 0.0f, -10.0f);
+			pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
 			//pSceneNode->Scale = glm::vec3(30, 0.01f, 30.0f);
 		}
 
@@ -288,7 +288,7 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 
 			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(0.0f, -5.0f, -15.0f);
+			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
 			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 

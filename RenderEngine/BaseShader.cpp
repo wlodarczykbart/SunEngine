@@ -34,6 +34,7 @@ namespace SunEngine
 	String ShaderStrings::SpotlightBufferName = "SpotlightBuffer";
 	String ShaderStrings::TextureTransformBufferName = "TextureTransformBuffer";
 	String ShaderStrings::MaterialBufferName = "MaterialBuffer";
+	String ShaderStrings::ShadowBufferName = "ShadowBuffer";
 
 	String ShaderStrings::SceneTextureName = "SceneTexture";
 	String ShaderStrings::SceneSamplerName = "SceneSampler";

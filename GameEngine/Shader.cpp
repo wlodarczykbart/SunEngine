@@ -8,7 +8,7 @@
 namespace SunEngine
 {
 	const String Shader::Default = "DefaultPass";
-	const String Shader::Deferred = "DeferredPass";
+	const String Shader::GBuffer = "GBufferPass";
 	const String Shader::Depth = "DepthPass";
 
 	Shader::Shader()
@@ -68,7 +68,7 @@ namespace SunEngine
 
 		Vector<ConfigSection*> variantSections;
 		variantSections.push_back(_config.GetSection(Default));
-		variantSections.push_back(_config.GetSection(Deferred));
+		variantSections.push_back(_config.GetSection(GBuffer));
 		variantSections.push_back(_config.GetSection(Depth));
 
 		String shaderName = GetFileNameNoExt(config.GetFilename());
@@ -153,25 +153,25 @@ namespace SunEngine
 
 		for (auto iter = defaults.begin(); iter != defaults.end(); ++iter)
 		{
-			const DefaultValue& dv = (*iter).second;
+			const ShaderProp& dv = (*iter).second;
 			switch (dv.Type)
 			{
-			case DV_TEXTURE2D:
+			case SPT_TEXTURE2D:
 				pMtl->SetTexture2D((*iter).first, dv.pTexture2D);
 				break;
-			case DV_SAMPLER:
+			case SPT_SAMPLER:
 				pMtl->SetSampler((*iter).first, dv.pSampler);
 				break;
-			case DV_FLOAT:
+			case SPT_FLOAT:
 				pMtl->SetMaterialVar((*iter).first, dv.float1);
 				break;
-			case DV_FLOAT2:
+			case SPT_FLOAT2:
 				pMtl->SetMaterialVar((*iter).first, dv.float2);
 				break;
-			case DV_FLOAT3:
+			case SPT_FLOAT3:
 				pMtl->SetMaterialVar((*iter).first, dv.float3);
 				break;
-			case DV_FLOAT4:
+			case SPT_FLOAT4:
 				pMtl->SetMaterialVar((*iter).first, dv.float4);
 				break;
 			default:
@@ -197,6 +197,20 @@ namespace SunEngine
 		if (found)
 		{
 			section = *found;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool Shader::GetVariantProps(const String& name, StrMap<ShaderProp>& props) const
+	{
+		auto found = _variants.find(name);
+		if (found != _variants.end())
+		{
+			props = (*found).second.get()->defaults;
 			return true;
 		}
 		else
@@ -311,13 +325,13 @@ namespace SunEngine
 					{
 						if (res.dimension == SRD_TEXTURE_2D)
 						{
-							pVariant->defaults[res.name].Type = DV_TEXTURE2D;
+							pVariant->defaults[res.name].Type = SPT_TEXTURE2D;
 							pVariant->defaults[res.name].pTexture2D = resMgr.GetTexture2D("Black");
 						}
 					}
 					else if (res.type == SRT_SAMPLER)
 					{
-						pVariant->defaults[res.name].Type = DV_SAMPLER;
+						pVariant->defaults[res.name].Type = SPT_SAMPLER;
 						pVariant->defaults[res.name].pSampler = resMgr.GetSampler(SE_FM_LINEAR, SE_WM_REPEAT, SE_AM_OFF);
 					}
 				}
@@ -334,19 +348,19 @@ namespace SunEngine
 						switch (var.type)
 						{
 						case SDT_FLOAT:
-							pVariant->defaults[var.name].Type = DV_FLOAT;
+							pVariant->defaults[var.name].Type = SPT_FLOAT;
 							pVariant->defaults[var.name].float1 = 0.0f;
 							break;
 						case SDT_FLOAT2:
-							pVariant->defaults[var.name].Type = DV_FLOAT2;
+							pVariant->defaults[var.name].Type = SPT_FLOAT2;
 							pVariant->defaults[var.name].float2 = glm::vec2(0.0f);
 							break;
 						case SDT_FLOAT3:
-							pVariant->defaults[var.name].Type = DV_FLOAT3;
+							pVariant->defaults[var.name].Type = SPT_FLOAT3;
 							pVariant->defaults[var.name].float3 = glm::vec3(0.0f);
 							break;
 						case SDT_FLOAT4:
-							pVariant->defaults[var.name].Type = DV_FLOAT4;
+							pVariant->defaults[var.name].Type = SPT_FLOAT4;
 							pVariant->defaults[var.name].float4 = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 							break;
 						default:
@@ -363,13 +377,13 @@ namespace SunEngine
 					auto found = pVariant->defaults.find((*iter).first);
 					if (found != pVariant->defaults.end())
 					{
-						DefaultValue& dv = (*found).second;
+						ShaderProp& dv = (*found).second;
 						switch (dv.Type)
 						{
-						case DV_TEXTURE2D:
+						case SPT_TEXTURE2D:
 							dv.pTexture2D = resMgr.GetTexture2D((*iter).second);
 							break;
-						case DV_SAMPLER:
+						case SPT_SAMPLER:
 						{
 							FilterMode fm = dv.pSampler->GetFilter();
 							WrapMode wm = dv.pSampler->GetWrap();
@@ -378,16 +392,16 @@ namespace SunEngine
 							dv.pSampler = resMgr.GetSampler(fm, wm, am);
 						}
 						break;
-						case DV_FLOAT:
+						case SPT_FLOAT:
 							ParseFloats((*iter).second, 1, &dv.float1);
 							break;
-						case DV_FLOAT2:
+						case SPT_FLOAT2:
 							ParseFloats((*iter).second, 2, &dv.float2.x);
 							break;
-						case DV_FLOAT3:
+						case SPT_FLOAT3:
 							ParseFloats((*iter).second, 3, &dv.float3.x);
 							break;
-						case DV_FLOAT4:
+						case SPT_FLOAT4:
 							ParseFloats((*iter).second, 4, &dv.float4.x);
 							break;
 						default:

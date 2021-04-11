@@ -45,6 +45,7 @@ namespace SunEngine
 		void SetShader(Shader* pShader, const String& variant);
 		Shader* GetShader() const { return _shader; }
 		const String& GetVariant() const { return _variant; }
+		BaseShader* GetShaderVariant() const;
 
 		template<typename T>
 		bool SetMaterialVar(const String& name, const T value)
@@ -85,8 +86,13 @@ namespace SunEngine
 
 		bool Write(StreamBase& stream) override;
 		bool Read(StreamBase& stream) override;
+
+		usize GetDepthVariantHash() const { return _depthVariantHash; }
+		bool CreateDepthMaterial(Material* pEmptyMaterial) const;
 		
 	private:
+		void UpdateDepthVariant(const String& name, const ShaderProp& prop);
+		void UpdateDepthVariantHash();
 
 		struct MaterialSamplerData
 		{
@@ -99,6 +105,9 @@ namespace SunEngine
 		StrMap<ShaderBufferVariable> _mtlVariables;
 		StrMap<MaterialTextureData> _mtlTextures2D;
 		StrMap<MaterialSamplerData> _mtlSamplers;
+
+		StrMap<ShaderProp> _depthVariantProps;
+		usize _depthVariantHash;
 
 		UniformBuffer _mtlBuffer;
 	};
