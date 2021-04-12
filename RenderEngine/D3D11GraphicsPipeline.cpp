@@ -78,7 +78,7 @@ namespace SunEngine
 		rasterizerDesc.CullMode = CullModeMap[info.settings.rasterizer.cullMode];
 		rasterizerDesc.FillMode = PolygonModeMap[info.settings.rasterizer.polygonMode];
 		rasterizerDesc.FrontCounterClockwise = info.settings.rasterizer.frontFace == SE_FF_COUNTER_CLOCKWISE;
-		rasterizerDesc.DepthBias = (INT)info.settings.rasterizer.depthBias;
+		rasterizerDesc.DepthBias = info.settings.rasterizer.depthBias;
 		rasterizerDesc.DepthBiasClamp = info.settings.rasterizer.depthBiasClamp;
 		rasterizerDesc.SlopeScaledDepthBias = info.settings.rasterizer.slopeScaledDepthBias;
 		rasterizerDesc.ScissorEnable = info.settings.rasterizer.enableScissor;

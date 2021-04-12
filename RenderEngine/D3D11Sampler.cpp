@@ -1,3 +1,4 @@
+#include "Image.h"
 #include "D3D11Shader.h"
 #include "D3D11Sampler.h"
 
@@ -8,7 +9,14 @@ namespace SunEngine
 	Map<WrapMode, D3D11_TEXTURE_ADDRESS_MODE> AddressMap
 	{
 		{ SE_WM_CLAMP_TO_EDGE, D3D11_TEXTURE_ADDRESS_CLAMP },
+		{ SE_WM_CLAMP_TO_BORDER, D3D11_TEXTURE_ADDRESS_BORDER },
 		{ SE_WM_REPEAT, D3D11_TEXTURE_ADDRESS_WRAP }
+	};
+
+	Map<BorderColor, Pixel> BorderColorMap
+	{
+		{ SE_BC_BLACK, Pixel(0.0f, 0.0f, 0.0f, 1.0f), },
+		{ SE_BC_WHITE,  Pixel(1.0f, 1.0f, 1.0f, 1.0f) },
 	};
 
 	D3D11Sampler::D3D11Sampler()
@@ -42,6 +50,12 @@ namespace SunEngine
 			desc.Filter = D3D11_FILTER_ANISOTROPIC;
 			desc.MaxAnisotropy = (1 << settings.anisotropicMode);
 		}
+
+		Pixel border = BorderColorMap[settings.borderColor];
+		desc.BorderColor[0] = (float)border.R / 255.0f;
+		desc.BorderColor[1] = (float)border.G / 255.0f;
+		desc.BorderColor[2] = (float)border.B / 255.0f;
+		desc.BorderColor[3] = (float)border.A / 255.0f;
 
 		if (!_device->CreateSampler(desc, &_sampler)) return false;
 

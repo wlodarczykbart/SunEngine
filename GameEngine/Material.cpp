@@ -206,14 +206,6 @@ namespace SunEngine
 		return true;
 	}
 
-	void Material::BuildPipelineSettings(PipelineSettings& settings) const
-	{
-		if (_shader)
-		{
-
-		}
-	}
-
 	BaseShader* Material::GetShaderVariant() const
 	{
 		return _shader ? _shader->GetVariant(_variant) : 0;

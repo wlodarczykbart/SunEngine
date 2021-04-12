@@ -16,6 +16,8 @@ namespace SunEngine
 		virtual bool StartFrame(ICommandBuffer* cmdBuffer) = 0;
 		virtual bool SubmitFrame(ICommandBuffer* cmdBuffer) = 0;
 
+		virtual uint GetBackBufferCount() const = 0;
+
 		static ISurface* Allocate(GraphicsAPI api);
 	};
 }

@@ -76,8 +76,6 @@ namespace SunEngine
 
 		bool RegisterToGPU() override;
 
-		void BuildPipelineSettings(PipelineSettings& settings) const;
-
 		StrMap<ShaderBufferVariable>::const_iterator BeginVars() const { return _mtlVariables.begin(); };
 		StrMap<ShaderBufferVariable>::const_iterator EndVars() const { return _mtlVariables.end(); };
 

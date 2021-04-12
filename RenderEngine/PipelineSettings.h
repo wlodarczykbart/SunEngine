@@ -76,7 +76,7 @@ namespace SunEngine
 			CullMode cullMode;
 			PolygonMode polygonMode;
 			FrontFace frontFace;
-			float depthBias;
+			int depthBias;
 			float depthBiasClamp;
 			float slopeScaledDepthBias;
 			bool enableScissor;
@@ -174,7 +174,7 @@ namespace SunEngine
 			rasterizer.frontFace = SE_FF_COUNTER_CLOCKWISE;
 			rasterizer.polygonMode = SE_PM_FILL;
 			rasterizer.slopeScaledDepthBias = 0.0f;
-			rasterizer.depthBias = 0.0f;
+			rasterizer.depthBias = 0;
 			rasterizer.depthBiasClamp = 0.0f;
 			rasterizer.enableScissor = false;
 

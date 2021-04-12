@@ -73,7 +73,6 @@ namespace SunEngine
 		Mesh* GetMesh(const String& name) const;
 		Material* GetMaterial(const String& name) const;
 		Texture2D* GetTexture2D(const String& name) const;
-		Sampler* GetSampler(FilterMode filter, WrapMode wrap, AnisotropicMode anisotropy);
 
 		Iter<Material> IterMaterials() const;
 		Iter<Texture2D> IterTextures2D() const;
@@ -82,6 +81,11 @@ namespace SunEngine
 
 		bool Remove(Asset* pRes);
 		bool Remove(Material* pRes);
+
+		Sampler* GetSampler(FilterMode filter, WrapMode wrap);
+		Sampler* GetSampler(FilterMode filter, WrapMode wrap, AnisotropicMode anisotropy);
+		Sampler* GetSampler(FilterMode filter, WrapMode wrap, BorderColor border);
+		Sampler* GetSampler(FilterMode filter, WrapMode wrap, AnisotropicMode anisotropy, BorderColor border);
 
 	private:
 		template<typename T>

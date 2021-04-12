@@ -13,6 +13,8 @@
 #include "ResourceMgr.h"
 #include "SceneRenderer.h"
 
+#include <DirectXMath.h>
+
 namespace SunEngine
 {
 	SceneRenderer::SceneRenderer()
@@ -76,6 +78,8 @@ namespace SunEngine
 				return false;
 		}
 
+		_shaderVariantPipelineMap[Shader::Depth] = DefaultPipelines::ShadowDepth;
+
 		_bInit = true;
 		return true;
 	}
@@ -112,7 +116,7 @@ namespace SunEngine
 
 		CameraBufferData camData = {};
 		glm::mat4 view = _currentCamera->ViewMatrix;
-		glm::mat4 proj = EngineInfo::GetRenderer().ProjectionCorrection() * _currentCamera->C()->As<Camera>()->GetProj();
+		glm::mat4 proj = _currentCamera->C()->As<Camera>()->GetProj();
 		glm::mat4 invView = glm::inverse(view);
 		glm::mat4 invProj = glm::inverse(proj);
 		camData.ViewMatrix.Set(&view);
@@ -126,11 +130,41 @@ namespace SunEngine
 		glm::mat4 shadowMatrices[16];
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
-			glm::vec3 lightPos(1.0f, 4.0f, 2.0f);
-			lightPos = glm::vec3(-2.0f, 4.0f, -1.0f);;
-			float near_plane = 1.0f, far_plane = 7.5f;
-			view = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
-			proj = EngineInfo::GetRenderer().ProjectionCorrection() * glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+			float sceneRadius = 30.0f;
+			glm::vec3 lightDir = glm::normalize(glm::vec3(_currentSunlight->Direction));
+			glm::vec3 lightPos = -2.0f * lightDir * sceneRadius;
+			glm::vec3 targetPos = glm::vec3(invView[3]);
+			targetPos = glm::vec3(0);
+			glm::vec3 lightUp = glm::vec3(0, 1, 0);
+			view = glm::lookAt(lightPos, targetPos, lightUp);
+
+			glm::vec3 sphereCenterLS = view * glm::vec4(targetPos, 1.0f);
+			float l = sphereCenterLS.x - sceneRadius;
+			float r = sphereCenterLS.x + sceneRadius;
+			float b = sphereCenterLS.y - sceneRadius;
+			float t = sphereCenterLS.y + sceneRadius;
+			float n = sphereCenterLS.z - sceneRadius;
+			float f = sphereCenterLS.z + sceneRadius;
+			proj = /*EngineInfo::GetRenderer().ProjectionCorrection() **/ glm::orthoLH_ZO(l, r, b, t, n, f);
+
+			//glm::mat4 dxMtx = *(glm::mat4*)&DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+			//bool eq = true;
+			//for (int ii = 0; ii < 4; ii++)
+			//{
+			//	for (int jj = 0; jj < 4; jj++) {
+			//		if (fabsf(proj[ii][jj] - dxMtx[ii][jj]) > 0.0001)
+			//		{
+			//			eq = false;
+			//		}
+			//	}
+			//}
+
+			//lightPos = glm::vec3(-27.4350910, -35.4456558, 28.6385860);
+			//lightPos = lightDir* sceneRadius;
+			//proj = glm::perspective(glm::radians(45.0f), 1.0f, 1.0f, 96.0f);
+			//view = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0, 1, 0));
+
 			invView = glm::inverse(view);
 			invProj = glm::inverse(proj);
 			camData.ViewMatrix.Set(&view);
@@ -199,9 +233,7 @@ namespace SunEngine
 					if (!binding.SetUniformBuffer(ShaderStrings::ShadowBufferName, &_shadowMatrixBuffer->Buffer))
 						return false;
 					bool depthTextureSet = binding.SetTexture(ShaderStrings::ShadowTextureName, _depthTarget.GetDepthTexture());
-					bool depthSamplerSet = binding.SetSampler(ShaderStrings::ShadowSamplerName, ResourceMgr::Get().GetSampler(SE_FM_NEAREST, SE_WM_REPEAT, SE_AM_OFF));
-					int ww = 5;
-					ww++;
+					bool depthSamplerSet = binding.SetSampler(ShaderStrings::ShadowSamplerName, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_BORDER, SE_BC_WHITE));
 				}
 			}
 		}
@@ -469,6 +501,10 @@ namespace SunEngine
 		Material* pMaterial = data.MaterialOverride ? data.MaterialOverride : data.RenderNode->GetMaterial();
 		BaseShader* pShader = pMaterial->GetShaderVariant();
 
+		auto variantPipeline = _shaderVariantPipelineMap.find(pMaterial->GetVariant());
+		if (variantPipeline != _shaderVariantPipelineMap.end())
+			ShaderMgr::Get().BuildPipelineSettings((*variantPipeline).second, settings);
+
 		for (uint i = 0; i < _graphicsPipelines.size(); i++)
 		{
 			if (_graphicsPipelines[i]->GetShader() == pShader && settings == _graphicsPipelines[i]->GetSettings())
@@ -554,8 +590,8 @@ namespace SunEngine
 				if (!_current->Buffer.Create(buffInfo))
 					return;
 
-				_current->ArrayIndex = _buffers.size() - 1;
 				_buffers.push_back(UniquePtr<UniformBufferData>(_current));
+				_current->ArrayIndex = _buffers.size() - 1;
 			}
 			else
 			{

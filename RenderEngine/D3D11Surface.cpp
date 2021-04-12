@@ -80,6 +80,11 @@ namespace SunEngine
 		dxCmd->BindRenderTargets(1, &nullRTV, nullDSV);
 	}
 
+	uint D3D11Surface::GetBackBufferCount() const
+	{
+		return 1;
+	}
+
 
 	bool D3D11Surface::createSwapchain()
 	{

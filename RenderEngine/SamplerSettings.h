@@ -11,6 +11,7 @@ namespace SunEngine
 	enum WrapMode
 	{
 		SE_WM_CLAMP_TO_EDGE,
+		SE_WM_CLAMP_TO_BORDER,
 		SE_WM_REPEAT,
 	};
 
@@ -23,11 +24,18 @@ namespace SunEngine
 		SE_AM_16,
 	};
 
+	enum BorderColor
+	{
+		SE_BC_BLACK,
+		SE_BC_WHITE,
+	};
+
 	struct SamplerSettings
 	{
 		FilterMode filterMode;
 		WrapMode wrapMode;
 		AnisotropicMode anisotropicMode;
+		BorderColor borderColor;
 	};
 
 }

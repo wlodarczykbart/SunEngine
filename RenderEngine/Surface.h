@@ -28,7 +28,8 @@ namespace SunEngine
 		virtual bool DerivedDestroy() { return true; }
 
 		ISurface* _iSurface;
-		CommandBuffer* _cmdBuffer;
+		Vector<CommandBuffer*> _cmdBuffers;
+		uint _frameIndex;
 	};
 
 }

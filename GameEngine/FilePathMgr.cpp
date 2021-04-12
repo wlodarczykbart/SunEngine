@@ -45,6 +45,12 @@ namespace SunEngine
 		return Find(key);
 	}
 
+	const String& EngineInfo::Paths::ShaderPipelineListFile() const
+	{
+		static String key = "ShaderPipelineList";
+		return Find(key);
+	}
+
 	const String& EngineInfo::Paths::Find(const String& key) const
 	{
 		static String EMPTY_STR = "";
@@ -77,6 +83,9 @@ namespace SunEngine
 			_projectionCorrection = glm::scale(_projectionCorrection, glm::vec3(1.0f, 1.0f, 0.5f));
 		}
 
+
+		//_projectionCorrection = glm::mat4(1.0);
+
 		if (strRenderMode == "forward")
 			_renderMode = Forward;
 		else if (strRenderMode == "deferred")
@@ -90,6 +99,6 @@ namespace SunEngine
 		_maxTextureTransforms = configSection->GetInt("MaxTextureTransforms", 32);
 		_maxShadowCascadeSplits = configSection->GetInt("MaxShadowCascadeSplits", 1);
 
-		_shadowsEnabled = configSection->GetInt("shadowsEnabled", 1) == 1;
+		_shadowsEnabled = configSection->GetInt("Shadows", 1) == 1;
 	}
 }

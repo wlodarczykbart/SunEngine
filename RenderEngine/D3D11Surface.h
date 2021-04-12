@@ -22,6 +22,8 @@ namespace SunEngine
 		void Bind(ICommandBuffer* cmdBuffer, IBindState* pBindState) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
+		uint GetBackBufferCount() const;
+
 	private:
 
 		bool createSwapchain();

@@ -20,6 +20,8 @@
 
 namespace SunEngine
 {
+	Vector<SceneNode*> TEST_NODES;
+
 	GameEditor::GameEditor()
 	{
 		_queuedAsset = 0;
@@ -119,6 +121,12 @@ namespace SunEngine
 		{
 			_queuedAsset->CreateSceneNode(pScene);
 			_queuedAsset = 0;
+		}
+
+		for (SceneNode* node : TEST_NODES)
+		{
+			node->Orientation.Angles.y += 5.0f;
+
 		}
 
 		pScene->Update(1 / 60.0f, 0.0f);
@@ -252,18 +260,19 @@ namespace SunEngine
 		Light* pSun = pLightNode->AddComponent(new Light())->As<Light>();
 		pSun->SetLightType(LT_DIRECTIONAL);
 		pSun->SetColor(glm::vec4(1));
-		//pLightNode->Orientation.Angles.y = 180.0f;
+		pLightNode->Orientation.Angles.y = -60;
+		pLightNode->Orientation.Angles.z = -120;
 
 		Asset* pAssetStandard = resMgr.AddAsset("AssetStandard");
 		{
 			AssetNode* pRoot = pAssetStandard->AddNode("Root");
 			MeshRenderer* pRenderer = pRoot->AddComponent(new MeshRenderer())->As<MeshRenderer>();
-			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Sphere));
+			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Cube));
 			pRenderer->SetMaterial(resMgr.Clone(pMetalMaterial));
 			pRenderer->GetMaterial()->RegisterToGPU();
 			
 			SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(2.0f, 0.0f, 1.0f);
+			pSceneNode->Position = glm::vec3(2.0f, 0.5f, 1.0f);
 		}
 
 		Asset* pAssetBlinnPhong = resMgr.AddAsset("AssetBlinnPhong");
@@ -284,33 +293,39 @@ namespace SunEngine
 			AssetNode* pRoot = pAssetPlane->AddNode("Root");
 			MeshRenderer* pRenderer = pRoot->AddComponent(new MeshRenderer())->As<MeshRenderer>();
 			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Plane));
-			pRenderer->SetMaterial(resMgr.Clone(pSpecularMaterial));
+			Material* pPlaneMaterial = resMgr.Clone(pSpecularMaterial);
+			pRenderer->SetMaterial(pPlaneMaterial);
 			pRenderer->GetMaterial()->RegisterToGPU();
+			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
 			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
 			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
 			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
-		//int cubeSlices = 1;
-		//float cubeOffset = 3.0f;
-		//float cubeZStart = -(cubeSlices * cubeOffset * 2.0f);
-		//float cubeXStart = -(cubeSlices * cubeOffset * 0.5f);
+		int Slices = 0;
+		float Offset = 3.0f;
+		float ZStart = -(Slices * Slices * 2.0f);
+		float XStart = -(Slices * Slices * 0.5f);
 
-		//for (int i = 0; i < cubeSlices; i++) 
-		//{
-		//	for (int j = 0; j < cubeSlices; j++) 
-		//	{
-		//		for (int k = 0; k < cubeSlices; k++)
-		//		{
-		//			SceneNode* pCubeSceneNode = pCubeAsset->CreateSceneNode(pScene);
-		//			pCubeSceneNode->Position = glm::vec3(i * cubeOffset, j * cubeOffset, k * cubeOffset);
-		//			pCubeSceneNode->Position.z += cubeZStart;
-		//			pCubeSceneNode->Position.x += cubeXStart;
-		//			pCubeSceneNode->Orientation.Angles = glm::linearRand(glm::vec3(0.0f), glm::vec3(360.0f));
-		//		}
-		//	}
-		//}
+		float halfOffset = (Slices / 2) * Offset;
+
+		for (int i = 0; i < Slices; i++)
+		{
+			for (int j = 0; j < Slices; j++)
+			{
+				for (int k = 0; k < Slices; k++)
+				{
+					SceneNode* pCubeSceneNode = pAssetStandard->CreateSceneNode(pScene);
+					pCubeSceneNode->Position = glm::vec3(i * Offset - halfOffset, j * Offset - halfOffset, k * Offset - halfOffset);
+					//pCubeSceneNode->Position.z += ZStart;
+					//pCubeSceneNode->Position.x += XStart;
+					pCubeSceneNode->Scale = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
+					pCubeSceneNode->Orientation.Angles = glm::linearRand(glm::vec3(0.0f), glm::vec3(360.0f));
+					TEST_NODES.push_back(pCubeSceneNode);
+				}
+			}
+		}
 
 		//pScene->Initialize();
 		sceneMgr.SetActiveScene(pScene->GetName());

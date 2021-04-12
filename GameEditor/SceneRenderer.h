@@ -109,6 +109,8 @@ namespace SunEngine
 		Map<usize, UniquePtr<Material>> _depthMaterials;
 		RenderTarget _depthTarget;
 		Vector<UniquePtr<DepthRenderData>> _depthPasses;
+
+		StrMap<String> _shaderVariantPipelineMap;
 	};
 
 }

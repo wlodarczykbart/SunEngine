@@ -55,10 +55,5 @@ namespace SunEngine
 		{
 			_renderObject->BuildPipelineSettings(settings);
 		}
-
-		if (_material)
-		{
-			_material->BuildPipelineSettings(settings);
-		}
 	}
 }

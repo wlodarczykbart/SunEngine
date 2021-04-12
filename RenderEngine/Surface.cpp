@@ -10,7 +10,7 @@ namespace SunEngine
 	Surface::Surface() : GraphicsObject(GraphicsObject::SURFACE)
 	{
 		_iSurface = 0;
-		_cmdBuffer = 0;
+		_frameIndex = 0;
 	}
 
 
@@ -32,8 +32,12 @@ namespace SunEngine
 			return false;
 		}
 
-		_cmdBuffer = new CommandBuffer();
-		_cmdBuffer->Create();
+		_cmdBuffers.resize(_iSurface->GetBackBufferCount());
+		for (uint i = 0; i < _cmdBuffers.size(); i++)
+		{
+			_cmdBuffers[i] = new CommandBuffer();
+			_cmdBuffers[i]->Create();
+		}
 
 		if (!DerivedCreate())
 		{
@@ -51,8 +55,11 @@ namespace SunEngine
 			return false;
 		}
 
-		delete _cmdBuffer;
-		_cmdBuffer = 0;
+		for (uint i = 0; i < _cmdBuffers.size(); i++)
+		{
+			delete _cmdBuffers[i];
+		}
+		_cmdBuffers.clear();
 
 		if (!GraphicsObject::Destroy())
 			return false;
@@ -68,17 +75,20 @@ namespace SunEngine
 
 	bool Surface::StartFrame()
 	{
-		return _iSurface->StartFrame(_cmdBuffer->GetAPIHandle());
+		return _iSurface->StartFrame(_cmdBuffers[_frameIndex]->GetAPIHandle());
 	}
 
 	bool Surface::EndFrame()
 	{
-		return _iSurface->SubmitFrame(_cmdBuffer->GetAPIHandle());
+		bool status = _iSurface->SubmitFrame(_cmdBuffers[_frameIndex]->GetAPIHandle());
+		_frameIndex++;
+		_frameIndex %= _cmdBuffers.size();
+		return status;
 	}
 
 	CommandBuffer* Surface::GetCommandBuffer() const
 	{
-		return _cmdBuffer;
+		return _cmdBuffers[_frameIndex];
 	}
 
 }

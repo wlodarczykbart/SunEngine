@@ -17,7 +17,14 @@ namespace SunEngine
 	Map<WrapMode, VkSamplerAddressMode> AddressMap
 	{
 		{ SE_WM_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
+		{ SE_WM_CLAMP_TO_BORDER, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER },
 		{ SE_WM_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT }
+	};
+
+	Map<BorderColor, VkBorderColor> BorderColorMap
+	{
+		{ SE_BC_BLACK, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK },
+		{ SE_BC_WHITE,  VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE},
 	};
 
 	VulkanSampler::VulkanSampler()
@@ -42,6 +49,7 @@ namespace SunEngine
 		samplerInfo.mipmapMode = MipmapMap[settings.filterMode];
 		samplerInfo.maxAnisotropy = 1.0f;
 		samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+		samplerInfo.borderColor = BorderColorMap[settings.borderColor];
 
 		if (settings.anisotropicMode != SE_AM_OFF)
 		{

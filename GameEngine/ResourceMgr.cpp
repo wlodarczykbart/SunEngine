@@ -217,10 +217,24 @@ namespace SunEngine
 	{
 	}
 
+	Sampler* ResourceMgr::GetSampler(FilterMode filter, WrapMode wrap)
+	{
+		return GetSampler(filter, wrap, SE_AM_OFF, SE_BC_BLACK);
+	}
 
 	Sampler* ResourceMgr::GetSampler(FilterMode filter, WrapMode wrap, AnisotropicMode anisotropy)
 	{
-		String strSampler = StrFormat("%d_%d_%d", filter, wrap, anisotropy);
+		return GetSampler(filter, wrap, anisotropy, SE_BC_BLACK);
+	}
+
+	Sampler* ResourceMgr::GetSampler(FilterMode filter, WrapMode wrap, BorderColor border)
+	{
+		return GetSampler(filter, wrap, SE_AM_OFF, border);
+	}
+
+	Sampler* ResourceMgr::GetSampler(FilterMode filter, WrapMode wrap, AnisotropicMode anisotropy, BorderColor border)
+	{
+		String strSampler = StrFormat("%d_%d_%d_%d", filter, wrap, anisotropy, border);
 		auto found = _samplers.find(strSampler);
 		if (found != _samplers.end())
 		{
@@ -231,6 +245,7 @@ namespace SunEngine
 		info.settings.anisotropicMode = anisotropy;
 		info.settings.filterMode = filter;
 		info.settings.wrapMode = wrap;
+		info.settings.borderColor = border;
 
 		Sampler* pSampler = new Sampler();
 		if (!pSampler->Create(info))

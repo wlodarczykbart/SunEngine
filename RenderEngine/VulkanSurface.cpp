@@ -7,14 +7,8 @@ namespace SunEngine
 
 	VulkanSurface::VulkanSurface() 
 	{
-		_currFrame = 0;
-		_depthImage = VK_NULL_HANDLE;
-		_depthView = VK_NULL_HANDLE;
-		_depthMem = VK_NULL_HANDLE;
-		_renderFinishedFence = VK_NULL_HANDLE;
-		_renderFinishedSemaphore = VK_NULL_HANDLE;
+		_frameIndex = 0;
 		_swapchain = VK_NULL_HANDLE;
-		_imgAvailableSemaphore = VK_NULL_HANDLE;
 		_format = VK_FORMAT_UNDEFINED;
 		_window = 0;
 	}
@@ -49,16 +43,15 @@ namespace SunEngine
 			_device->DestroyFramebuffer(frame._framebuffer);
 			_device->DestroyImageView(frame._imageView);
 			_device->DestroyImage(frame._image);	
+			_device->DestroyImageView(frame._depthView);
+			_device->FreeMemory(frame._depthMem);
+			_device->DestroyImage(frame._depthImage);
+			_device->DestroyFence(frame._renderFinishedFence);
+			_device->DestroySemaphore(frame._renderFinishedSemaphore);
+			_device->DestroySemaphore(frame._imgAvailableSemaphore);
 		}
 
-		_device->DestroyImageView(_depthView);
-		_device->FreeMemory(_depthMem);
-		_device->DestroyImage(_depthImage);
-
 		_device->DestroyRenderPass(_renderPass);
-		_device->DestroyFence(_renderFinishedFence);
-		_device->DestroySemaphore(_renderFinishedSemaphore);
-		_device->DestroySemaphore(_imgAvailableSemaphore);
 		//_device->DestroySwapchain(_swapchain); //TODO: causes crash
 		//_device->DestroySurface(_surface);
 
@@ -67,8 +60,10 @@ namespace SunEngine
 
 	bool VulkanSurface::StartFrame(ICommandBuffer * cmdBuffer)
 	{
-		if (!_device->ProcessFences(&_renderFinishedFence, 1, UINT64_MAX, true)) return false;
-		if (!_device->AcquireNextImage(_swapchain, _imgAvailableSemaphore, UINT64_MAX, VK_NULL_HANDLE, &_currFrame)) return false;
+		Frame& frame = _frames[_frameIndex];
+
+		if (!_device->ProcessFences(&frame._renderFinishedFence, 1, UINT64_MAX, true)) return false;
+		if (!_device->AcquireNextImage(_swapchain, frame._imgAvailableSemaphore, UINT64_MAX, VK_NULL_HANDLE, &frame._swapImageIndex)) return false;
 
 		cmdBuffer->Begin();
 		return true;
@@ -78,6 +73,8 @@ namespace SunEngine
 	{
 		cmdBuffer->End();
 
+		auto frame = _frames[_frameIndex];
+
 		VkPipelineStageFlags waitFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
 		VkSubmitInfo submitInfo = {};
@@ -85,22 +82,25 @@ namespace SunEngine
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &static_cast<VulkanCommandBuffer*>(cmdBuffer)->_cmdBuffer;
 		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = &_imgAvailableSemaphore;
+		submitInfo.pWaitSemaphores = &frame._imgAvailableSemaphore;
 		submitInfo.pWaitDstStageMask = &waitFlags;
-		submitInfo.pSignalSemaphores = &_renderFinishedSemaphore;
+		submitInfo.pSignalSemaphores = &frame._renderFinishedSemaphore;
 		submitInfo.signalSemaphoreCount = 1;
 
-		if (!_device->QueueSubmit(&submitInfo, 1, _renderFinishedFence)) return false;
+		if (!_device->QueueSubmit(&submitInfo, 1, frame._renderFinishedFence)) return false;
 
 		VkPresentInfoKHR presentInfo = {};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-		presentInfo.pWaitSemaphores = &_renderFinishedSemaphore;
+		presentInfo.pWaitSemaphores = &frame._renderFinishedSemaphore;
 		presentInfo.waitSemaphoreCount = 1;
 		presentInfo.pSwapchains = &_swapchain;
 		presentInfo.swapchainCount = 1;
-		presentInfo.pImageIndices = &_currFrame;
+		presentInfo.pImageIndices = &frame._swapImageIndex;
 		
 		if (!_device->QueuePresent(presentInfo)) return false;
+
+		_frameIndex++;
+		_frameIndex %= _frames.size();
 
 		return true;
 	}
@@ -124,7 +124,7 @@ namespace SunEngine
 		info.renderPass = _renderPass;
 		info.renderArea.extent.width = _window->Width();
 		info.renderArea.extent.height = _window->Height();
-		info.framebuffer = _frames[_currFrame]._framebuffer;
+		info.framebuffer = _frames[_frameIndex]._framebuffer;
 
 		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info, 1);
 	}
@@ -132,6 +132,11 @@ namespace SunEngine
 	void VulkanSurface::Unbind(ICommandBuffer * cmdBuffer)
 	{
 		static_cast<VulkanCommandBuffer*>(cmdBuffer)->EndRenderPass();
+	}
+
+	uint VulkanSurface::GetBackBufferCount() const
+	{
+		return _frames.size();
 	}
 
 	bool VulkanSurface::createSurface()
@@ -142,17 +147,6 @@ namespace SunEngine
 		info.hwnd = _window->Handle();
 
 		if (!_device->CreateSurfaceKHR(info, &_surface)) return false;
-
-		VkSemaphoreCreateInfo semaphoreInfo = {};
-		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-		if (!_device->CreateSempahore(semaphoreInfo, &_imgAvailableSemaphore)) return false;
-		if (!_device->CreateSempahore(semaphoreInfo, &_renderFinishedSemaphore)) return false;
-
-		VkFenceCreateInfo fenceInfo = {};
-		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-		if (!_device->CreateFence(fenceInfo, &_renderFinishedFence)) return false;
 
 		return true;
 	}
@@ -249,7 +243,6 @@ namespace SunEngine
 		info.dependencyCount = dependencies.size();
 		info.pDependencies = dependencies.data();
 
-
 		if (!_device->CreateRenderPass(info, &_renderPass)) return false;
 
 		return true;
@@ -262,39 +255,7 @@ namespace SunEngine
 
 		_frames.resize(images.size());
 
-		VkImageCreateInfo depthInfo = {};
-		depthInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		depthInfo.extent.width = _extent.width;
-		depthInfo.extent.height = _extent.height;
-		depthInfo.extent.depth = 1;
-		depthInfo.arrayLayers = 1;
-		depthInfo.format = VK_FORMAT_D24_UNORM_S8_UINT;
-		depthInfo.imageType = VK_IMAGE_TYPE_2D;
-		depthInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		depthInfo.mipLevels = 1;
-		depthInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		depthInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		depthInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		depthInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-		if (!_device->CreateImage(depthInfo, &_depthImage)) return false;
-		if (!_device->AllocImageMemory(_depthImage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &_depthMem)) return false;
-
-		VkImageViewCreateInfo depthViewInfo = {};
-		depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		depthViewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-		depthViewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-		depthViewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-		depthViewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-		depthViewInfo.format = depthInfo.format;
-		depthViewInfo.image = _depthImage;
-		depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-		depthViewInfo.subresourceRange.layerCount = 1;
-		depthViewInfo.subresourceRange.levelCount = 1;
-		depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		if (!_device->CreateImageView(depthViewInfo, &_depthView)) return false;
-
 		VkImageView attachments[2];
-		attachments[1] = _depthView;
 		uint numAttachments = 2;
 
 		for (uint i = 0; i < _frames.size(); i++)
@@ -317,7 +278,40 @@ namespace SunEngine
 
 			if (!_device->CreateImageView(viewInfo, &frame._imageView)) return false;
 
+			VkImageCreateInfo depthInfo = {};
+			depthInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+			depthInfo.extent.width = _extent.width;
+			depthInfo.extent.height = _extent.height;
+			depthInfo.extent.depth = 1;
+			depthInfo.arrayLayers = 1;
+			depthInfo.format = VK_FORMAT_D24_UNORM_S8_UINT;
+			depthInfo.imageType = VK_IMAGE_TYPE_2D;
+			depthInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			depthInfo.mipLevels = 1;
+			depthInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+			depthInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+			depthInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+			depthInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+			if (!_device->CreateImage(depthInfo, &frame._depthImage)) return false;
+			if (!_device->AllocImageMemory(frame._depthImage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &frame._depthMem)) return false;
+
+			VkImageViewCreateInfo depthViewInfo = {};
+			depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			depthViewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+			depthViewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+			depthViewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+			depthViewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+			depthViewInfo.format = depthInfo.format;
+			depthViewInfo.image = frame._depthImage;
+			depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+			depthViewInfo.subresourceRange.layerCount = 1;
+			depthViewInfo.subresourceRange.levelCount = 1;
+			depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			if (!_device->CreateImageView(depthViewInfo, &frame._depthView)) return false;
+
+
 			attachments[0] = frame._imageView;
+			attachments[1] = frame._depthView;
 			VkFramebufferCreateInfo framebufferInfo = {};
 			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 			framebufferInfo.attachmentCount = numAttachments;
@@ -326,8 +320,18 @@ namespace SunEngine
 			framebufferInfo.width = _extent.width;
 			framebufferInfo.height = _extent.height;
 			framebufferInfo.renderPass = _renderPass;
-
 			if (!_device->CreateFramebuffer(framebufferInfo, &frame._framebuffer)) return false;
+
+			VkSemaphoreCreateInfo semaphoreInfo = {};
+			semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+			if (!_device->CreateSempahore(semaphoreInfo, &frame._imgAvailableSemaphore)) return false;
+			if (!_device->CreateSempahore(semaphoreInfo, &frame._renderFinishedSemaphore)) return false;
+
+			VkFenceCreateInfo fenceInfo = {};
+			fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+			fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+			if (!_device->CreateFence(fenceInfo, &frame._renderFinishedFence)) return false;
 
 			_frames[i] = frame;
 		}

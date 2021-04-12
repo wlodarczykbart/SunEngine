@@ -57,6 +57,7 @@ namespace SunEngine
 		public:
 			const String& ShaderSourceDir() const;
 			const String& ShaderListFile() const;
+			const String& ShaderPipelineListFile() const;
 			const String& Find(const String& key) const;
 
 		private:

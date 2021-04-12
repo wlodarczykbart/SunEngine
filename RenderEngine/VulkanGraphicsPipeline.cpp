@@ -189,6 +189,10 @@ namespace SunEngine
 		rasterizationState.frontFace = FrontFaceMap[_settings.rasterizer.frontFace];
 		rasterizationState.polygonMode = PolygonModeMap[_settings.rasterizer.polygonMode];
 		rasterizationState.lineWidth = 1.0f;
+		rasterizationState.depthBiasConstantFactor = _settings.rasterizer.depthBias;
+		rasterizationState.depthBiasClamp = _settings.rasterizer.depthBiasClamp;
+		rasterizationState.depthBiasSlopeFactor = _settings.rasterizer.slopeScaledDepthBias;
+		rasterizationState.depthBiasEnable = _settings.rasterizer.depthBias != 0 || _settings.rasterizer.slopeScaledDepthBias != 0;
 
 		VkPipelineMultisampleStateCreateInfo      multisamplerState = {};
 		multisamplerState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;

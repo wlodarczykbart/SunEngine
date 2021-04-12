@@ -22,6 +22,8 @@ namespace SunEngine
 		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
+		uint GetBackBufferCount() const override;
+
 	private:
 		bool createSurface();
 		bool createSwapchain();
@@ -33,8 +35,17 @@ namespace SunEngine
 			VkImage _image;
 			VkImageView _imageView;
 			VkFramebuffer _framebuffer;
-		};
 
+			VkImage _depthImage;
+			VkDeviceMemory _depthMem;
+			VkImageView _depthView;
+
+			VkSemaphore _imgAvailableSemaphore;
+			VkSemaphore _renderFinishedSemaphore;
+			VkFence _renderFinishedFence;
+
+			uint _swapImageIndex;
+		};
 
 		GraphicsWindow* _window;
 		VkSurfaceKHR _surface;
@@ -42,15 +53,8 @@ namespace SunEngine
 
 		VkFormat _format;
 		Vector<Frame> _frames;
-		uint _currFrame;
 
-		VkImage _depthImage;
-		VkDeviceMemory _depthMem;
-		VkImageView _depthView;
-
-		VkSemaphore _imgAvailableSemaphore;
-		VkSemaphore _renderFinishedSemaphore;
-		VkFence _renderFinishedFence;
+		uint _frameIndex;
 	};
 
 }

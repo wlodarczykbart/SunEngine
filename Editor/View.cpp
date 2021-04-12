@@ -1,6 +1,8 @@
 #include "StringUtil.h"
 #include "GraphicsWindow.h"
 #include "CommandBuffer.h"
+#include "GraphicsContext.h"
+#include "IDevice.h"
 
 #include "spdlog/spdlog.h"
 #include "imgui.h"
@@ -215,6 +217,8 @@ namespace SunEngine
 	{
 		if (_needsResize)
 		{
+			GraphicsContext::GetDevice()->WaitIdle();
+
 			_info.width = (uint)_viewSize.x;
 			_info.height = (uint)_viewSize.y;
 
