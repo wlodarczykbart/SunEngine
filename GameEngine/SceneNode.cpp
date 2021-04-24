@@ -4,8 +4,9 @@ namespace SunEngine
 {
 	glm::mat4 g_MtxIden = glm::mat4(1.0f);
 
-	SceneNode::SceneNode()
+	SceneNode::SceneNode(Scene* pScene)
 	{
+		_scene = pScene;
 		_worldMatrix = g_MtxIden;
 		_localMatrix = g_MtxIden;
 		_numRenderComponents = 0;
@@ -61,7 +62,7 @@ namespace SunEngine
 			_numRenderComponents++;
 
 		_componentList.push_back(pComponent);
-		ComponentData* pData = pComponent->AllocData();
+		ComponentData* pData = pComponent->AllocData(this);
 		if (pData)
 		{
 			_componentDataMap[pComponent] = UniquePtr<ComponentData>(pData);

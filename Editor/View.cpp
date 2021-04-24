@@ -74,6 +74,7 @@ namespace SunEngine
 		_viewSize = glm::vec2(0.0f);
 		_viewFocused = false;
 		_needsResize = false;
+		_mouseInsideView = false;
 
 		_position = glm::vec3(0.0f);
 		_rotation = glm::vec3(0.0f);
@@ -88,6 +89,8 @@ namespace SunEngine
 
 		for (uint i = 0; i < MOUSE_BUTTON_COUNT; i++)
 			_mouseButtonStates[i] = false;
+
+		_relativeMousePosition = glm::vec2(0);
 	}
 
 	View::~View()
@@ -260,12 +263,14 @@ namespace SunEngine
 
 		int mx, my;
 		pWindow->GetMousePosition(mx, my);
-		
-		bool canUpdate = false;
-		if (mx > _viewPos.x && mx < _viewPos.x + _viewSize.x && my > _viewPos.y && my < _viewPos.y + _viewSize.y)
-			canUpdate = true;
+		_mouseInsideView = (mx > _viewPos.x && mx < _viewPos.x + _viewSize.x && my > _viewPos.y && my < _viewPos.y + _viewSize.y);
 
-		if (_viewFocused && canUpdate)
+		if (_mouseInsideView)
+		{
+			_relativeMousePosition = glm::vec2(mx - _viewPos.x, my - _viewPos.y);
+		}
+
+		if (_viewFocused && _mouseInsideView)
 		{
 			if (_camMode == CM_FIRST_PERSON)
 			{

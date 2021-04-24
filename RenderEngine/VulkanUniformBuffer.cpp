@@ -58,6 +58,9 @@ namespace SunEngine
 
 	bool VulkanUniformBuffer::UpdateShared(const void* pData, uint numElements)
 	{
+		if (numElements == 0)
+			return true;
+
 		//don't call this on non shared buffers
 		if (_allocSize == _size)
 			return false;

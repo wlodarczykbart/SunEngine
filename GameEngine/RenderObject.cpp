@@ -1,12 +1,13 @@
 #include "SceneNode.h"
 #include "Material.h"
+#include "Scene.h"
 #include "RenderObject.h"
 
 namespace SunEngine
 {
 	RenderObject::RenderObject()
 	{
-
+		
 	}
 
 	RenderObject::~RenderObject()
@@ -14,9 +15,20 @@ namespace SunEngine
 
 	}
 
-	RenderNode* RenderObject::CreateRenderNode(RenderComponentData* pData, Mesh* pMesh, Material* pMaterial, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset)
+	void RenderObject::Initialize(SceneNode* pNode, ComponentData* pData)
 	{
-		pData->_renderNodes.push_back(RenderNode(this, pMesh, pMaterial, indexCount, instanceCount, firstIndex, vertexOffset));
+		Scene* pScene = pNode->GetScene();
+		RenderComponentData* pRenderData = static_cast<RenderComponentData*>(pData);
+
+		for (auto& node : pRenderData->_renderNodes)
+		{
+			pScene->RegisterRenderNode(&node);
+		}
+	}
+
+	RenderNode* RenderObject::CreateRenderNode(RenderComponentData* pData, Mesh* pMesh, Material* pMaterial, const AABB& aabb, const Sphere& sphere, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset)
+	{
+		pData->_renderNodes.push_back(RenderNode(pData->GetNode(), this, pMesh, pMaterial, aabb, sphere, indexCount, instanceCount, firstIndex, vertexOffset));
 		return &pData->_renderNodes.back();
 	}
 
@@ -31,8 +43,9 @@ namespace SunEngine
 	//	_firstIndex = 0;
 	//}
 
-	RenderNode::RenderNode(RenderObject* pObject, Mesh* pMesh, Material* pMaterial, uint idxCount, uint instanceCount, uint firstIdx, uint vtxOffset)
+	RenderNode::RenderNode(SceneNode* pNode, RenderObject* pObject, Mesh* pMesh, Material* pMaterial, const AABB& aabb, const Sphere& sphere, uint idxCount, uint instanceCount, uint firstIdx, uint vtxOffset)
 	{
+		_node = pNode;
 		_renderObject = pObject;
 		_mesh = pMesh;
 		_material = pMaterial;
@@ -40,8 +53,9 @@ namespace SunEngine
 		_instanceCount = instanceCount;
 		_firstIndex = firstIdx;
 		_vertexOffset = vtxOffset;
-
-		_localAABB = 0;
+		_aabb = aabb;
+		_sphere = sphere;
+		_worldMatrix = glm::mat4(1.0);
 	}
 
 	RenderNode::~RenderNode()

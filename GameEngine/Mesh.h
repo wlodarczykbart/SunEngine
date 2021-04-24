@@ -62,13 +62,16 @@ namespace SunEngine
 
 		uint GetVertexCount() const { return _vertices.size() / _vertexDef.NumVars; }
 		uint GetIndexCount() const { return _indices.size(); }
+		uint GetTriCount() const { return _indices.size() / 3; }
 		uint GetVertexStride() const { return sizeof(glm::vec4) * _vertexDef.NumVars; }
 
 		void SetVertexVar(uint vertexIndex, const glm::vec4& value, uint varIndex = 0);
 		void SetTri(uint triIndex, uint t0, uint t1, uint t2);
+		void GetTri(uint triIndex, uint& t0, uint& t1, uint& t2) const;
 
 		glm::vec4 GetVertexVar(uint vertexIndex, uint varIndex) const;
 		glm::vec4 GetVertexPos(uint vertexIndex) const;
+
 
 		const VertexDef& GetVertexDef() const { return _vertexDef; }
 
@@ -77,6 +80,7 @@ namespace SunEngine
 		void AllocatePlane();
 
 		const AABB& GetAABB() const { return _aabb; }
+		const Sphere& GetSphere() const { return _sphere; }
 		void UpdateBoundingVolume();
 
 	private:
@@ -84,5 +88,6 @@ namespace SunEngine
 		Vector<glm::vec4> _vertices;
 		Vector<uint> _indices;
 		AABB _aabb;
+		Sphere _sphere;
 	};
 }

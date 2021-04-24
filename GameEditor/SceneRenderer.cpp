@@ -130,7 +130,7 @@ namespace SunEngine
 		glm::mat4 shadowMatrices[16];
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
-			float sceneRadius = 30.0f;
+			float sceneRadius = 20.0f;
 			glm::vec3 lightDir = glm::normalize(glm::vec3(_currentSunlight->Direction));
 			glm::vec3 lightPos = -2.0f * lightDir * sceneRadius;
 			glm::vec3 targetPos = glm::vec3(invView[3]);

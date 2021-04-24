@@ -5,6 +5,8 @@
 
 namespace SunEngine
 {
+	class Scene;
+
 	class SceneNode final : public AssetNode
 	{
 	public:
@@ -22,7 +24,7 @@ namespace SunEngine
 			LinkedList<AssetNode*>::const_iterator _end;
 		};
 
-		SceneNode();
+		SceneNode(Scene* pScene);
 		SceneNode(const SceneNode&) = delete;
 		SceneNode& operator = (const SceneNode&) = delete;
 		virtual ~SceneNode();
@@ -51,11 +53,14 @@ namespace SunEngine
 
 		bool CanRender() const { return _numRenderComponents > 0; }
 
+		Scene* GetScene() const { return _scene; }
+
 	private:
 		void OnAddComponent(Component* pComponent) override;
 
 		friend class Scene;
 
+		Scene* _scene;
 		LinkedList<Component*> _componentList;
 		Map<Component*, UniquePtr<ComponentData>> _componentDataMap;
 		glm::mat4 _localMatrix;

@@ -325,6 +325,14 @@ namespace SunEngine
 			}
 			break;
 
+			case WM_MOUSEMOVE:
+			{
+				e.type = GWE_MOUSE_MOVE;
+				e.x = GET_X_LPARAM(lParam);
+				e.y = GET_Y_LPARAM(lParam);
+			}
+			break;
+
 			case WM_KEYDOWN:
 			{
 				uint key = (uint)wParam;

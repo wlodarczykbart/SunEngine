@@ -303,6 +303,13 @@ namespace SunEngine
 		_indices[triIndex * 3 + 2] = t2;
 	}
 
+	void Mesh::GetTri(uint triIndex, uint& t0, uint& t1, uint& t2) const
+	{
+		t0 = _indices[triIndex * 3 + 0];
+		t1 = _indices[triIndex * 3 + 1];
+		t2 = _indices[triIndex * 3 + 2];
+	}
+
 	glm::vec4 Mesh::GetVertexVar(uint vertexIndex, uint varIndex) const
 	{
 		if (varIndex < _vertexDef.NumVars)
@@ -327,5 +334,15 @@ namespace SunEngine
 		{
 			_aabb.Expand(GetVertexVar(i, 0));
 		}
+
+		_sphere.Center = _aabb.GetCenter();
+		float maxDist = -FLT_MAX;
+		for (uint i = 0; i < GetVertexCount(); i++)
+		{
+			glm::vec3 v =_sphere.Center - glm::vec3(GetVertexVar(i, 0));
+			float dist = glm::dot(v, v);
+			maxDist = glm::max(maxDist, dist);
+		}
+		_sphere.Radius = sqrtf(maxDist);
 	}
 }

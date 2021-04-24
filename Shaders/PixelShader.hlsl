@@ -23,6 +23,7 @@ struct PS_Out
 		shadowCoord /= shadowCoord.w;
 		
 		if(
+			shadowCoord.w < 0.0 ||
 			shadowCoord.z < 0.0 || 
 			shadowCoord.z > 1.0)
 		{

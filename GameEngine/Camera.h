@@ -28,7 +28,7 @@ namespace SunEngine
 	class CameraComponentData : public ComponentData
 	{
 	public:
-		CameraComponentData(Component* pComponent) : ComponentData(pComponent) {}
+		CameraComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode) {}
 
 		glm::mat4 ViewMatrix;
 	};
@@ -40,7 +40,7 @@ namespace SunEngine
 		~Camera();
 
 		ComponentType GetType() const override { return COMPONENT_CAMERA; }
-		ComponentData* AllocData() override { return new CameraComponentData(this); }
+		ComponentData* AllocData(SceneNode* pNode) override { return new CameraComponentData(this, pNode); }
 
 		void SetFrustum(FrustumType type, float left, float right, float bottom, float top, float nearZ, float farZ);
 		void SetFrustum(float fovAngle, float aspectRatio, float nearZ, float farZ);

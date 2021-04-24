@@ -22,12 +22,14 @@ namespace SunEngine
 	class ComponentData
 	{
 	public:
-		ComponentData(Component* pComponent) : _c(pComponent) { }
+		ComponentData(Component* pComponent, SceneNode* pNode) : _c(pComponent), _node(pNode) { }
 		virtual ~ComponentData() {}
 		
 		const Component* C() const { return _c;  }
+		SceneNode* GetNode() const { return _node; }
 	private:
 		Component* _c;
+		SceneNode* _node;
 	};
 
 	class Component
@@ -39,7 +41,7 @@ namespace SunEngine
 		virtual ~Component() {};
 
 		virtual ComponentType GetType() const = 0;
-		virtual ComponentData* AllocData() { return 0; }
+		virtual ComponentData* AllocData(SceneNode*) { return 0; }
 
 		virtual Component* GetBase() { return this; }
 		virtual const Component* GetBase() const { return this; }
@@ -69,7 +71,7 @@ namespace SunEngine
 		~ComponentRef() {}
 
 		ComponentType GetType() const override { return _base->GetType(); };
-		ComponentData* AllocData() override { return _base->AllocData(); }
+		ComponentData* AllocData(SceneNode* pNode) override { return _base->AllocData(pNode); }
 		Component* GetBase() override { return _base; }
 		const Component* GetBase() const override { return _base; }
 		void Initialize(SceneNode* pNode, ComponentData* pData) override  { _base->Initialize(pNode, pData); }

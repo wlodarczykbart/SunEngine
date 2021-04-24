@@ -7,7 +7,7 @@ namespace SunEngine
 	class MeshRendererComponentData : public RenderComponentData
 	{
 	public:
-		MeshRendererComponentData(Component* pComponent) : RenderComponentData(pComponent) { _node = 0; }
+		MeshRendererComponentData(Component* pComponent, SceneNode* pNode) : RenderComponentData(pComponent, pNode) { _node = 0; }
 
 	private:
 		friend class MeshRenderer;
@@ -36,7 +36,7 @@ namespace SunEngine
 		void BuildPipelineSettings(PipelineSettings& settings) const override;
 		
 	protected:
-		RenderComponentData* AllocRenderData() { return new MeshRendererComponentData(this); }
+		RenderComponentData* AllocRenderData(SceneNode* pNode) { return new MeshRendererComponentData(this, pNode); }
 
 	private:
 		Mesh* _mesh;

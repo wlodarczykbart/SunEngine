@@ -40,6 +40,8 @@ namespace SunEngine
 		glm::vec2 GetSize() const { return _viewSize; }
 		glm::vec2 GetPos() const { return _viewPos; }
 		bool IsFocused() const { return _viewFocused; }
+		bool IsMouseInside() const { return _mouseInsideView; }
+		glm::vec2 GetRelativeMousPos() const { return _relativeMousePosition; }
 
 		void GetTransform(glm::vec3& position, glm::quat& orientation) const;
 		float GetFOV() const { return _fovAngle; }
@@ -92,6 +94,9 @@ namespace SunEngine
 		glm::vec2 _viewPos;
 		bool _viewFocused;
 		bool _needsResize;
+		bool _mouseInsideView;
+
+		glm::vec2 _relativeMousePosition;
 	};
 
 }

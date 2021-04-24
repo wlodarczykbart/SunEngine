@@ -14,7 +14,7 @@ namespace SunEngine
 	class LightComponentData : public ComponentData
 	{
 	public:
-		LightComponentData(Component* pComponent) : ComponentData(pComponent) {}
+		LightComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode) {}
 
 		glm::vec4 Direction;
 	};
@@ -23,7 +23,7 @@ namespace SunEngine
 	{
 	public:
 		ComponentType GetType() const { return COMPONENT_LIGHT; }
-		ComponentData* AllocData() override { return new LightComponentData(this); }
+		ComponentData* AllocData(SceneNode* pNode) override { return new LightComponentData(this, pNode); }
 
 		Light();
 		~Light();

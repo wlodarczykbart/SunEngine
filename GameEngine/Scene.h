@@ -1,9 +1,21 @@
 #pragma once
 
 #include "SceneNode.h"
+#include "BoundingVolumes.h"
 
 namespace SunEngine
 {
+	class RenderNode;
+
+	struct SceneRayHit
+	{
+		RenderNode* pHitNode;
+		uint triIndex;
+		float weights[3];
+		glm::vec3 position;
+		glm::vec3 normal;
+	};
+
 	class Scene
 	{
 	public:
@@ -26,15 +38,30 @@ namespace SunEngine
 
 		void Clear();
 
+		void RegisterRenderNode(RenderNode* pNode);
+
+		bool Raycast(const glm::vec3& o, const glm::vec3& d, SceneRayHit& hit) const;
+
 	private:
+		struct RenderNodeData
+		{
+			RenderNode* pNode;
+			glm::mat4 mtx;
+			glm::mat4 invMtx;
+			AABB aabb;
+			Sphere sphere;
+		};
+
 		//void CallInitialize(SceneNode* pNode);
 		void CallUpdate(SceneNode* pNode, float dt, float et);
 		void CallTraverse(SceneNode* pNode, TraverseFunc func, void* pUserData) const;
+		void UpdateRenderNodes();
 
 		friend class SceneMgr;
 
 		String _name;
 		UniquePtr<SceneNode> _root;
 		StrMap<UniquePtr<SceneNode>> _nodes;
+		Map<const RenderNode*, RenderNodeData> _renderNodes;
 	};
 }

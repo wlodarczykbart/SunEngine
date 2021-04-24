@@ -18,14 +18,15 @@ namespace SunEngine
 	{
 	}
 
-	void MeshRenderer::Initialize(SceneNode*, ComponentData* pData)
+	void MeshRenderer::Initialize(SceneNode* pSceneNode, ComponentData* pData)
 	{
 		if (_mesh)
 		{
 			MeshRendererComponentData* pRenderData = static_cast<MeshRendererComponentData*>(pData);
-			pRenderData->_node = CreateRenderNode(pRenderData, _mesh, _material, _mesh->GetIndexCount(), 1, 0, 0);
-			pRenderData->_node->SetLocalAABB(&_mesh->GetAABB());
+			pRenderData->_node = CreateRenderNode(pRenderData, _mesh, _material, _mesh->GetAABB(), _mesh->GetSphere(), _mesh->GetIndexCount(), 1, 0, 0);
 		}
+
+		RenderObject::Initialize(pSceneNode, pData);
 	}
 
 	void MeshRenderer::Update(SceneNode* pNode, ComponentData* pData, float, float)

@@ -20,10 +20,10 @@ namespace SunEngine
 		switch (type)
 		{
 		case SunEngine::FRUSTUM_PERSPECTIVE:
-			_projMatrix = glm::frustum(left, right, bottom, top, nearZ, farZ);
+			_projMatrix = glm::frustumRH_ZO(left, right, bottom, top, nearZ, farZ);
 			break;
 		case SunEngine::FRUSTUM_ORTHOGRAPHIC:
-			_projMatrix = glm::ortho(left, right, bottom, top, nearZ, farZ);
+			_projMatrix = glm::orthoRH_ZO(left, right, bottom, top, nearZ, farZ);
 			break;
 		default:
 			break;

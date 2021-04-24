@@ -265,32 +265,33 @@ namespace SunEngine
 
 		Asset* pAssetStandard = resMgr.AddAsset("AssetStandard");
 		{
-			AssetNode* pRoot = pAssetStandard->AddNode("Root");
+			AssetNode* pRoot = pAssetStandard->AddNode("Cube");
 			MeshRenderer* pRenderer = pRoot->AddComponent(new MeshRenderer())->As<MeshRenderer>();
 			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Cube));
 			pRenderer->SetMaterial(resMgr.Clone(pMetalMaterial));
 			pRenderer->GetMaterial()->RegisterToGPU();
 			
-			SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(2.0f, 0.5f, 1.0f);
+			//SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
+			//pSceneNode->Position = glm::vec3(2.0f, 0.5f, 1.0f);
+			//pSceneNode->Orientation.Angles = glm::vec3(65, 55, -125);
 		}
 
 		Asset* pAssetBlinnPhong = resMgr.AddAsset("AssetBlinnPhong");
 		{
-			AssetNode* pRoot = pAssetBlinnPhong->AddNode("Root");
+			AssetNode* pRoot = pAssetBlinnPhong->AddNode("Sphere");
 			MeshRenderer* pRenderer = pRoot->AddComponent(new MeshRenderer())->As<MeshRenderer>();
 			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Sphere));
 			pRenderer->SetMaterial(resMgr.Clone(pSpecularMaterial));
 			pRenderer->GetMaterial()->RegisterToGPU();
 
-			SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
+			//SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
+			//pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
 			//pSceneNode->Scale = glm::vec3(30, 0.01f, 30.0f);
 		}
 
 		Asset* pAssetPlane = resMgr.AddAsset("AssetPlane");
 		{
-			AssetNode* pRoot = pAssetPlane->AddNode("Root");
+			AssetNode* pRoot = pAssetPlane->AddNode("Plane");
 			MeshRenderer* pRenderer = pRoot->AddComponent(new MeshRenderer())->As<MeshRenderer>();
 			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Plane));
 			Material* pPlaneMaterial = resMgr.Clone(pSpecularMaterial);

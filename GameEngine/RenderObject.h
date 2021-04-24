@@ -2,6 +2,7 @@
 
 #include "AssetNode.h"
 #include "PipelineSettings.h"
+#include "BoundingVolumes.h"
 
 #define DRAW_INDEXED(pRenderNode) pNode->GetIndexCount(), pNode->GetInstanceCount(), pNode->GetFirstIndex(), pNode->GetVertexOffset(), 0
 
@@ -10,13 +11,13 @@ namespace SunEngine
 	class Material;
 	class Mesh;
 	class RenderObject;
-	struct AABB;
 
 	class RenderNode
 	{
 	public:
 		~RenderNode();
 
+		SceneNode* GetNode() const { return _node; }
 		RenderObject* GetRenderObject() const { return _renderObject; }
 		Mesh* GetMesh() const { return _mesh; }
 		Material* GetMaterial() const { return _material; }
@@ -31,19 +32,21 @@ namespace SunEngine
 		void SetWorld(const glm::mat4& mtx) { _worldMatrix = mtx; }
 		const glm::mat4& GetWorld() const { return _worldMatrix; }
 
-		void SetLocalAABB(const AABB* localAABB) { _localAABB = localAABB; }
-		const AABB* GetLocalAABB() const { return _localAABB; }
+		const AABB& GetAABB() const { return _aabb; }
+		const Sphere& GetSphere() const { return _sphere; }
 
 	private:
-		RenderNode(RenderObject* pObject, Mesh* pMesh, Material* pMaterial, uint idxCount, uint instanceCount, uint firstIdx, uint vtxOffset);
+		RenderNode(SceneNode *pNode, RenderObject* pObject, Mesh* pMesh, Material* pMaterial, const AABB& aabb, const Sphere& sphere, uint idxCount, uint instanceCount, uint firstIdx, uint vtxOffset);
 		friend class RenderObject;
 
 		glm::mat4 _worldMatrix;
 
+		SceneNode* _node;
 		RenderObject* _renderObject;
 		Mesh* _mesh;
 		Material* _material;
-		const AABB* _localAABB;
+		AABB _aabb;
+		Sphere _sphere;
 
 		uint _indexCount;
 		uint _instanceCount;
@@ -54,7 +57,7 @@ namespace SunEngine
 	class RenderComponentData : public ComponentData
 	{
 	public:
-		RenderComponentData(Component* pComponent) : ComponentData(pComponent) {}
+		RenderComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode) {}
 
 		LinkedList<RenderNode>::const_iterator BeginNode() const { return _renderNodes.begin(); }
 		LinkedList<RenderNode>::const_iterator EndNode() const { return _renderNodes.end(); }
@@ -72,13 +75,15 @@ namespace SunEngine
 
 		virtual void BuildPipelineSettings(PipelineSettings&) const {};
 
-		ComponentData* AllocData() override { return AllocRenderData(); }
+		ComponentData* AllocData(SceneNode* pNode) override { return AllocRenderData(pNode); }
+
+		virtual void Initialize(SceneNode* pNode, ComponentData* pData) override;
 
 		bool CanRender() const override { return true; }
 
 	protected:
-		virtual RenderComponentData* AllocRenderData() { return new RenderComponentData(this); }
+		virtual RenderComponentData* AllocRenderData(SceneNode* pNode) { return new RenderComponentData(this, pNode); }
 
-		RenderNode* CreateRenderNode(RenderComponentData* pData, Mesh* pMesh, Material* pMaterial, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset);
+		RenderNode* CreateRenderNode(RenderComponentData* pData, Mesh* pMesh, Material* pMaterial, const AABB& aabb, const Sphere& sphere, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset);
 	};
 }
