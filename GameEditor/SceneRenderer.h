@@ -53,20 +53,24 @@ namespace SunEngine
 			Map<BaseShader*, ShaderBindings> ShaderBindings;
 		};
 
-		template<typename T>
 		class UniformBufferGroup
 		{
 		public:
 			UniformBufferGroup();
-			bool Init();
+			bool Init(const String& bufferName, ShaderBindingType bindType, uint blockSize);
 			void Flush();
 			void Reset();
-			void Update(const T& dataBlock, uint& updatedIndex, UniformBufferData** ppUpdatedBuffer = 0, BaseShader* pShader = 0);
+			void Update(const void* dataBlock, uint& updatedIndex, UniformBufferData** ppUpdatedBuffer = 0, BaseShader* pShader = 0);
 
 		private:
+			String _name;
+			ShaderBindingType _bindType;
+			uint _blockSize;
+			uint _maxUpdates;
+
 			Vector<UniquePtr<UniformBufferData>> _buffers;
+			MemBuffer _data;
 			UniformBufferData* _current;
-			Vector<T> _data;
 		};
 
 		struct RenderNodeData
@@ -77,11 +81,15 @@ namespace SunEngine
 			UniformBufferData* ObjectBindings;
 			uint ObjectBufferIndex;
 			Material* MaterialOverride;
+
+			UniformBufferData* SkinnedBoneBindings;
+			uint SkinnedBoneBufferIndex;
 		};
 
 		struct DepthRenderData
 		{
-			UniformBufferGroup<ObjectBufferData> ObjectBufferGroup;
+			UniformBufferGroup ObjectBufferGroup;
+			UniformBufferGroup SkinnedBonesBufferGroup;
 			Queue<RenderNodeData> RenderQueue;
 			Viewport Viewport;
 		};
@@ -93,12 +101,13 @@ namespace SunEngine
 		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
 
 		bool _bInit;
-		UniformBufferGroup<CameraBufferData> _cameraGroup;
+		UniformBufferGroup _cameraGroup;
 		UniformBufferData* _cameraBuffer;
 		UniquePtr<UniformBufferData> _lightBuffer;
 		UniquePtr<UniformBufferData> _shadowMatrixBuffer;
 		Vector<UniquePtr<GraphicsPipeline>> _graphicsPipelines;
-		UniformBufferGroup<ObjectBufferData> _objectBufferGroup;
+		UniformBufferGroup _objectBufferGroup;
+		UniformBufferGroup _skinnedBonesBufferGroup;
 		CameraComponentData* _currentCamera;
 		LightComponentData* _currentSunlight;
 		HashSet<BaseShader*> _currentShaders;
@@ -111,6 +120,7 @@ namespace SunEngine
 		Vector<UniquePtr<DepthRenderData>> _depthPasses;
 
 		StrMap<String> _shaderVariantPipelineMap;
+		Vector<glm::mat4> _skinnedBoneMatrixBlock;
 	};
 
 }

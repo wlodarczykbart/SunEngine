@@ -56,6 +56,9 @@ namespace SunEngine
 
 		bool GetConfigSection(const String& name, ConfigSection& section) const;
 		bool GetVariantProps(const String& name, StrMap<ShaderProp>& props) const;
+		bool GetVariantDefines(const String& name, Vector<String>& defines) const;
+
+		const String& GetName() const { return _name; }
 
 	private:
 		void CollectConfigFiles(LinkedList<ConfigFile>& configList, HashSet<String>& configMap);
@@ -67,8 +70,10 @@ namespace SunEngine
 		{
 			BaseShader shader;
 			StrMap<ShaderProp> defaults;
+			Vector<String> defines;
 		};
 
+		String _name;
 		ConfigFile _config;
 		StrMap<UniquePtr<ShaderVariant>> _variants;
 	};

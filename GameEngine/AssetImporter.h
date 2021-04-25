@@ -28,11 +28,19 @@ namespace SunEngine
 		bool Import(const String& filename, const Options& options = Options::Default);
 		Asset* GetAsset() const { return _asset; }
 	private:
-		bool PickMaterialShader(void* iMaterial, String& shader, StrMap<Texture2D*>& textures);
+		enum MaterialUsageFlags
+		{
+			MUF_NONE,
+			MUF_MESH,
+			MUF_SKINNED_MESH,
+		};
 
+		bool ChooseMaterial(void* iMesh, Material*& pOutMtl);
+
+		Options _options;
 		Asset* _asset;
 		Map<void*, Mesh*> _meshFixup;
-		Map<void*, Material*> _materialFixup;
+		Map<Material*, void*> _materialCache;
 		Map<void*, AssetNode*> _nodeFixup;
 		Vector<AssetNode*> _nodes;
 	};

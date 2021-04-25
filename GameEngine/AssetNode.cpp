@@ -91,6 +91,11 @@ namespace SunEngine
 		return _components[type].size();
 	}
 
+	Component* AssetNode::GetComponentOfType(ComponentType type) const
+	{
+		return _components[type].size() ? _components[type].front().get() : 0;
+	}
+
 	void Component::Initialize(SceneNode*, ComponentData*)
 	{
 

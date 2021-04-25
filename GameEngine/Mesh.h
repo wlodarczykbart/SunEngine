@@ -72,7 +72,6 @@ namespace SunEngine
 		glm::vec4 GetVertexVar(uint vertexIndex, uint varIndex) const;
 		glm::vec4 GetVertexPos(uint vertexIndex) const;
 
-
 		const VertexDef& GetVertexDef() const { return _vertexDef; }
 
 		void AllocateCube();

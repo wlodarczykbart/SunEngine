@@ -12,6 +12,7 @@
 #include "ShaderMgr.h"
 #include "ResourceMgr.h"
 #include "SceneRenderer.h"
+#include "Animation.h"
 
 #include <DirectXMath.h>
 
@@ -39,11 +40,16 @@ namespace SunEngine
 		if (!_lightBuffer->Buffer.Create(uboInfo))
 			return false;
 
-		if (!_cameraGroup.Init())
+		if (!_cameraGroup.Init(ShaderStrings::CameraBufferName, SBT_CAMERA, sizeof(CameraBufferData)))
 			return false;
 
-		if (!_objectBufferGroup.Init())
+		if (!_objectBufferGroup.Init(ShaderStrings::ObjectBufferName, SBT_OBJECT, sizeof(ObjectBufferData)))
 			return false;
+
+		const uint MAX_SKINNED_BONES = EngineInfo::GetRenderer().MaxSkinnedBoneMatrices();
+		if (!_skinnedBonesBufferGroup.Init(ShaderStrings::SkinnedBoneBufferName, SBT_BONES, sizeof(glm::mat4) * MAX_SKINNED_BONES))
+			return false;
+		_skinnedBoneMatrixBlock.resize(MAX_SKINNED_BONES);
 
 		if (EngineInfo::GetRenderer().ShadowsEnabled())
 		{
@@ -66,18 +72,21 @@ namespace SunEngine
 			for (uint i = 0; i < _depthPasses.size(); i++)
 			{
 				_depthPasses[i] = UniquePtr<DepthRenderData>(new DepthRenderData());
-				if (!_depthPasses[i]->ObjectBufferGroup.Init())
+				if (!_depthPasses[i]->ObjectBufferGroup.Init(ShaderStrings::ObjectBufferName, SBT_OBJECT, sizeof(ObjectBufferData)))
+					return false;
+
+				if (!_depthPasses[i]->SkinnedBonesBufferGroup.Init(ShaderStrings::SkinnedBoneBufferName, SBT_BONES, sizeof(glm::mat4) * MAX_SKINNED_BONES))
 					return false;
 
 				_depthPasses[i]->Viewport = { vpOffset, 0.0f, vpWidth, 1.0f };
 				vpOffset += vpWidth;
 			}
 
-			uboInfo.size = sizeof(glm::mat4) * _depthPasses.size();
-			if (!_shadowMatrixBuffer->Buffer.Create(uboInfo))
-				return false;
 		}
 
+		uboInfo.size = sizeof(glm::mat4) * EngineInfo::GetRenderer().MaxShadowCascadeSplits();
+		if (!_shadowMatrixBuffer->Buffer.Create(uboInfo))
+			return false;
 		_shaderVariantPipelineMap[Shader::Depth] = DefaultPipelines::ShadowDepth;
 
 		_bInit = true;
@@ -102,10 +111,16 @@ namespace SunEngine
 		_objectBufferGroup.Flush();
 		_objectBufferGroup.Reset();
 
+		_skinnedBonesBufferGroup.Flush();
+		_skinnedBonesBufferGroup.Reset();
+
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
 			_depthPasses[i]->ObjectBufferGroup.Flush();
 			_depthPasses[i]->ObjectBufferGroup.Reset();
+
+			_depthPasses[i]->SkinnedBonesBufferGroup.Flush();
+			_depthPasses[i]->SkinnedBonesBufferGroup.Reset();
 		}
 
 		if (!_currentCamera)
@@ -125,7 +140,7 @@ namespace SunEngine
 		camData.InvProjectionMatrix.Set(&invProj);
 
 		uint camUpdateIndex = 0;
-		_cameraGroup.Update(camData, camUpdateIndex, &_cameraBuffer);
+		_cameraGroup.Update(&camData, camUpdateIndex, &_cameraBuffer);
 
 		glm::mat4 shadowMatrices[16];
 		for (uint i = 0; i < _depthPasses.size(); i++)
@@ -171,7 +186,7 @@ namespace SunEngine
 			camData.ProjectionMatrix.Set(&proj);
 			camData.InvViewMatrix.Set(&invView);
 			camData.InvProjectionMatrix.Set(&invProj);
-			_cameraGroup.Update(camData, camUpdateIndex, &_cameraBuffer);
+			_cameraGroup.Update(&camData, camUpdateIndex, &_cameraBuffer);
 			glm::mat4 viewProj = proj * view;
 			_shadowMatrixBuffer->Buffer.Update(&viewProj, i * sizeof(glm::mat4), sizeof(glm::mat4));
 		}
@@ -220,21 +235,18 @@ namespace SunEngine
 					return false;
 			}
 
-			if (_depthPasses.size())
+			if (pShader->ContainsBuffer(ShaderStrings::ShadowBufferName) && _shadowMatrixBuffer->ShaderBindings.find(pShader) == _shadowMatrixBuffer->ShaderBindings.end())
 			{
-				if (pShader->ContainsBuffer(ShaderStrings::ShadowBufferName) && _shadowMatrixBuffer->ShaderBindings.find(pShader) == _shadowMatrixBuffer->ShaderBindings.end())
-				{
-					ShaderBindings::CreateInfo bindInfo = {};
-					bindInfo.pShader = pShader;
-					bindInfo.type = SBT_SHADOW;
-					auto& binding = _shadowMatrixBuffer->ShaderBindings[pShader];
-					if (!binding.Create(bindInfo))
-						return false;
-					if (!binding.SetUniformBuffer(ShaderStrings::ShadowBufferName, &_shadowMatrixBuffer->Buffer))
-						return false;
-					bool depthTextureSet = binding.SetTexture(ShaderStrings::ShadowTextureName, _depthTarget.GetDepthTexture());
-					bool depthSamplerSet = binding.SetSampler(ShaderStrings::ShadowSamplerName, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_BORDER, SE_BC_WHITE));
-				}
+				ShaderBindings::CreateInfo bindInfo = {};
+				bindInfo.pShader = pShader;
+				bindInfo.type = SBT_SHADOW;
+				auto& binding = _shadowMatrixBuffer->ShaderBindings[pShader];
+				if (!binding.Create(bindInfo))
+					return false;
+				if (!binding.SetUniformBuffer(ShaderStrings::ShadowBufferName, &_shadowMatrixBuffer->Buffer))
+					return false;
+				bool depthTextureSet = binding.SetTexture(ShaderStrings::ShadowTextureName, EngineInfo::GetRenderer().ShadowsEnabled() ? _depthTarget.GetDepthTexture() : ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::White)->GetGPUObject());
+				bool depthSamplerSet = binding.SetSampler(ShaderStrings::ShadowSamplerName, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_BORDER, SE_BC_WHITE));
 			}
 		}
 
@@ -384,6 +396,27 @@ namespace SunEngine
 			}
 			else if (component->CanRender())
 			{
+				Component* pSMComponent = pNode->GetComponentOfType(COMPONENT_SKINNED_MESH);
+				SkinnedMesh* pSkinnedMesh = 0;
+				if (pSMComponent)
+				{
+					pSkinnedMesh = pSMComponent->As<SkinnedMesh>();
+					SkinnedMeshComponentData* pSkinnedData = pNode->GetComponentData<SkinnedMeshComponentData>(pSMComponent);
+					AnimatorComponentData* pAnimatorData = pSkinnedData->GetAnimatorData();
+
+					if (pAnimatorData->GetPlaying())
+					{
+						auto& boneData = pAnimatorData->GetBoneData();
+						for (uint i = 0; i < boneData.size(); i++)
+							_skinnedBoneMatrixBlock[i] = boneData[i]->GetNode()->GetWorld() * boneData[i]->C()->As<const AnimatedBone>()->GetSkinMatrix(pSkinnedMesh->GetSkinIndex());	//TODO check for correct order...
+					}
+					else
+					{
+						for (uint i = 0; i < pAnimatorData->GetBoneCount(); i++)
+							_skinnedBoneMatrixBlock[i] = glm::mat4(1.0f);
+					}
+				}
+
 				RenderComponentData* pRenderData = pNode->GetComponentData<RenderComponentData>(component);
 				for (auto renderIter = pRenderData->BeginNode(); renderIter != pRenderData->EndNode(); ++renderIter)
 				{
@@ -405,7 +438,11 @@ namespace SunEngine
 						objBuffer.WorldMatrix.Set(&renderNode.GetWorld());
 						objBuffer.InverseTransposeMatrix.Set(&itp);
 
-						_objectBufferGroup.Update(objBuffer, data.ObjectBufferIndex, &data.ObjectBindings, pShader);
+						_objectBufferGroup.Update(&objBuffer, data.ObjectBufferIndex, &data.ObjectBindings, pShader);
+
+						if(pSkinnedMesh)
+							_skinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), data.SkinnedBoneBufferIndex, &data.SkinnedBoneBindings, pShader);
+
 						_currentShaders.insert(pShader);
 
 						if (pMaterial->GetVariant() == Shader::Default)
@@ -437,7 +474,11 @@ namespace SunEngine
 									RenderNodeData depthData = data;
 									depthData.MaterialOverride = pDepthMaterial;
 									GetPipeline(depthData);
-									_depthPasses[i]->ObjectBufferGroup.Update(objBuffer, depthData.ObjectBufferIndex, &depthData.ObjectBindings, pDepthShader);
+									_depthPasses[i]->ObjectBufferGroup.Update(&objBuffer, depthData.ObjectBufferIndex, &depthData.ObjectBindings, pDepthShader);
+
+									if (pSkinnedMesh)
+										_depthPasses[i]->SkinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), depthData.SkinnedBoneBufferIndex, &depthData.SkinnedBoneBindings, pDepthShader);
+
 									_depthPasses[i]->RenderQueue.push(depthData);
 								}
 
@@ -457,6 +498,9 @@ namespace SunEngine
 
 		IShaderBindingsBindState cameraBindData = {};
 		cameraBindData.DynamicIndices[0] = { ShaderStrings::CameraBufferName, cameraUpdateIndex };
+
+		IShaderBindingsBindState skinnedBoneBindData = {};
+		skinnedBoneBindData.DynamicIndices[0].first = ShaderStrings::SkinnedBoneBufferName;
 
 		while (queue.size())
 		{
@@ -478,6 +522,12 @@ namespace SunEngine
 
 			objectBindData.DynamicIndices[0].second = renderData.ObjectBufferIndex;
 			renderData.ObjectBindings->ShaderBindings.at(pShader).Bind(cmdBuffer, &objectBindData);
+
+			if (renderData.SkinnedBoneBindings)
+			{
+				skinnedBoneBindData.DynamicIndices[0].second = renderData.SkinnedBoneBufferIndex;
+				renderData.SkinnedBoneBindings->ShaderBindings.at(pShader).Bind(cmdBuffer, &skinnedBoneBindData);
+			}
 
 			cmdBuffer->DrawIndexed(
 				renderData.RenderNode->GetIndexCount(),
@@ -536,49 +586,52 @@ namespace SunEngine
 	}
 
 
-	template<typename T>
-	SceneRenderer::UniformBufferGroup<T>::UniformBufferGroup()
+	SceneRenderer::UniformBufferGroup::UniformBufferGroup()
 	{
 		_current = 0;
+		_blockSize = 0;
+		_maxUpdates = 0;
+		_bindType = {};
 	}
 
-	template<typename T>
-	bool SceneRenderer::UniformBufferGroup<T>::Init()
+	bool SceneRenderer::UniformBufferGroup::Init(const String& bufferName, ShaderBindingType bindType, uint blockSize)
 	{
+		_name = bufferName;
+		_bindType = bindType;
+		_blockSize = blockSize;
+
 		UniformBuffer::CreateInfo uboInfo = {};
 
 		_current = new UniformBufferData();
 		uboInfo.isShared = true;
-		uboInfo.size = sizeof(T);
+		uboInfo.size = blockSize;
 		if (!_current->Buffer.Create(uboInfo))
 			return false;
 		_current->ArrayIndex = 0;
 		_buffers.push_back(UniquePtr<UniformBufferData>(_current));
-		_data.resize(_current->Buffer.GetMaxSharedUpdates());
+		_maxUpdates = _current->Buffer.GetMaxSharedUpdates();
+		_data.SetSize(_maxUpdates * blockSize);
 
 		return true;
 	}
 
-	template<typename T>
-	void SceneRenderer::UniformBufferGroup<T>::Flush()
+	void SceneRenderer::UniformBufferGroup::Flush()
 	{
-		_current->Buffer.UpdateShared(_data.data(), _current->UpdateIndex);
+		_current->Buffer.UpdateShared(_data.GetData(), _current->UpdateIndex);
 	}
 
-	template<typename T>
-	void SceneRenderer::UniformBufferGroup<T>::Reset()
+	void SceneRenderer::UniformBufferGroup::Reset()
 	{
 		_current = _buffers[0].get();
 		_current->UpdateIndex = 0;
 	}
 
-	template<typename T>
-	void SceneRenderer::UniformBufferGroup<T>::Update(const T& dataBlock, uint& updatedIndex, UniformBufferData** ppUpdatedBuffer, BaseShader* pShader)
+	void SceneRenderer::UniformBufferGroup::Update(const void* dataBlock, uint& updatedIndex, UniformBufferData** ppUpdatedBuffer, BaseShader* pShader)
 	{
-		if (_current->UpdateIndex == _data.size())
+		if (_current->UpdateIndex == _maxUpdates)
 		{
 			//push current udpates to buffer
-			_current->Buffer.UpdateShared(_data.data(), _data.size());
+			_current->Buffer.UpdateShared(_data.GetData(), _maxUpdates);
 
 			//put this is some generic method if adding more of these types of sharable ubos?
 			if (_current->ArrayIndex == _buffers.size() - 1)
@@ -586,7 +639,7 @@ namespace SunEngine
 				_current = new UniformBufferData();
 				UniformBuffer::CreateInfo buffInfo = {};
 				buffInfo.isShared = true;
-				buffInfo.size = sizeof(T);
+				buffInfo.size = _blockSize;
 				if (!_current->Buffer.Create(buffInfo))
 					return;
 
@@ -602,7 +655,7 @@ namespace SunEngine
 		}
 
 
-		_data[_current->UpdateIndex] = dataBlock;
+		_data.SetData(dataBlock, _blockSize, _current->UpdateIndex * _blockSize);
 
 		updatedIndex = _current->UpdateIndex;
 		if(ppUpdatedBuffer) *ppUpdatedBuffer = _current;
@@ -612,9 +665,9 @@ namespace SunEngine
 		{
 			ShaderBindings::CreateInfo bindingInfo = {};
 			bindingInfo.pShader = pShader;
-			bindingInfo.type = SBT_OBJECT;
+			bindingInfo.type = _bindType;
 			_current->ShaderBindings[pShader].Create(bindingInfo);
-			_current->ShaderBindings[pShader].SetUniformBuffer(ShaderStrings::ObjectBufferName, &_current->Buffer);
+			_current->ShaderBindings[pShader].SetUniformBuffer(_name, &_current->Buffer);
 		}
 	}
 }

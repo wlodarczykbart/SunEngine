@@ -43,6 +43,8 @@ ShaderMgr.h
 ShaderMgr.cpp
 FilePathMgr.h
 FilePathMgr.cpp
+Animation.h
+Animation.cpp
 )
 
 target_include_directories(GameEngine PUBLIC 

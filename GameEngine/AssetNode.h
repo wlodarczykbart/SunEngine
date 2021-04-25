@@ -14,6 +14,9 @@ namespace SunEngine
 		COMPONENT_LIGHT,
 		COMPONENT_MESH_RENDERER,
 		COMPONENT_PARTICLE_SYSTEM,
+		COMPONENT_ANIMATOR,
+		COMPONENT_ANIMATED_BONE,
+		COMPONENT_SKINNED_MESH,
 		COMPONENT_COUNT,
 	};
 
@@ -136,6 +139,7 @@ namespace SunEngine
 		}
 
 		uint GetComponentsOfType(ComponentType type, Vector<Component*>& components) const;
+		Component* GetComponentOfType(ComponentType type) const;
 
 	protected:
 

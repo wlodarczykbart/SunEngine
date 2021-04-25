@@ -9,6 +9,7 @@
 #include "GraphicsWindow.h"
 #include "spdlog/spdlog.h"
 #include "RenderObject.h"
+#include "Animation.h"
 #include "GameEditorViews.h"
 
 namespace SunEngine
@@ -261,6 +262,22 @@ namespace SunEngine
 			ImGui::DragFloat3("Position", &pNode->Position[0]);
 			ImGui::DragFloat3("Scale", &pNode->Scale[0]);
 			ImGui::DragFloat3("Angles", &pNode->Orientation.Angles[0]);
+
+			for (auto iter = pNode->BeginComponent(); iter != pNode->EndComponent(); ++iter)
+			{
+				Component* c = *iter;
+				if (c->GetType() == COMPONENT_ANIMATOR)
+				{
+					AnimatorComponentData* animData = pNode->GetComponentData<AnimatorComponentData>(c);
+					if (ImGui::TreeNode("Animator"))
+					{
+						bool playing = animData->GetPlaying();
+						if (ImGui::Checkbox("Playing", &playing)) animData->SetPlaying(playing);
+
+						ImGui::TreePop();
+					}
+				}
+			}
 		}
 		else
 		{

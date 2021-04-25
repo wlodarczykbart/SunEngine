@@ -50,6 +50,8 @@ namespace SunEngine
 		configMap.insert(config.GetFilename());
 		CollectConfigFiles(configList, configMap);
 
+		_name = GetFileNameNoExt(config.GetFilename());
+
 		_config.Clear();
 		while (configList.size())
 		{
@@ -87,6 +89,7 @@ namespace SunEngine
 
 			Vector<String> defines;
 			StrSplit(section->GetString("defines"), defines, ',');
+			Vector<String> variantOnlyDefines = defines;
 
 			if (pDefines)
 				defines.insert(defines.end(), pDefines->begin(), pDefines->end());
@@ -134,6 +137,8 @@ namespace SunEngine
 					*pErrStr = pVariant->shader.GetErrStr();
 				return false;
 			}
+
+			pVariant->defines = variantOnlyDefines;
 		}
 
 		SetDefaults();
@@ -211,6 +216,20 @@ namespace SunEngine
 		if (found != _variants.end())
 		{
 			props = (*found).second.get()->defaults;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool Shader::GetVariantDefines(const String& name, Vector<String>& defines) const
+	{
+		auto found = _variants.find(name);
+		if (found != _variants.end())
+		{
+			defines = (*found).second.get()->defines;
 			return true;
 		}
 		else

@@ -1,12 +1,23 @@
 #include "CameraBuffer.hlsl"
 #include "ObjectBuffer.hlsl"
+#ifdef SKINNED
+#include "SkinnedBoneBuffer.hlsl"
+#define WORLD_MATRIX SkinnedWorldMatrix
+#else
+#define WORLD_MATRIX WorldMatrix
+#endif
+
 
 struct VS_In
 {
 	float4 position : POSITION;
 	float4 texCoord : TEXCOORD;
 	float4 normal : NORMAL;
-	float4 tangent : TANGENT;
+	float4 tangent : TANGENT;	
+#ifdef SKINNED
+	float4 bones : BONES;
+	float4 weights : WEIGHTS;
+#endif	
 };
 
 struct PS_In
@@ -26,16 +37,26 @@ PS_In main(VS_In vIn)
 {
 	PS_In pIn;
 	
-	pIn.clipPos = mul(mul(mul(vIn.position, WorldMatrix), ViewMatrix), ProjectionMatrix);
+#ifdef SKINNED
+	int4 bones = int4(vIn.bones);
+	float4 weights = vIn.weights;
+	float4x4 SkinnedWorldMatrix = SkinnedBones[bones.x] * weights.x;
+	SkinnedWorldMatrix += SkinnedBones[bones.y] * weights.y;
+	SkinnedWorldMatrix += SkinnedBones[bones.z] * weights.z;
+	SkinnedWorldMatrix += SkinnedBones[bones.w] * weights.w;
+	SkinnedWorldMatrix = mul(SkinnedWorldMatrix, WorldMatrix);
+#endif	
+	
+	pIn.clipPos = mul(mul(mul(vIn.position, WORLD_MATRIX), ViewMatrix), ProjectionMatrix);
 	
 #if !defined(DEPTH) || (defined(DEPTH) && defined(ALPHA_TEST))	
 	pIn.texCoord = vIn.texCoord;
 #endif
 	
 #ifndef DEPTH	
-	pIn.position = mul(vIn.position, WorldMatrix);
-	pIn.normal = mul(float4(vIn.normal.xyz, 0.0), WorldMatrix);
-	pIn.tangent = mul(float4(vIn.tangent.xyz, 0.0), WorldMatrix);
+	pIn.position = mul(vIn.position, WORLD_MATRIX);
+	pIn.normal = mul(float4(vIn.normal.xyz, 0.0), WORLD_MATRIX);
+	pIn.tangent = mul(float4(vIn.tangent.xyz, 0.0), WORLD_MATRIX);
 	
 #if 1
 	pIn.position = mul(pIn.position, ViewMatrix);

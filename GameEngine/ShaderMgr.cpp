@@ -13,6 +13,8 @@ namespace SunEngine
 
 	DefineStaticStr(DefaultShaders, Metallic)
 	DefineStaticStr(DefaultShaders, Specular)
+	DefineStaticStr(DefaultShaders, SkinnedMetallic)
+	DefineStaticStr(DefaultShaders, SkinnedSpecular)
 	DefineStaticStr(DefaultShaders, Gamma)
 	DefineStaticStr(DefaultShaders, Deferred)
 	DefineStaticStr(DefaultShaders, ScreenSpaceReflection)

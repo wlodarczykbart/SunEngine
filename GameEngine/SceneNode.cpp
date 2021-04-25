@@ -31,7 +31,7 @@ namespace SunEngine
 		}
 	}
 
-	void SceneNode::Update(float dt, float et)
+	void SceneNode::UpdateTransform()
 	{
 		_localMatrix = BuildLocalMatrix();
 
@@ -39,6 +39,11 @@ namespace SunEngine
 			_worldMatrix = GetParent()->GetWorld() * _localMatrix;
 		else
 			_worldMatrix = _localMatrix;
+	}
+
+	void SceneNode::Update(float dt, float et)
+	{
+		UpdateTransform();
 
 		for (auto iter = _componentList.begin(); iter != _componentList.end(); ++iter)
 		{
@@ -46,7 +51,7 @@ namespace SunEngine
 		}
 	}
 
-	SceneNode* SceneNode::GetParent()
+	SceneNode* SceneNode::GetParent() const
 	{
 		return static_cast<SceneNode*>(_parent);
 	}
@@ -54,6 +59,20 @@ namespace SunEngine
 	void SceneNode::SetParent(SceneNode* pNode)
 	{
 		ReParent(pNode);
+	}
+
+	ComponentData* SceneNode::GetComponentDataInParent(ComponentType type) const
+	{
+		SceneNode* parent = GetParent();
+		while (parent)
+		{
+			Vector<Component*> list;
+			if (parent->GetComponentsOfType(type, list))
+				return parent->_componentDataMap.at(list[0]).get();
+			parent = parent->GetParent();
+		}
+
+		return 0;
 	}
 
 	void SceneNode::OnAddComponent(Component* pComponent)

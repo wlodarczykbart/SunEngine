@@ -29,12 +29,14 @@ namespace SunEngine
 		SceneNode& operator = (const SceneNode&) = delete;
 		virtual ~SceneNode();
 
+		void UpdateTransform();
+
 		virtual void Initialize();
 		virtual void Update(float dt, float et);
 
 		const glm::mat4& GetWorld() const { return _worldMatrix; }
 
-		SceneNode* GetParent();
+		SceneNode* GetParent() const;
 		void SetParent(SceneNode* pNode);
 
 		LinkedList<Component*>::const_iterator BeginComponent() const { return _componentList.begin(); }
@@ -50,6 +52,8 @@ namespace SunEngine
 			auto found = _componentDataMap.find(pComponent);
 			return found == _componentDataMap.end() ? 0 : static_cast<T*>((*found).second.get());
 		}
+
+		ComponentData* GetComponentDataInParent(ComponentType type) const;
 
 		bool CanRender() const { return _numRenderComponents > 0; }
 

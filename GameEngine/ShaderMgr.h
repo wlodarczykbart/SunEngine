@@ -9,6 +9,8 @@ namespace SunEngine
 	public:
 		static const String Metallic;
 		static const String Specular;
+		static const String SkinnedMetallic;
+		static const String SkinnedSpecular;
 		static const String Gamma;
 		static const String Deferred;
 		static const String ScreenSpaceReflection;

@@ -2,6 +2,7 @@
 #include "ResourceMgr.h"
 #include "MeshRenderer.h"
 #include "ShaderMgr.h"
+#include "Animation.h"
 #include "glm/gtx/matrix_decompose.hpp"
 
 #include "AssetImporter.h"
@@ -49,6 +50,7 @@ namespace SunEngine
 
 	bool AssetImporter::Import(const String& filename, const Options& options)
 	{
+		_options = options;
 		String ext = StrToLower(GetExtension(filename));
 
 		ModelImporter::Importer* pImporter = ModelImporter::Importer::Create(filename);
@@ -69,18 +71,49 @@ namespace SunEngine
 			auto iMesh = pImporter->GetMeshData(m);
 			auto pMesh = resMgr.AddMesh(iMesh->Name);
 
-			pMesh->AllocVertices(iMesh->Vertices.size(), VertexDef::POS_TEXCOORD_NORMAL_TANGENT);
-			pMesh->AllocIndices(iMesh->Indices.size());
+			VertexDef vtxDef = VertexDef::POS_TEXCOORD_NORMAL_TANGENT;
+			Vector<Pair<float, float>> sortedBones;
+			uint skinnedVertexDataStartAttrib = 0;
+			if (iMesh->VertexBones.size())
+			{
+				vtxDef.NumVars += 2;
+				skinnedVertexDataStartAttrib = vtxDef.TangentIndex;
+				sortedBones.resize(ModelImporter::Importer::VertexBoneInfo::MAX_VERTEX_BONES);
+			}
 
-			auto& def = pMesh->GetVertexDef();
+			pMesh->AllocVertices(iMesh->Vertices.size(), vtxDef);
+			pMesh->AllocIndices(iMesh->Indices.size());
 
 			for (uint i = 0; i < iMesh->Vertices.size(); i++)
 			{
 				auto& vtx = iMesh->Vertices[i];
 				pMesh->SetVertexVar(i, glm::vec4(vtx.position.x, vtx.position.y, vtx.position.z, 1.0f), 0);
-				pMesh->SetVertexVar(i, glm::vec4(vtx.texCoord.x, vtx.texCoord.y, 0.0f, 0.0f), def.TexCoordIndex);
-				pMesh->SetVertexVar(i, glm::vec4(vtx.normal.x, vtx.normal.y, vtx.normal.z, 0.0f), def.NormalIndex);
-				pMesh->SetVertexVar(i, glm::vec4(vtx.tangent.x, vtx.tangent.y, vtx.tangent.z, 0.0f), def.TangentIndex);
+				pMesh->SetVertexVar(i, glm::vec4(vtx.texCoord.x, vtx.texCoord.y, 0.0f, 0.0f), vtxDef.TexCoordIndex);
+				pMesh->SetVertexVar(i, glm::vec4(vtx.normal.x, vtx.normal.y, vtx.normal.z, 0.0f), vtxDef.NormalIndex);
+				pMesh->SetVertexVar(i, glm::vec4(vtx.tangent.x, vtx.tangent.y, vtx.tangent.z, 0.0f), vtxDef.TangentIndex);
+
+				if (iMesh->VertexBones.size())
+				{
+					for (uint b = 0; b < sortedBones.size(); b++)
+						sortedBones[b] = { iMesh->VertexBones[i].bones[b], iMesh->VertexBones[i].weights[b] };
+
+					std::sort(sortedBones.begin(), sortedBones.end(), [] (const Pair<float, float>& left, const Pair<float, float>& right) -> bool { return left.second > right.second; });
+
+					float sum = 0.0f;
+					for (uint b = 0; b < 4; b++)
+						sum += sortedBones[b].second;
+
+					glm::vec4 bones;
+					glm::vec4 weights;
+					for (uint b = 0; b < 4; b++)
+					{
+						bones[b] = sortedBones[b].first;
+						weights[b] = sortedBones[b].second / sum; //renormalize around 4 max weights
+					}
+
+					pMesh->SetVertexVar(i, bones, skinnedVertexDataStartAttrib + 1);
+					pMesh->SetVertexVar(i, weights, skinnedVertexDataStartAttrib + 2);
+				}
 			}
 
 			for (uint i = 0; i < iMesh->Indices.size(); i += 3)
@@ -96,50 +129,60 @@ namespace SunEngine
 			_meshFixup[iMesh] = pMesh;
 		}
 
-		Vector<ModelImporter::Importer::Material*> uniqueMaterials;
+		Animator* pAnimator = 0;
+		Vector<Vector<Vector<AnimatedBone::Transform>>> boneTransforms;
+		Map<ModelImporter::Importer::Bone*, uint> boneIndexLookup;
 
-		for (uint m = 0; m < pImporter->GetMaterialCount(); m++)
+		if (pImporter->GetAnimationCount())
 		{
-			auto iMtl = pImporter->GetMaterial(m);
+			pAnimator = new Animator();
+			pAnimator->SetBoneCount(pImporter->GetBoneCount());
 
-			if (options.CombineMaterials)
+			boneTransforms.resize(pImporter->GetBoneCount());
+			for (uint b = 0; b < pImporter->GetBoneCount(); b++)
 			{
-				bool foundMaterial = false;
-				for (uint i = 0; i < uniqueMaterials.size(); i++)
+				boneIndexLookup[pImporter->GetBone(b)] = b;
+				boneTransforms[b].resize(pImporter->GetAnimationCount());
+			}
+
+			Vector<AnimationClip> clips;
+			clips.resize(pImporter->GetAnimationCount());
+			for (uint a = 0; a < pImporter->GetAnimationCount(); a++)
+			{
+				AnimationClip& clip = clips[a];
+
+				auto iAnim = pImporter->GetAnimation(a);
+
+				for (uint b = 0; b < pImporter->GetBoneCount(); b++)
+					boneTransforms[b][a].resize(iAnim->KeyFrames.size());
+
+				Vector<float> keys;
+				keys.resize(iAnim->KeyFrames.size());
+				for (uint k = 0; k < keys.size(); k++)
 				{
-					if (ImportedMaterialsSame(iMtl, uniqueMaterials[i]))
+					auto& iKey = iAnim->KeyFrames[k];
+					keys[k] = (float)iKey.Time; //TODO: use doubles?
+
+					for (uint b = 0; b < iKey.Transforms.size(); b++)
 					{
-						_materialFixup[iMtl] = _materialFixup.at(uniqueMaterials[i]);
-						foundMaterial = true;
-						break;
+						auto& iTransform = iKey.Transforms[b];
+
+						AnimatedBone::Transform transform;
+						transform.position = glm::vec3(iTransform.Translation.x, iTransform.Translation.y, iTransform.Translation.z);
+						transform.scale = glm::vec3(iTransform.Scale.x, iTransform.Scale.y, iTransform.Scale.z);
+
+						Orientation o;
+						o.Mode = ORIENT_XYZ;
+						o.Angles = glm::degrees(glm::vec3(iTransform.Rotation.x, iTransform.Rotation.y, iTransform.Rotation.z));
+						transform.rotation = glm::quat_cast(o.BuildMatrix());
+						boneTransforms[b][a][k] = transform;
 					}
 				}
 
-				if (foundMaterial)
-					continue;
-
-				uniqueMaterials.push_back(iMtl);
+				clip.SetKeys(keys);
+				clip.SetName(iAnim->Name);
 			}
-
-			auto pMtl = resMgr.AddMaterial(iMtl->Name);
-
-			String strShader;
-			StrMap<Texture2D*> textures;
-			PickMaterialShader(iMtl, strShader, textures);
-			pMtl->SetShader(ShaderMgr::Get().GetShader(strShader));
-
-			if (!pMtl->RegisterToGPU())
-				return false;
-
-			pMtl->GetShader()->SetDefaults(pMtl);
-
-			for (auto iter = textures.begin(); iter != textures.end(); ++iter)
-			{
-				pMtl->SetTexture2D((*iter).first, (*iter).second);
-			}
-
-			//TODO: make better...
-			_materialFixup[iMtl] = pMtl;
+			pAnimator->SetClips(clips);
 		}
 
 		bool needsRoot = pImporter->GetNodeCount() > 1 && (pImporter->GetNode(0)->Parent == 0 && pImporter->GetNode(1)->Parent == 0);
@@ -173,12 +216,14 @@ namespace SunEngine
 			{
 				auto iMesh = static_cast<ModelImporter::Importer::Mesh*>(iNode);
 				glm::mat4 mtxGeom;
-				memcpy(&mtxLocal, &iNode->GeometryOffset, sizeof(glm::mat4));
+				memcpy(&mtxGeom, &iNode->GeometryOffset, sizeof(glm::mat4));
 
 				MeshRenderer* pRenderer = 0;
+				AssetNode* pMeshNode = 0;
 				if (mtxGeom == glm::mat4(1.0f))
 				{
 					pRenderer = pNode->AddComponent(new MeshRenderer())->As<MeshRenderer>();
+					pMeshNode = pNode;
 				}
 				else
 				{
@@ -195,10 +240,34 @@ namespace SunEngine
 					_asset->SetParent(pGeomNode->GetName(), pNode->GetName());
 
 					pRenderer = pGeomNode->AddComponent(new MeshRenderer())->As<MeshRenderer>();
+					pMeshNode = pGeomNode;
 				}
 
 				pRenderer->SetMesh(_meshFixup.at(iMesh->MeshData));
-				pRenderer->SetMaterial(iMesh->Material ? _materialFixup.at(iMesh->Material) : ResourceMgr::Get().GetMaterial(DefaultResource::Material::StandardSpecular));
+				Material* pMtl = 0;
+				if (!ChooseMaterial(iMesh, pMtl))
+					return false;
+				pRenderer->SetMaterial(pMtl);
+
+				if (iMesh->MeshData->VertexBones.size())
+				{
+					SkinnedMesh* pSkinned = pMeshNode->AddComponent(new SkinnedMesh())->As<SkinnedMesh>();
+					pSkinned->SetSkinIndex(iMesh->MeshData->SkinIndex);
+				}
+			}
+			else if (iNode->GetType() == ModelImporter::Importer::BONE)
+			{
+				auto iBone = static_cast<ModelImporter::Importer::Bone*>(iNode);
+				
+				AnimatedBone* pBone = pNode->AddComponent(new AnimatedBone())->As<AnimatedBone>();
+				Vector<glm::mat4> skinMatrices;
+				skinMatrices.resize(iBone->SkinMatrices.size());
+				memcpy(skinMatrices.data(), iBone->SkinMatrices.data(), sizeof(glm::mat4) * skinMatrices.size());
+				uint boneIndex = boneIndexLookup.at(iBone);
+				pBone->SetBoneIndex(boneIndex);
+				pBone->SetSkinMatrices(skinMatrices);
+				auto& transforms = boneTransforms[boneIndex];
+				pBone->SetTransforms(transforms);
 			}
 
 			auto* parent = _nodeFixup.at(iNode->Parent);
@@ -210,18 +279,27 @@ namespace SunEngine
 			_nodeFixup[iNode] = pNode;
 		}
 
+		if (pAnimator)
+		{
+			_asset->GetRoot()->AddComponent(pAnimator);
+		}
+		
 		_asset->UpdateBoundingVolume();
 
 		return true;
 	}
 
-	bool AssetImporter::PickMaterialShader(void* iMaterial, String& shader, StrMap<Texture2D*>& textures)
+	bool AssetImporter::ChooseMaterial(void* iMesh, Material*& pOutMtl)
 	{
-		ModelImporter::Importer::Material* pMtl = (ModelImporter::Importer::Material*)iMaterial;
+		ModelImporter::Importer::Mesh* pMesh = (ModelImporter::Importer::Mesh*)iMesh;
+		ModelImporter::Importer::Material* pMtl = pMesh->Material;
 
 		String strRoughness = pMtl->ShininessExponentMap ? StrToLower(GetFileName(pMtl->ShininessExponentMap->FileName)) : "";
 
 		StrMap<ModelImporter::Importer::Texture*> importerTextures;
+
+		String shader;
+		StrMap<Texture2D*> textures;
 
 		if (StrContains(strRoughness, "gloss") || StrContains(strRoughness, "rough"))
 		{
@@ -251,6 +329,23 @@ namespace SunEngine
 
 			if (pMtl->NormalMap) importerTextures[MaterialStrings::NormalMap] = pMtl->NormalMap;
 			else if (pMtl->BumpMap) importerTextures[MaterialStrings::NormalMap] = pMtl->BumpMap;
+		}
+
+		if (pMesh->MeshData->VertexBones.size())
+		{
+			if (shader == DefaultShaders::Metallic) shader = DefaultShaders::SkinnedMetallic;
+			else if (shader == DefaultShaders::Specular) shader = DefaultShaders::SkinnedSpecular;
+		}
+
+		for (auto& cached : _materialCache)
+		{
+			bool equalShader = shader == cached.first->GetShader()->GetName();
+			bool equalMaterial = _options.CombineMaterials ? (cached.second == pMtl || ImportedMaterialsSame(pMtl, (ModelImporter::Importer::Material*)cached.second)) : cached.second == pMtl;
+			if (equalShader && equalMaterial)
+			{
+				pOutMtl = cached.first;
+				return true;
+			}
 		}
 
 		for (auto iter = importerTextures.begin(); iter != importerTextures.end(); ++iter)
@@ -289,6 +384,20 @@ namespace SunEngine
 			textures[(*iter).first] = pTex;
 		}
 
+		pOutMtl = ResourceMgr::Get().AddMaterial(pMtl->Name);
+		pOutMtl->SetShader(ShaderMgr::Get().GetShader(shader));
+
+		if (!pOutMtl->RegisterToGPU())
+			return false;
+
+		pOutMtl->GetShader()->SetDefaults(pOutMtl);
+
+		for (auto iter = textures.begin(); iter != textures.end(); ++iter)
+		{
+			pOutMtl->SetTexture2D((*iter).first, (*iter).second);
+		}
+
+		_materialCache[pOutMtl] = pMtl;
 		return true;
 	}
 }

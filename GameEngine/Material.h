@@ -105,6 +105,7 @@ namespace SunEngine
 		StrMap<MaterialSamplerData> _mtlSamplers;
 
 		StrMap<ShaderProp> _depthVariantProps;
+		usize _depthVariantDefineHash;
 		usize _depthVariantHash;
 
 		UniformBuffer _mtlBuffer;

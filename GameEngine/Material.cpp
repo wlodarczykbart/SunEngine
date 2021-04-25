@@ -31,6 +31,7 @@ namespace SunEngine
 	{
 		_shader = 0;
 		_depthVariantHash = 0;
+		_depthVariantDefineHash = 0;
 	}
 
 	Material::~Material()
@@ -70,6 +71,13 @@ namespace SunEngine
 		if (variant != Shader::Depth)
 		{
 			pShader->GetVariantProps(Shader::Depth, _depthVariantProps);
+
+			String strHash;
+			Vector<String> defines;
+			pShader->GetVariantDefines(Shader::Depth, defines);
+			for (const String& def : defines)
+				strHash += def;
+			_depthVariantDefineHash = std::hash<String>()(strHash);
 			UpdateDepthVariantHash();
 		}
 	}
@@ -289,7 +297,7 @@ namespace SunEngine
 
 	void Material::UpdateDepthVariantHash()
 	{
-		_depthVariantHash = 0;
+		_depthVariantHash = _depthVariantDefineHash;
 		for (auto& prop : _depthVariantProps)
 		{
 			usize keyHash = std::hash<String>()(prop.first);
