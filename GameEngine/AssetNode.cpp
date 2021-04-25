@@ -1,15 +1,10 @@
 #include "glm/gtx/quaternion.hpp"
+#include "glm/gtx/euler_angles.hpp"
 #include "AssetNode.h"
 
 namespace SunEngine
 {
-	const glm::vec3 g_BasisVectors[]
-	{
-		glm::vec3(1, 0, 0),
-		glm::vec3(0, 1, 0),
-		glm::vec3(0, 0, 1),
-	};
-
+	const glm::mat4 g_MtxIden = glm::mat4(1.0f);
 	/*
 		ORIENT_XYZ,
 		ORIENT_XZY,
@@ -124,10 +119,13 @@ namespace SunEngine
 			glm::mat4 mtx = glm::mat4(1.0f);
 			glm::vec3 anglesRad = glm::radians(Angles);
 			glm::ivec3 rotOrder = g_RotOrderTable[Mode];
-			mtx = glm::rotate(mtx, anglesRad[rotOrder.z], g_BasisVectors[rotOrder.z]);
-			mtx = glm::rotate(mtx, anglesRad[rotOrder.y], g_BasisVectors[rotOrder.y]);
-			mtx = glm::rotate(mtx, anglesRad[rotOrder.x], g_BasisVectors[rotOrder.x]);
-			return mtx;
+
+			glm::mat4 mtxTable[3];
+			mtxTable[0] = glm::eulerAngleX(anglesRad.x);
+			mtxTable[1] = glm::eulerAngleY(anglesRad.y);
+			mtxTable[2] = glm::eulerAngleZ(anglesRad.z);
+
+			return mtxTable[rotOrder.z] * mtxTable[rotOrder.y] * mtxTable[rotOrder.x];
 		}
 	}
 }

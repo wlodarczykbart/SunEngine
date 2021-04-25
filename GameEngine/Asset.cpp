@@ -43,13 +43,13 @@ namespace SunEngine
 		SceneNode* pRoot = pScene->AddNode(GetName());
 		SceneNode* pOldRoot = BuildSceneNode(GetRoot(), pRoot, pScene);
 
-		glm::vec3 delta = _aabb.Max - _aabb.Min;
-		if (!isinf(glm::length(delta)))
-		{
-			float maxAxis = -FLT_MAX;
-			maxAxis = glm::max(delta.x, glm::max(delta.y, glm::max(delta.z, maxAxis)));
-			pOldRoot->Scale *= 2.0f / maxAxis;
-		}
+		//glm::vec3 delta = _aabb.Max - _aabb.Min;
+		//if (!isinf(glm::length(delta)))
+		//{
+		//	float maxAxis = -FLT_MAX;
+		//	maxAxis = glm::max(delta.x, glm::max(delta.y, glm::max(delta.z, maxAxis)));
+		//	pOldRoot->Scale *= 2.0f / maxAxis;
+		//}
 
 		pRoot->Traverse([](SceneNode* pNode, void*) -> bool { pNode->Initialize(); return true; });
 		return pRoot;

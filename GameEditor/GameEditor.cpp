@@ -331,6 +331,11 @@ namespace SunEngine
 		//pScene->Initialize();
 		sceneMgr.SetActiveScene(pScene->GetName());
 
+
+		String strAsset = "F:/Models/FBX/_Animated_/teddy.fbx";
+		Asset* pAsset = ImportAsset(strAsset, SunEngine::AssetImporter::Options::Default);
+		pAsset->GetRoot()->Scale *= 0.01f;
+
 		return true;
 	}
 }

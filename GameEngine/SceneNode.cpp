@@ -2,7 +2,7 @@
 
 namespace SunEngine
 {
-	glm::mat4 g_MtxIden = glm::mat4(1.0f);
+	const glm::mat4 g_MtxIden = glm::mat4(1.0f);
 
 	SceneNode::SceneNode(Scene* pScene)
 	{
@@ -33,10 +33,19 @@ namespace SunEngine
 
 	void SceneNode::UpdateTransform()
 	{
+		if (this->GetName() == "teddyzsphere_unfold3d")
+		{
+			int ww = 5;
+			ww++;
+		}
+
 		_localMatrix = BuildLocalMatrix();
 
 		if (_parent)
-			_worldMatrix = GetParent()->GetWorld() * _localMatrix;
+		{
+			const glm::mat4& mtxParent = GetParent()->GetWorld();
+			_worldMatrix = mtxParent * _localMatrix;
+		}
 		else
 			_worldMatrix = _localMatrix;
 	}

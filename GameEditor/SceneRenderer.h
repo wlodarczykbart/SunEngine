@@ -120,7 +120,7 @@ namespace SunEngine
 		Vector<UniquePtr<DepthRenderData>> _depthPasses;
 
 		StrMap<String> _shaderVariantPipelineMap;
-		Vector<glm::mat4> _skinnedBoneMatrixBlock;
+		Vector<ShaderMat4> _skinnedBoneMatrixBlock;
 	};
 
 }

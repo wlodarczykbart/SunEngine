@@ -376,8 +376,9 @@ namespace SunEngine
 		bool canRender = pNode->CanRender();
 		uint nCameras = pNode->GetComponentCount(COMPONENT_CAMERA);
 		uint nLights = pNode->GetComponentCount(COMPONENT_LIGHT);
+		uint nAnim = pNode->GetComponentCount(COMPONENT_ANIMATOR);
 
-		if (!canRender && nCameras == 0 && nLights == 0) return;
+		if (!canRender && nCameras == 0 && nLights == 0 && nAnim == 0) return;
 
 		for (auto iter = pNode->BeginComponent(); iter != pNode->EndComponent(); ++iter)
 		{
@@ -394,6 +395,9 @@ namespace SunEngine
 				if (component->As<Light>()->GetLightType() == LT_DIRECTIONAL)
 					_currentSunlight = pNode->GetComponentData<LightComponentData>(component);
 			}
+			else if (type == COMPONENT_ANIMATOR)
+			{
+			}
 			else if (component->CanRender())
 			{
 				Component* pSMComponent = pNode->GetComponentOfType(COMPONENT_SKINNED_MESH);
@@ -408,12 +412,18 @@ namespace SunEngine
 					{
 						auto& boneData = pAnimatorData->GetBoneData();
 						for (uint i = 0; i < boneData.size(); i++)
-							_skinnedBoneMatrixBlock[i] = boneData[i]->GetNode()->GetWorld() * boneData[i]->C()->As<const AnimatedBone>()->GetSkinMatrix(pSkinnedMesh->GetSkinIndex());	//TODO check for correct order...
+						{
+							String name = boneData[i]->GetNode()->GetName();
+							glm::mat4 boneMtx = boneData[i]->GetNode()->GetWorld();
+							boneMtx = glm::inverse(pNode->GetWorld()) * boneMtx * boneData[i]->C()->As<const AnimatedBone>()->GetSkinMatrix(pSkinnedMesh->GetSkinIndex());	//TODO check for correct order...
+							_skinnedBoneMatrixBlock[i].Set(&boneMtx);
+						}
 					}
 					else
 					{
+						static glm::mat4 mtxIden(1.0f);
 						for (uint i = 0; i < pAnimatorData->GetBoneCount(); i++)
-							_skinnedBoneMatrixBlock[i] = glm::mat4(1.0f);
+							_skinnedBoneMatrixBlock[i].Set(&mtxIden);
 					}
 				}
 

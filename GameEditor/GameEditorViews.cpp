@@ -57,7 +57,7 @@ namespace SunEngine
 					SceneRayHit hit = {};
 					if (pScene->Raycast(glm::vec3(_camNode.GetWorld()[3]), glm::normalize(glm::vec3(rayDir)), hit))
 					{
-						spdlog::info("Hit: {}, pos: {},{},{}, norm: {},{},{}", hit.pHitNode->GetNode()->GetName(), hit.position.x, hit.position.y, hit.position.z, hit.normal.x, hit.normal.y, hit.normal.z);
+						//spdlog::info("Hit: {}, pos: {},{},{}, norm: {},{},{}", hit.pHitNode->GetNode()->GetName(), hit.position.x, hit.position.y, hit.position.z, hit.normal.x, hit.normal.y, hit.normal.z);
 					}
 
 					break;

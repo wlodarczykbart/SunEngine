@@ -111,6 +111,9 @@ namespace SunEngine
 						weights[b] = sortedBones[b].second / sum; //renormalize around 4 max weights
 					}
 
+					float sum1 = glm::dot(weights, glm::vec4(1.0f));
+					assert(glm::epsilonEqual(sum1, 1.0f, 0.00001f));
+
 					pMesh->SetVertexVar(i, bones, skinnedVertexDataStartAttrib + 1);
 					pMesh->SetVertexVar(i, weights, skinnedVertexDataStartAttrib + 2);
 				}
@@ -208,6 +211,10 @@ namespace SunEngine
 			glm::vec4 perspective;
 			if (glm::decompose(mtxLocal, pNode->Scale, pNode->Orientation.Quat, pNode->Position, skew, perspective))
 			{
+				//glm::mat4 rotMtx = glm::toMat4(pNode->Orientation.Quat);
+				//glm::extractEulerAngleXYZ(rotMtx, pNode->Orientation.Angles.x, pNode->Orientation.Angles.y, pNode->Orientation.Angles.z);
+				//pNode->Orientation.Angles = glm::degrees(pNode->Orientation.Angles);
+				//pNode->Orientation.Mode = ORIENT_XYZ;
 				pNode->Orientation.Quat = glm::conjugate(pNode->Orientation.Quat);
 				pNode->Orientation.Mode = ORIENT_QUAT;
 			}
