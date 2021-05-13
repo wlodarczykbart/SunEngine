@@ -18,9 +18,13 @@ namespace SunEngine
 		virtual bool Write(StreamBase& stream) override;
 		virtual bool Read(StreamBase& stream) override;
 
+		void SetUserDataPtr(void* pData) { _userData = pData; }
+		void* GetUserDataPtr() const { return _userData; }
+
 	private:
 		friend class ResourceMgr;
 
 		String _name;
+		void* _userData;
 	};
 }

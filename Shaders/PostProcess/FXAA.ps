@@ -23,33 +23,40 @@ SamplerState Sampler;
 
 float4 main(PS_In pIn) : SV_TARGET
 {
-	float2 fxaaQualityRcpFrame = InvScreenSize.xy;
-	float fxaaQualitySubpix = Settings.x;
-	float fxaaQualityEdgeThreshold = Settings.y;
-	float fxaaQualityEdgeThresholdMin = Settings.z;
-	
-	FxaaTex tex = { Sampler, DiffuseMap };
-	
-	float4 color = FxaaPixelShader(
-		pIn.texCoord,
-		FLOAT4_ZERO,
-		tex,
-		tex,
-		tex,
-		fxaaQualityRcpFrame,
-		FLOAT4_ZERO,
-		FLOAT4_ZERO,
-		FLOAT4_ZERO,
-		fxaaQualitySubpix,
-		fxaaQualityEdgeThreshold,
-		fxaaQualityEdgeThresholdMin,
-		0.0,
-		0.0,
-		0.0,
-		FLOAT4_ZERO
-	);
-	
-	return float4(color.rgb, 1.0);
+	if(Settings.w > 0.5)
+	{
+		float2 fxaaQualityRcpFrame = InvScreenSize.xy;
+		float fxaaQualitySubpix = Settings.x;
+		float fxaaQualityEdgeThreshold = Settings.y;
+		float fxaaQualityEdgeThresholdMin = Settings.z;
+		
+		FxaaTex tex = { Sampler, DiffuseMap };
+		
+		float4 color = FxaaPixelShader(
+			pIn.texCoord,
+			FLOAT4_ZERO,
+			tex,
+			tex,
+			tex,
+			fxaaQualityRcpFrame,
+			FLOAT4_ZERO,
+			FLOAT4_ZERO,
+			FLOAT4_ZERO,
+			fxaaQualitySubpix,
+			fxaaQualityEdgeThreshold,
+			fxaaQualityEdgeThresholdMin,
+			0.0,
+			0.0,
+			0.0,
+			FLOAT4_ZERO
+		);
+		
+		return float4(color.rgb, 1.0);
+	}
+	else
+	{
+		return float4(DiffuseMap.Sample(Sampler, pIn.texCoord).rgb, 1.0);
+	}
 }
 
 //FxaaFloat4 FxaaPixelShader(

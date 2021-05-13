@@ -239,7 +239,7 @@ namespace SunEngine
 		_pendingBoxTreeNodes.clear();
 
 		double elapsed = timer.Tick();
-		printf("%f\n", elapsed * 1000.0f);
+		//printf("%f\n", elapsed * 1000.0f);
 
 	}
 

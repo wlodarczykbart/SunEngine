@@ -6,6 +6,7 @@ Texture2D DiffuseMap;
 Texture2D SpecularMap;
 Texture2D NormalMap;
 Texture2D AOMap;
+Texture2D AlphaMap;
 SamplerState Sampler;
 
 cbuffer MaterialBuffer
@@ -38,6 +39,7 @@ PS_Out main(PS_In pIn)
 	float2 texCoord = pIn.texCoord.xy;
 
 	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * Diffuse;
+	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
 #ifdef ALPHA_TEST
 	if(diffuse.a < 0.5)
 		discard;

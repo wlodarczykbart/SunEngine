@@ -305,7 +305,9 @@ namespace SunEngine
 		{
 			auto& textures = mtl.second.second;
 			for (auto& tex : textures)
+			{
 				mtl.first->SetTexture2D(tex.first, tex.second);
+			}
 		}
 
 		if (pAnimator)
@@ -348,6 +350,8 @@ namespace SunEngine
 			else if (pMtl->BumpMap) importerTextures[MaterialStrings::NormalMap] = pMtl->BumpMap;
 
 			if (pMtl->AmbientMap) importerTextures[MaterialStrings::AmbientOcclusionMap] = pMtl->AmbientMap;
+
+			if (pMtl->TransparentMap) importerTextures[MaterialStrings::AlphaMap] = pMtl->TransparentMap;
 		}
 		else
 		{
@@ -361,12 +365,20 @@ namespace SunEngine
 
 			if (pMtl->NormalMap) importerTextures[MaterialStrings::NormalMap] = pMtl->NormalMap;
 			else if (pMtl->BumpMap) importerTextures[MaterialStrings::NormalMap] = pMtl->BumpMap;
+
+			if (pMtl->TransparentMap) importerTextures[MaterialStrings::AlphaMap] = pMtl->TransparentMap;
 		}
 
+		//TODO: need skinned/alpha test variant or assume it wont happen?
 		if (pMesh->MeshData->VertexBones.size())
 		{
 			if (shader == DefaultShaders::Metallic) shader = DefaultShaders::SkinnedMetallic;
 			else if (shader == DefaultShaders::Specular) shader = DefaultShaders::SkinnedSpecular;
+		}
+		else if (pMtl->TransparentMap)
+		{
+			if (shader == DefaultShaders::Metallic) shader = DefaultShaders::MetallicAlphaTest;
+			else if (shader == DefaultShaders::Specular) shader = DefaultShaders::SpecularAlphaTest;
 		}
 
 		for (auto& cached : _materialCache)

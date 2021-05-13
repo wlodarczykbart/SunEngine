@@ -4,6 +4,7 @@ namespace SunEngine
 {
     Resource::Resource()
     {
+        _userData = 0;
     }
 
     Resource::~Resource()

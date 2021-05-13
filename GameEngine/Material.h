@@ -25,6 +25,7 @@ namespace SunEngine
 		static const String Sampler;
 		static const String PositionMap;
 		static const String DepthMap;
+		static const String AlphaMap;
 	};
 
 	class Material : public GPUResource<ShaderBindings>

@@ -91,7 +91,7 @@ namespace SunEngine
 
 		glm::mat4 fxaaData;
 		fxaaData[0] = invScreenSize;
-		fxaaData[1] = glm::vec4(_settings.fxaa.subpixel, _settings.fxaa.edgeThreshold, _settings.fxaa.edgeThresholdMin, 0.0f);
+		fxaaData[1] = glm::vec4(_settings.fxaa.subpixel, _settings.fxaa.edgeThreshold, _settings.fxaa.edgeThresholdMin, _settings.fxaa.enabled ? 1.0f : 0.0f);
 		bufferData[_fxaaData.bufferIndex] = fxaaData;
 		IShaderBindingsBindState bufferBindState = {};
 		bufferBindState.DynamicIndices[0].first = ShaderStrings::MaterialBufferName;

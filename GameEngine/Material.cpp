@@ -26,6 +26,7 @@ namespace SunEngine
 	DefineStaticStr(MaterialStrings, Sampler);
 	DefineStaticStr(MaterialStrings, PositionMap);
 	DefineStaticStr(MaterialStrings, DepthMap);
+	DefineStaticStr(MaterialStrings, AlphaMap);
 
 	Material::Material()
 	{
