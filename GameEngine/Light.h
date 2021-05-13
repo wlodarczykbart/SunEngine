@@ -34,6 +34,7 @@ namespace SunEngine
 		void SetColor(const glm::vec4& color) { _color = color; }
 		const glm::vec4& GetColor() const { return _color; }
 
+		void Initialize(SceneNode* pNode, ComponentData* pData) override;
 		void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override;
 
 	private:

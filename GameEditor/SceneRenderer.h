@@ -94,8 +94,7 @@ namespace SunEngine
 			Viewport Viewport;
 		};
 
-		static void TraverseFunc(SceneNode* data, void* pUserData);
-		void ProcessNode(SceneNode* pNode);
+		void ProcessRenderNode(RenderNode* pNode);
 		void ProcessRenderQueue(CommandBuffer* cmdBuffer, Queue<RenderNodeData>& queue, uint cameraUpdateIndex);
 		bool GetPipeline(RenderNodeData& node);
 		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;

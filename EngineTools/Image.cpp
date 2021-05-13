@@ -4,7 +4,11 @@
 #define STB_DXT_IMPLEMENTATION
 #include "stb_dxt.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #include "FileBase.h"
+#include "StringUtil.h"
 
 #include "Image.h"
 
@@ -150,6 +154,9 @@ namespace SunEngine
 
 	bool Image::Resize(uint width, uint height)
 	{
+		if (width == _width && height == _height)
+			return true;
+
 		return CreateFrom(ImageData(), width, height);
 	}
 
@@ -271,6 +278,22 @@ namespace SunEngine
 
 		fw.Close();
 		return true;
+	}
+
+	bool Image::Save(const String& filename)
+	{
+		String ext = StrToLower(GetExtension(filename));
+
+		if (ext == "png")
+			return stbi_write_png(filename.c_str(), _width, _height, STBI_rgb_alpha, _pixels, _width * STBI_rgb_alpha) != 0;
+		else if (ext == "jpg")
+			return stbi_write_jpg(filename.c_str(), _width, _height, STBI_rgb_alpha, _pixels, 100) != 0;
+		else if (ext == "tga")
+			return stbi_write_tga(filename.c_str(), _width, _height, STBI_rgb_alpha, _pixels) != 0;
+		else if (ext == "bmp")
+			return stbi_write_bmp(filename.c_str(), _width, _height, STBI_rgb_alpha, _pixels) != 0;
+		else
+			return false;
 	}
 
 	void Image::CleanUp()

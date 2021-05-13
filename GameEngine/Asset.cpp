@@ -38,27 +38,42 @@ namespace SunEngine
 		}
 	}
 
-	SceneNode* Asset::CreateSceneNode(Scene* pScene) const
+	SceneNode* Asset::CreateSceneNode(Scene* pScene, float assetScale) const
 	{
-		SceneNode* pRoot = pScene->AddNode(GetName());
-		SceneNode* pOldRoot = BuildSceneNode(GetRoot(), pRoot, pScene);
+		//SceneNode* pRoot = pScene->AddNode(GetName());
+		AssetNode* pAssetNode = BuildSceneNode(GetRoot(), 0, pScene);
 
-		//glm::vec3 delta = _aabb.Max - _aabb.Min;
-		//if (!isinf(glm::length(delta)))
-		//{
-		//	float maxAxis = -FLT_MAX;
-		//	maxAxis = glm::max(delta.x, glm::max(delta.y, glm::max(delta.z, maxAxis)));
-		//	pOldRoot->Scale *= 2.0f / maxAxis;
-		//}
+		if (assetScale != 0.0f)
+		{
+			AABB bounds;
+			if (ComputeBoundingVolume(bounds))
+			{
+				glm::vec3 delta = bounds.Max - bounds.Min;
+				if (!isinf(glm::length(delta)))
+				{
+					float maxAxis = -FLT_MAX;
+					maxAxis = glm::max(delta.x, glm::max(delta.y, glm::max(delta.z, maxAxis)));
 
-		pRoot->Traverse([](SceneNode* pNode, void*) -> bool { pNode->Initialize(); return true; });
-		return pRoot;
+					AssetNode* pScaleNode = pScene->AddNode("ScaleNode");
+					auto childList = pAssetNode->_children;
+					for (AssetNode* child : childList)
+						child->ReParent(pScaleNode);
+					pScaleNode->Scale = glm::vec3(assetScale / maxAxis);
+					pScaleNode->ReParent(pAssetNode);
+				}
+			}
+		}
+
+		SceneNode* pSceneNode = static_cast<SceneNode*>(pAssetNode);
+		pSceneNode->Traverse([](SceneNode* pNode, void*) -> bool { pNode->Initialize(); return true; });
+		return pSceneNode;
 	}
 
 	SceneNode* Asset::BuildSceneNode(AssetNode* pCurrNode, AssetNode* pCurrParent, Scene* pScene) const
 	{
-		SceneNode* pNode = pScene->AddNode(pCurrNode->_name);
-		pNode->ReParent(pCurrParent);
+		SceneNode* pNode = pScene->AddNode(pCurrParent ? pCurrNode->_name : GetName());
+		if(pCurrParent)
+			pNode->ReParent(pCurrParent);
 		
 		pNode->Position = pCurrNode->Position;
 		pNode->Scale = pCurrNode->Scale;
@@ -80,9 +95,10 @@ namespace SunEngine
 		return pNode;
 	}
 
-	void Asset::UpdateBoundingVolume()
+	bool Asset::ComputeBoundingVolume(AABB& aabb) const
 	{
-		_aabb.Reset();
+		bool expanded = false;
+		aabb.Reset();
 		for (uint i = 0; i < _nodes.size(); i++)
 		{
 			AssetNode* pNode = _nodes[i].get();
@@ -92,8 +108,11 @@ namespace SunEngine
 			{
 				AABB box = meshRenderers[j]->GetMesh()->GetAABB();
 				box.Transform(mtx);
-				_aabb.Expand(box);
+				aabb.Expand(box);
+				expanded = true;
 			}
 		}
+
+		return expanded;
 	}
 }

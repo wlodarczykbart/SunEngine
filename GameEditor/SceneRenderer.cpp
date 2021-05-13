@@ -12,6 +12,7 @@
 #include "ShaderMgr.h"
 #include "ResourceMgr.h"
 #include "SceneRenderer.h"
+#include "StringUtil.h"
 #include "Animation.h"
 
 #include <DirectXMath.h>
@@ -105,7 +106,23 @@ namespace SunEngine
 		_currentCamera = pCamera;
 		_currentSunlight = 0;
 
-		pScene->Traverse(TraverseFunc, this);
+		if (_currentCamera == 0)
+		{
+			auto& list = pScene->GetCameraList();
+			_currentCamera = list.size() ? *list.begin() : 0;
+		}
+
+		auto& lightList = pScene->GetLightList();
+		for (auto& light : lightList)
+		{
+			const Light* pLight = light->C()->As<Light>();
+			if (pLight->GetLightType() == LT_DIRECTIONAL)
+				_currentSunlight = light;
+		}
+
+		pScene->TraverseRenderNodes(
+			[](const AABB& aabb, void* pAABBData) -> bool { return static_cast<CameraComponentData*>(pAABBData)->FrustumIntersects(aabb); }, _currentCamera, 
+			[](RenderNode* pNode, void* pNodeData) -> void { static_cast<SceneRenderer*>(pNodeData)->ProcessRenderNode(pNode); }, this);
 
 		//push current udpates to buffer
 		_objectBufferGroup.Flush();
@@ -366,137 +383,106 @@ namespace SunEngine
 		return true;
 	}
 
-	void SceneRenderer::TraverseFunc(SceneNode* pNode, void* pUserData)
+	void SceneRenderer::ProcessRenderNode(RenderNode* pNode)
 	{
-		static_cast<SceneRenderer*>(pUserData)->ProcessNode(pNode);
-	}
+		Material* pMaterial = pNode->GetMaterial();
+		bool isValid = pMaterial && pMaterial->GetShader() && pNode->GetMesh();
+		
 
-	void SceneRenderer::ProcessNode(SceneNode* pNode)
-	{
-		bool canRender = pNode->CanRender();
-		uint nCameras = pNode->GetComponentCount(COMPONENT_CAMERA);
-		uint nLights = pNode->GetComponentCount(COMPONENT_LIGHT);
-		uint nAnim = pNode->GetComponentCount(COMPONENT_ANIMATOR);
+		if (!isValid)
+			return;
 
-		if (!canRender && nCameras == 0 && nLights == 0 && nAnim == 0) return;
-
-		for (auto iter = pNode->BeginComponent(); iter != pNode->EndComponent(); ++iter)
+		SceneNode* pSceneNode = pNode->GetNode();
+		//if (!StrContains(pSceneNode->GetName(), "Frustum"))
 		{
-			Component* component = (*iter);
+			if (!_currentCamera->FrustumIntersects(pNode->GetWorldAABB()))
+				return;
+		}
 
-			ComponentType type = component->GetType();
-			if(_currentCamera == 0 && type == COMPONENT_CAMERA)
+		Component* pSMComponent = pSceneNode->GetComponentOfType(COMPONENT_SKINNED_MESH);
+		SkinnedMesh* pSkinnedMesh = 0;
+		if (pSMComponent)
+		{
+			pSkinnedMesh = pSMComponent->As<SkinnedMesh>();
+			SkinnedMeshComponentData* pSkinnedData = pSceneNode->GetComponentData<SkinnedMeshComponentData>(pSMComponent);
+			AnimatorComponentData* pAnimatorData = pSkinnedData->GetAnimatorData();
+
+			if (pAnimatorData->GetPlaying())
 			{
-				if (component->As<Camera>()->GetRenderToWindow())
-					_currentCamera = pNode->GetComponentData<CameraComponentData>(component);
-			}
-			else if (_currentSunlight == 0 && type == COMPONENT_LIGHT)
-			{
-				if (component->As<Light>()->GetLightType() == LT_DIRECTIONAL)
-					_currentSunlight = pNode->GetComponentData<LightComponentData>(component);
-			}
-			else if (type == COMPONENT_ANIMATOR)
-			{
-			}
-			else if (component->CanRender())
-			{
-				Component* pSMComponent = pNode->GetComponentOfType(COMPONENT_SKINNED_MESH);
-				SkinnedMesh* pSkinnedMesh = 0;
-				if (pSMComponent)
+				auto& boneData = pAnimatorData->GetBoneData();
+				for (uint i = 0; i < boneData.size(); i++)
 				{
-					pSkinnedMesh = pSMComponent->As<SkinnedMesh>();
-					SkinnedMeshComponentData* pSkinnedData = pNode->GetComponentData<SkinnedMeshComponentData>(pSMComponent);
-					AnimatorComponentData* pAnimatorData = pSkinnedData->GetAnimatorData();
+					String name = boneData[i]->GetNode()->GetName();
+					glm::mat4 boneMtx = boneData[i]->GetNode()->GetWorld();
+					boneMtx = glm::inverse(pNode->GetWorld()) * boneMtx * boneData[i]->C()->As<const AnimatedBone>()->GetSkinMatrix(pSkinnedMesh->GetSkinIndex());	//TODO check for correct order...
+					_skinnedBoneMatrixBlock[i].Set(&boneMtx);
+				}
+			}
+			else
+			{
+				static glm::mat4 mtxIden(1.0f);
+				for (uint i = 0; i < pAnimatorData->GetBoneCount(); i++)
+					_skinnedBoneMatrixBlock[i].Set(&mtxIden);
+			}
+		}
 
-					if (pAnimatorData->GetPlaying())
-					{
-						auto& boneData = pAnimatorData->GetBoneData();
-						for (uint i = 0; i < boneData.size(); i++)
-						{
-							String name = boneData[i]->GetNode()->GetName();
-							glm::mat4 boneMtx = boneData[i]->GetNode()->GetWorld();
-							boneMtx = glm::inverse(pNode->GetWorld()) * boneMtx * boneData[i]->C()->As<const AnimatedBone>()->GetSkinMatrix(pSkinnedMesh->GetSkinIndex());	//TODO check for correct order...
-							_skinnedBoneMatrixBlock[i].Set(&boneMtx);
-						}
-					}
-					else
-					{
-						static glm::mat4 mtxIden(1.0f);
-						for (uint i = 0; i < pAnimatorData->GetBoneCount(); i++)
-							_skinnedBoneMatrixBlock[i].Set(&mtxIden);
-					}
+		RenderNodeData data = {};
+		data.SceneNode = pSceneNode;
+		data.RenderNode = pNode;
+		GetPipeline(data);
+
+		BaseShader* pShader = pMaterial->GetShaderVariant();
+
+		ObjectBufferData objBuffer = {};
+		glm::mat4 itp = glm::transpose(glm::inverse(pNode->GetWorld()));
+		objBuffer.WorldMatrix.Set(&pNode->GetWorld());
+		objBuffer.InverseTransposeMatrix.Set(&itp);
+
+		_objectBufferGroup.Update(&objBuffer, data.ObjectBufferIndex, &data.ObjectBindings, pShader);
+
+		if (pSkinnedMesh)
+			_skinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), data.SkinnedBoneBufferIndex, &data.SkinnedBoneBindings, pShader);
+
+		_currentShaders.insert(pShader);
+
+		if (pMaterial->GetVariant() == Shader::Default)
+		{
+			//TODO: add logic to place these in either opaque or sorted based on the render node properties
+			_sortedRenderQueue.push(data);
+		}
+		else if (pMaterial->GetVariant() == Shader::GBuffer)
+		{
+			_gbufferRenderQueue.push(data);
+		}
+
+		if (EngineInfo::GetRenderer().ShadowsEnabled())
+		{
+			BaseShader* pDepthShader = pMaterial->GetShader()->GetVariant(Shader::Depth);
+			if (pDepthShader)
+			{
+				usize depthHash = data.RenderNode->GetMaterial()->GetDepthVariantHash();
+				auto pDepthMaterial = _depthMaterials[depthHash].get();
+				if (pDepthMaterial == 0)
+				{
+					pDepthMaterial = new Material();
+					pMaterial->CreateDepthMaterial(pDepthMaterial);
+					_depthMaterials[depthHash] = UniquePtr<Material>(pDepthMaterial);
 				}
 
-				RenderComponentData* pRenderData = pNode->GetComponentData<RenderComponentData>(component);
-				for (auto renderIter = pRenderData->BeginNode(); renderIter != pRenderData->EndNode(); ++renderIter)
+				for (uint i = 0; i < _depthPasses.size(); i++)
 				{
-					const RenderNode& renderNode = *(renderIter);
-					Material* pMaterial = renderNode.GetMaterial();
-					bool isValid = pMaterial && pMaterial->GetShader() && renderNode.GetMesh();
+					RenderNodeData depthData = data;
+					depthData.MaterialOverride = pDepthMaterial;
+					GetPipeline(depthData);
+					_depthPasses[i]->ObjectBufferGroup.Update(&objBuffer, depthData.ObjectBufferIndex, &depthData.ObjectBindings, pDepthShader);
 
-					if (isValid)
-					{
-						RenderNodeData data = {};
-						data.SceneNode = pNode;
-						data.RenderNode = &renderNode;
-						GetPipeline(data);
+					if (pSkinnedMesh)
+						_depthPasses[i]->SkinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), depthData.SkinnedBoneBufferIndex, &depthData.SkinnedBoneBindings, pDepthShader);
 
-						BaseShader* pShader = pMaterial->GetShaderVariant();
-
-						ObjectBufferData objBuffer = {};
-						glm::mat4 itp = glm::transpose(glm::inverse(renderNode.GetWorld()));
-						objBuffer.WorldMatrix.Set(&renderNode.GetWorld());
-						objBuffer.InverseTransposeMatrix.Set(&itp);
-
-						_objectBufferGroup.Update(&objBuffer, data.ObjectBufferIndex, &data.ObjectBindings, pShader);
-
-						if(pSkinnedMesh)
-							_skinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), data.SkinnedBoneBufferIndex, &data.SkinnedBoneBindings, pShader);
-
-						_currentShaders.insert(pShader);
-
-						if (pMaterial->GetVariant() == Shader::Default)
-						{
-							//TODO: add logic to place these in either opaque or sorted based on the render node properties
-							_sortedRenderQueue.push(data);
-						}
-						else if (pMaterial->GetVariant() == Shader::GBuffer)
-						{
-							_gbufferRenderQueue.push(data);
-						}
-
-						if (EngineInfo::GetRenderer().ShadowsEnabled())
-						{
-							BaseShader* pDepthShader = pMaterial->GetShader()->GetVariant(Shader::Depth);
-							if (pDepthShader)
-							{
-								usize depthHash = data.RenderNode->GetMaterial()->GetDepthVariantHash();
-								auto pDepthMaterial = _depthMaterials[depthHash].get();
-								if (pDepthMaterial == 0)
-								{
-									pDepthMaterial = new Material();
-									pMaterial->CreateDepthMaterial(pDepthMaterial);
-									_depthMaterials[depthHash] = UniquePtr<Material>(pDepthMaterial);
-								}
-								
-								for (uint i = 0; i < _depthPasses.size(); i++)
-								{
-									RenderNodeData depthData = data;
-									depthData.MaterialOverride = pDepthMaterial;
-									GetPipeline(depthData);
-									_depthPasses[i]->ObjectBufferGroup.Update(&objBuffer, depthData.ObjectBufferIndex, &depthData.ObjectBindings, pDepthShader);
-
-									if (pSkinnedMesh)
-										_depthPasses[i]->SkinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), depthData.SkinnedBoneBufferIndex, &depthData.SkinnedBoneBindings, pDepthShader);
-
-									_depthPasses[i]->RenderQueue.push(depthData);
-								}
-
-								_currentShaders.insert(pDepthShader);
-							}
-						}
-					}
+					_depthPasses[i]->RenderQueue.push(depthData);
 				}
+
+				_currentShaders.insert(pDepthShader);
 			}
 		}
 	}

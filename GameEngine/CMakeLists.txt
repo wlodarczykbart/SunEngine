@@ -45,6 +45,10 @@ FilePathMgr.h
 FilePathMgr.cpp
 Animation.h
 Animation.cpp
+SpatialVolumes.h
+SpatialVolumes.cpp
+ThreadPool.h
+ThreadPool.cpp
 )
 
 target_include_directories(GameEngine PUBLIC 

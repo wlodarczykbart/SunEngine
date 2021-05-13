@@ -32,6 +32,7 @@ namespace SunEngine
 
 		void AddView(View* pView);
 	private:
+		bool CreateTextureCopyData(View* pGraphicsWindowView);
 
 		void Update();
 		void Render();
@@ -46,5 +47,9 @@ namespace SunEngine
 		UniquePtr<GUIRenderer> _guiRenderer;
 
 		StrMap<UniquePtr<View>> _views;
+
+		BaseShader _shader;
+		GraphicsPipeline _pipeline;
+		ShaderBindings _bindings;
 	};
 }

@@ -19,15 +19,12 @@ namespace SunEngine
 
 		bool SetParent(const String& child, const String& parent);
 
-		SceneNode* CreateSceneNode(Scene* pScene) const;
+		SceneNode* CreateSceneNode(Scene* pScene, float assetScale = 0.0f) const;
 
-		void UpdateBoundingVolume();
-
-		const AABB& GetAABB() const { return _aabb; }
+		bool ComputeBoundingVolume(AABB& aabb) const;
 	private:
 		SceneNode* BuildSceneNode(AssetNode* pCurrNode, AssetNode* pCurrParent, Scene* pScene) const;
 
 		Vector<UniquePtr<AssetNode>> _nodes;
-		AABB _aabb;
 	};
 }

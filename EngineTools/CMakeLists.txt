@@ -2,6 +2,7 @@ add_library(EngineTools
 ${CMAKE_SOURCE_DIR}/External/stb/stb_image.h
 ${CMAKE_SOURCE_DIR}/External/stb/stb_truetype.h
 ${CMAKE_SOURCE_DIR}/External/stb/stb_dxt.h
+${CMAKE_SOURCE_DIR}/External/stb/stb_image_write.h
 ${CMAKE_SOURCE_DIR}/External/FastNoise/FastNoise.h
 ${CMAKE_SOURCE_DIR}/External/FastNoise/FastNoise.cpp
 FileBase.h

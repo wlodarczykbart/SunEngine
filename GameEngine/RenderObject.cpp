@@ -15,47 +15,72 @@ namespace SunEngine
 
 	}
 
+	void RenderObject::Update(SceneNode* pNode, ComponentData* pData, float dt, float et)
+	{
+		RenderComponentData* pRenderData = pData->As<RenderComponentData>();
+		for (RenderNode& node : pRenderData->_renderNodes)
+		{
+			UpdateRenderNode(node, pRenderData);
+		}
+	}
+
 	void RenderObject::Initialize(SceneNode* pNode, ComponentData* pData)
 	{
 		Scene* pScene = pNode->GetScene();
-		RenderComponentData* pRenderData = static_cast<RenderComponentData*>(pData);
+		RenderComponentData* pRenderData = pData->As<RenderComponentData>();
 
-		for (auto& node : pRenderData->_renderNodes)
+		for (RenderNode& node : pRenderData->_renderNodes)
 		{
+			UpdateRenderNode(node, pRenderData);
 			pScene->RegisterRenderNode(&node);
 		}
 	}
 
-	RenderNode* RenderObject::CreateRenderNode(RenderComponentData* pData, Mesh* pMesh, Material* pMaterial, const AABB& aabb, const Sphere& sphere, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset)
+	RenderNode* RenderObject::CreateRenderNode(RenderComponentData* pData)
 	{
-		pData->_renderNodes.push_back(RenderNode(pData->GetNode(), this, pMesh, pMaterial, aabb, sphere, indexCount, instanceCount, firstIndex, vertexOffset));
+		pData->_renderNodes.push_back(RenderNode(pData->GetNode(), this));
 		return &pData->_renderNodes.back();
 	}
 
-	//RenderNode::RenderNode()
-	//{
-	//	_renderObject = 0;
-	//	_mesh = 0;
-	//	_material = 0;
-	//	_indexCount = 0;
-	//	_instanceCount = 0;
-	//	_vertexOffset = 0;
-	//	_firstIndex = 0;
-	//}
+	void RenderObject::UpdateRenderNode(RenderNode& node, RenderComponentData* pRenderData)
+	{
+		const glm::mat4* pMtx = NULL;
+		const AABB* pAABB = NULL;
+		RequestData(&node, pRenderData, node._mesh, node._material, pMtx, pAABB, node._indexCount, node._instanceCount, node._firstIndex, node._vertexOffset);
 
-	RenderNode::RenderNode(SceneNode* pNode, RenderObject* pObject, Mesh* pMesh, Material* pMaterial, const AABB& aabb, const Sphere& sphere, uint idxCount, uint instanceCount, uint firstIdx, uint vtxOffset)
+		bool matrixChanged = node._worldMatrix != *pMtx;
+		bool aabbChanged = node._aabb != *pAABB;
+
+		if (matrixChanged)
+		{
+			node._worldMatrix = *pMtx;
+			node._invWorldMatrix = glm::inverse(node._worldMatrix);
+		}
+
+		if(aabbChanged)
+			node._aabb = *pAABB;
+
+		if (matrixChanged || aabbChanged)
+		{
+			node._worldAABB = node._aabb;
+			node._worldAABB.Transform(node._worldMatrix);
+		}
+	}
+
+	RenderNode::RenderNode(SceneNode* pNode, RenderObject* pObject)
 	{
 		_node = pNode;
 		_renderObject = pObject;
-		_mesh = pMesh;
-		_material = pMaterial;
-		_indexCount = idxCount;
-		_instanceCount = instanceCount;
-		_firstIndex = firstIdx;
-		_vertexOffset = vtxOffset;
-		_aabb = aabb;
-		_sphere = sphere;
-		_worldMatrix = glm::mat4(1.0);
+		_mesh = 0;
+		_material = 0;
+		_indexCount = 0;
+		_instanceCount = 0;
+		_firstIndex = 0;
+		_vertexOffset = 0;
+		_aabb.Reset();
+		_worldAABB.Reset();
+		_worldMatrix = glm::mat4(1.0f);
+		_invWorldMatrix = glm::mat4(1.0f);
 	}
 
 	RenderNode::~RenderNode()

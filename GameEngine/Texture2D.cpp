@@ -49,22 +49,24 @@ namespace SunEngine
 		return true;
 	}
 
-	bool Texture2D::LoadFromFile(const String& filename)
+	bool Texture2D::LoadFromFile()
 	{
-		if (!_img.Load(filename))
+		if (_filename.empty())
 			return false;
 
-		_filename = filename;
+		if (!_img.Load(_filename))
+			return false;
+
 		return true;
 	}
 
-	bool Texture2D::GenerateMips()
+	bool Texture2D::GenerateMips(bool threaded)
 	{
 		if (_mips.size())
 			return true;
 
 		MipMapGenerator mipGen;
-		if (!mipGen.Create(_img.ImageData()))
+		if (!mipGen.Create(_img.ImageData(), threaded))
 			return false;
 
 		//Pixel Test[] =

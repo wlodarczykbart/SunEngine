@@ -95,10 +95,10 @@ namespace SunEngine
 
 		_cascadeShadowMapResolution = configSection->GetInt("CascadeShadowMapResolution", 2048);
 		
-		_maxSkinnedBoneMatrices = configSection->GetInt("MaxSkinnedBoneMatrices", 64);
+		_maxSkinnedBoneMatrices = configSection->GetInt("MaxSkinnedBoneMatrices", 128);
 		_maxTextureTransforms = configSection->GetInt("MaxTextureTransforms", 32);
 		_maxShadowCascadeSplits = configSection->GetInt("MaxShadowCascadeSplits", 1);
 
-		_shadowsEnabled = configSection->GetInt("Shadows", 1) == 1;
+		_shadowsEnabled = configSection->GetBool("Shadows", true);
 	}
 }

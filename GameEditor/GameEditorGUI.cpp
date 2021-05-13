@@ -6,6 +6,7 @@
 #include "GameEditor.h"
 #include "ResourceMgr.h"
 #include "AssetImporter.h"
+#include "GameEditorViews.h"
 #include "GameEditorGUI.h"
 
 //#define TEST_IMGUI_BASIC
@@ -24,6 +25,15 @@ namespace SunEngine
 	{
 	}
 
+	void GameEditorGUI::RegisterSceneView(View* pView)
+	{
+		_viewRenderInfos[pView] = 
+		{
+			&GameEditorGUI::RenderSceneViewMenu,
+			&GameEditorGUI::RenderSceneViewWindows
+		};
+	}
+
 	void GameEditorGUI::CustomRender()
 	{
 		GameEditor* pEditor = static_cast<GameEditor*>(GetEditor());
@@ -32,6 +42,7 @@ namespace SunEngine
 		RenderMaterials(pEditor);
 		RenderMaterialTexturePicker(pEditor);
 		RenderAssetImporter(pEditor);
+		RenderViewWindows(pEditor);
 	}
 
 	void GameEditorGUI::RenderMenu(GameEditor* pEditor)
@@ -96,29 +107,20 @@ namespace SunEngine
 				for (uint i = 0; i < pEditor->GetViews(views); i++)
 				{
 					View* pView = views[i];
-					if (ImGui::BeginMenu(pView->GetName().c_str()))
+					auto funcs = _viewRenderInfos.find(pView);
+					if (funcs != _viewRenderInfos.end() && (*funcs).second.MenuFunc)
 					{
-						if (ImGui::MenuItem("ClearColor")) pSelView = pView;
-						ImGui::EndMenu();
+						if (ImGui::BeginMenu(pView->GetName().c_str()))
+						{
+							ViewRenderFunc func = (*funcs).second.MenuFunc;
+							(this->*func)(pView, pEditor);
+							ImGui::EndMenu();
+						}
 					}
 				}
 				ImGui::EndMenu();
 			}
-
 			ImGui::EndMainMenuBar();
-		}
-
-		if (pSelView)
-		{
-			//RenderTargetData& data = (*clearColIter).second;
-			//if (ImGui::Begin("ViewClearColor"))
-			//{
-			//	float cc[4];
-			//	data.pTarget->GetClearColor(cc[0], cc[1], cc[2], cc[3]);
-			//	ImGui::ColorEdit3("ViewClearColor", cc);
-			//	data.pTarget->SetClearColor(cc[0], cc[1], cc[2], cc[3]);
-			//	ImGui::End();
-			//}
 		}
 	}
 
@@ -347,6 +349,47 @@ namespace SunEngine
 					state = false;
 			}
 
+			ImGui::End();
+		}
+	}
+
+	void GameEditorGUI::RenderViewWindows(GameEditor* pEditor)
+	{
+		Vector<View*> views;
+		for (uint i = 0; i < pEditor->GetViews(views); i++)
+		{
+			View* pView = views[i];
+			auto funcs = _viewRenderInfos.find(pView);
+			if (funcs != _viewRenderInfos.end() && (*funcs).second.WindowsFunc)
+			{
+				ViewRenderFunc func = (*funcs).second.WindowsFunc;
+				(this->*func)(pView, pEditor);
+			}
+		}
+	}
+
+	void GameEditorGUI::RenderSceneViewMenu(View* pBaseView, GameEditor* pEditor)
+	{
+		SceneView* pView = static_cast<SceneView*>(pBaseView);
+		auto& settings = pView->GetSettings();
+		if (ImGui::MenuItem("FXAA Settings"))
+		{
+			settings.gui.showFXAA = true;
+		}
+	}
+
+	void GameEditorGUI::RenderSceneViewWindows(View* pBaseView, GameEditor* pEditor)
+	{
+		SceneView* pView = static_cast<SceneView*>(pBaseView);
+		auto& settings = pView->GetSettings();
+
+		bool& showFXAA = settings.gui.showFXAA;
+		if (showFXAA && ImGui::Begin("FXAA", &showFXAA))
+		{
+			ImGui::Checkbox("Enabled", &settings.fxaa.enabled);
+			ImGui::DragFloat("Subpixel", &settings.fxaa.subpixel, 0.005f, 0.0f, 1.0f);
+			ImGui::DragFloat("EdgeThreshold", &settings.fxaa.edgeThreshold, 0.0025f, 0.0f, 0.5f);
+			ImGui::DragFloat("EdgeThresholdMin", &settings.fxaa.edgeThresholdMin, 0.001f, 0.0f, 0.1f);
 			ImGui::End();
 		}
 	}

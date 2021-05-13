@@ -1,0 +1,120 @@
+#define FXAA_PC 1
+#define FXAA_HLSL_5 1
+#define FXAA_QUALITY__PRESET 12
+
+#include "PostProcess/Fxaa3_11.h"
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+static const float4 FLOAT4_ZERO = float4(0,0,0,0);
+
+cbuffer MaterialBuffer
+{
+	float4 InvScreenSize;
+	float4 Settings;
+}
+
+Texture2D DiffuseMap;
+SamplerState Sampler;
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float2 fxaaQualityRcpFrame = InvScreenSize.xy;
+	float fxaaQualitySubpix = Settings.x;
+	float fxaaQualityEdgeThreshold = Settings.y;
+	float fxaaQualityEdgeThresholdMin = Settings.z;
+	
+	FxaaTex tex = { Sampler, DiffuseMap };
+	
+	float4 color = FxaaPixelShader(
+		pIn.texCoord,
+		FLOAT4_ZERO,
+		tex,
+		tex,
+		tex,
+		fxaaQualityRcpFrame,
+		FLOAT4_ZERO,
+		FLOAT4_ZERO,
+		FLOAT4_ZERO,
+		fxaaQualitySubpix,
+		fxaaQualityEdgeThreshold,
+		fxaaQualityEdgeThresholdMin,
+		0.0,
+		0.0,
+		0.0,
+		FLOAT4_ZERO
+	);
+	
+	return float4(color.rgb, 1.0);
+}
+
+//FxaaFloat4 FxaaPixelShader(
+//    //
+//    // Use noperspective interpolation here (turn off perspective interpolation).
+//    // {xy} = center of pixel
+//    FxaaFloat2 pos,
+//    FxaaFloat4 fxaaConsolePosPos,
+//    //
+//    // Input color texture.
+//    // {rgb_} = color in linear or perceptual color space
+//    // if (FXAA_GREEN_AS_LUMA == 0)
+//    //     {___a} = luma in perceptual color space (not linear)
+//    FxaaTex tex,
+//    FxaaTex fxaaConsole360TexExpBiasNegOne,
+//    FxaaTex fxaaConsole360TexExpBiasNegTwo,
+//    //
+//    // Only used on FXAA Quality.
+//    // This must be from a constant/uniform.
+//    // {x_} = 1.0/screenWidthInPixels
+//    // {_y} = 1.0/screenHeightInPixels
+//    FxaaFloat2 fxaaQualityRcpFrame,
+//    FxaaFloat4 fxaaConsoleRcpFrameOpt,
+//    FxaaFloat4 fxaaConsoleRcpFrameOpt2,
+//    FxaaFloat4 fxaaConsole360RcpFrameOpt2,
+//    //
+//    // Only used on FXAA Quality.
+//    // This used to be the FXAA_QUALITY__SUBPIX define.
+//    // It is here now to allow easier tuning.
+//    // Choose the amount of sub-pixel aliasing removal.
+//    // This can effect sharpness.
+//    //   1.00 - upper limit (softer)
+//    //   0.75 - default amount of filtering
+//    //   0.50 - lower limit (sharper, less sub-pixel aliasing removal)
+//    //   0.25 - almost off
+//    //   0.00 - completely off
+//    FxaaFloat fxaaQualitySubpix,
+//    //
+//    // Only used on FXAA Quality.
+//    // This used to be the FXAA_QUALITY__EDGE_THRESHOLD define.
+//    // It is here now to allow easier tuning.
+//    // The minimum amount of local contrast required to apply algorithm.
+//    //   0.333 - too little (faster)
+//    //   0.250 - low quality
+//    //   0.166 - default
+//    //   0.125 - high quality 
+//    //   0.063 - overkill (slower)
+//    FxaaFloat fxaaQualityEdgeThreshold,
+//    //
+//    // Only used on FXAA Quality.
+//    // This used to be the FXAA_QUALITY__EDGE_THRESHOLD_MIN define.
+//    // It is here now to allow easier tuning.
+//    // Trims the algorithm from processing darks.
+//    //   0.0833 - upper limit (default, the start of visible unfiltered edges)
+//    //   0.0625 - high quality (faster)
+//    //   0.0312 - visible limit (slower)
+//    // Special notes when using FXAA_GREEN_AS_LUMA,
+//    //   Likely want to set this to zero.
+//    //   As colors that are mostly not-green
+//    //   will appear very dark in the green channel!
+//    //   Tune by looking at mostly non-green content,
+//    //   then start at zero and increase until aliasing is a problem.
+//    FxaaFloat fxaaQualityEdgeThresholdMin,
+//    FxaaFloat fxaaConsoleEdgeSharpness,
+//    FxaaFloat fxaaConsoleEdgeThreshold,
+//    FxaaFloat fxaaConsoleEdgeThresholdMin,
+//    FxaaFloat4 fxaaConsole360ConstDir
+//)

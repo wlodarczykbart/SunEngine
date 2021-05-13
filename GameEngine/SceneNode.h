@@ -50,13 +50,10 @@ namespace SunEngine
 		T* GetComponentData(Component* pComponent) const
 		{
 			auto found = _componentDataMap.find(pComponent);
-			return found == _componentDataMap.end() ? 0 : static_cast<T*>((*found).second.get());
+			return found == _componentDataMap.end() ? 0 : (*found).second.get()->As<T>();
 		}
 
 		ComponentData* GetComponentDataInParent(ComponentType type) const;
-
-		bool CanRender() const { return _numRenderComponents > 0; }
-
 		Scene* GetScene() const { return _scene; }
 
 	private:
@@ -69,7 +66,6 @@ namespace SunEngine
 		Map<Component*, UniquePtr<ComponentData>> _componentDataMap;
 		glm::mat4 _localMatrix;
 		glm::mat4 _worldMatrix;
-		uint _numRenderComponents;
 		bool _bInitialized;
 	};
 }

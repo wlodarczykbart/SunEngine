@@ -91,6 +91,8 @@ namespace SunEngine
 			_mouseButtonStates[i] = false;
 
 		_relativeMousePosition = glm::vec2(0);
+
+		_renderToGraphicsWindow = false;
 	}
 
 	View::~View()
@@ -197,12 +199,13 @@ namespace SunEngine
 		return true;
 	}
 
-	void View::UpdateViewState(const glm::vec2& viewSize, const glm::vec2& viewPos, bool isFocused)
+	void View::UpdateViewState(const glm::vec2& viewSize, const glm::vec2& viewPos, bool mouseInsideView, bool isFocused)
 	{
 		_needsResize = viewSize != _viewSize;
 		_viewSize = viewSize;
 		_viewPos = viewPos;
 		_viewFocused = isFocused;
+		_mouseInsideView = mouseInsideView;
 	}
 
 	bool View::Render(CommandBuffer* cmdBuffer)
@@ -233,7 +236,10 @@ namespace SunEngine
 			rtInfo.floatingPointColorBuffer = _info.floatingPointColorBuffer;
 			_target.Create(rtInfo);
 
-			OnResize(_info);
+			if (!OnResize(_info))
+			{
+				assert(false);
+			}
 
 			_needsResize = false;
 		}
@@ -263,24 +269,16 @@ namespace SunEngine
 
 		int mx, my;
 		pWindow->GetMousePosition(mx, my);
-		_mouseInsideView = (mx > _viewPos.x && mx < _viewPos.x + _viewSize.x && my > _viewPos.y && my < _viewPos.y + _viewSize.y);
-
 		if (_mouseInsideView)
 		{
 			_relativeMousePosition = glm::vec2(mx - _viewPos.x, my - _viewPos.y);
-		}
+			_relativeMousePosition = glm::clamp(_relativeMousePosition, glm::vec2(0.0f, 0.0f), _viewSize);
 
-		if (_viewFocused && _mouseInsideView)
-		{
-			if (_camMode == CM_FIRST_PERSON)
+			if (_viewFocused && _camMode == CM_FIRST_PERSON)
 			{
 				UpdateFirstPersonCamera(pWindow, pEvents, nEvents, dt, et);
 			}
 		}
-	}
-
-	void View::RenderGUI()
-	{
 	}
 
 }

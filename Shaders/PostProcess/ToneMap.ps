@@ -1,0 +1,25 @@
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+Texture2D DiffuseMap;
+SamplerState Sampler;
+
+float3 reinhard(float3 v)
+{
+    return v / (1.0f + v);
+}
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float4 color = DiffuseMap.Sample(Sampler, pIn.texCoord);
+	color.rgb = reinhard(color.rgb);
+	color.rgb = sqrt(color.rgb);
+	color.a = dot(color.rgb, float3(0.299, 0.587, 0.114));
+	//color.a = 1.0;
+	//return float4(pow(color.rgb, float3(1,1,1) * (1.0 / 2.2)), color.a);
+	
+	return color;
+}

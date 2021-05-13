@@ -1,11 +1,13 @@
 #pragma once
 
 #include "SceneNode.h"
-#include "BoundingVolumes.h"
+#include "SpatialVolumes.h"
 
 namespace SunEngine
 {
 	class RenderNode;
+	class CameraComponentData;
+	class LightComponentData;
 
 	struct SceneRayHit
 	{
@@ -20,6 +22,8 @@ namespace SunEngine
 	{
 	public:
 		typedef void(*TraverseFunc)(SceneNode* pNode, void* pUserData);
+		typedef void(*TraverseRenderNodeFunc)(RenderNode* pNode, void* pUserData);
+		typedef bool(*TraverseAABBFunc)(const AABB& box, void* pUserData);
 
 		Scene();
 		~Scene();
@@ -40,28 +44,37 @@ namespace SunEngine
 
 		void RegisterRenderNode(RenderNode* pNode);
 
-		bool Raycast(const glm::vec3& o, const glm::vec3& d, SceneRayHit& hit) const;
+		void RegisterLight(LightComponentData* pLight);
+		const LinkedList<LightComponentData*>& GetLightList() const { return _lightList; }
 
+		void RegisterCamera(CameraComponentData* pCamera);
+		const LinkedList<CameraComponentData*>& GetCameraList() const { return _cameraList; }
+
+		void TraverseRenderNodes(TraverseAABBFunc aabbFunc, void* pAABBData, TraverseRenderNodeFunc nodeFunc, void* pNodeData);
+
+		bool Raycast(const glm::vec3& o, const glm::vec3& d, SceneRayHit& hit) const;
 	private:
-		struct RenderNodeData
-		{
-			RenderNode* pNode;
-			glm::mat4 mtx;
-			glm::mat4 invMtx;
-			AABB aabb;
-			Sphere sphere;
-		};
+		//class SceneGrid;
 
 		//void CallInitialize(SceneNode* pNode);
 		void CallUpdate(SceneNode* pNode, float dt, float et);
 		void CallTraverse(SceneNode* pNode, TraverseFunc func, void* pUserData) const;
-		void UpdateRenderNodes();
+		void RebuildBoxTree();
 
 		friend class SceneMgr;
 
 		String _name;
 		UniquePtr<SceneNode> _root;
 		StrMap<UniquePtr<SceneNode>> _nodes;
-		Map<const RenderNode*, RenderNodeData> _renderNodes;
+		//UniquePtr<SceneGrid> _grid;
+
+		QuadTree<RenderNode*> _boxTree;
+		LinkedList<RenderNode*> _pendingBoxTreeNodes;
+
+		struct BoxTreeSizeData;
+		UniquePtr<BoxTreeSizeData> _boxTreeSizeData;
+
+		LinkedList<LightComponentData*> _lightList;
+		LinkedList<CameraComponentData*> _cameraList;
 	};
 }

@@ -117,32 +117,34 @@ namespace SunEngine
 		_mipMaps.clear();
 	}
 
-	bool MipMapGenerator::Create(const ImageData &baseImage)
+	bool MipMapGenerator::Create(const ImageData &baseImage, bool threaded)
 	{
 		int width = baseImage.Width;
 		int height = baseImage.Height;
 
 		if (width > MIN_MIP_SIZE && height > MIN_MIP_SIZE)
 		{
-			int maxSize = width > height ? width : height;
+			int minSize = width < height ? width : height;
 			int numMips = 0;
-			do
+			minSize /= 2;
+			while (minSize >= MIN_MIP_SIZE)
 			{
-				maxSize /= 2;
 				numMips++;
-			} while (maxSize > MIN_MIP_SIZE);
+				minSize /= 2;
+			}
 
 			_mipMaps.resize(numMips);
 
 			width = baseImage.Width;
 			height = baseImage.Height;
 
-			const uint NUM_THREADS = 8;
-			Vector<GenMipMapData> threadData[NUM_THREADS];
+			const uint NUM_THREADS = threaded ? std::thread::hardware_concurrency() : 1;
+			Vector<Vector<GenMipMapData>> threadData(NUM_THREADS);
 
 			float minKernel = 1;
 			float maxKernel = 4;
 
+			uint threadIdx = 0;
 			for (int i = 0; i < numMips; i++)
 			{
 				int mipLevel = i;
@@ -166,21 +168,26 @@ namespace SunEngine
 				data.mipLevel = mipLevel;
 				data.mipPixels = &_mipMaps[mipLevel].Pixels;
 
-				if (i < NUM_THREADS)
-					threadData[i].push_back(data);
-				else
-					threadData[rand() % NUM_THREADS].push_back(data);
+				threadData[threadIdx].push_back(data);
+				threadIdx = (threadIdx + 1) % NUM_THREADS;
 			}
 
-			Vector<std::thread> threads;
-			for (uint i = 0; i < NUM_THREADS; i++)
+			if (NUM_THREADS > 1)
 			{
-				threads.push_back(std::thread(GenMips, threadData[i]));
-			}
+				Vector<std::thread> threads;
+				for (uint i = 0; i < NUM_THREADS; i++)
+				{
+					threads.push_back(std::thread(GenMips, threadData[i]));
+				}
 
-			for (uint i = 0; i < NUM_THREADS; i++)
+				for (uint i = 0; i < NUM_THREADS; i++)
+				{
+					threads[i].join();
+				}
+			}
+			else
 			{
-				threads[i].join();
+				GenMips(threadData[0]);
 			}
 
 			return true;

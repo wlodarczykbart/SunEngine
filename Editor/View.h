@@ -55,12 +55,17 @@ namespace SunEngine
 		 
 		bool Create(const CreateInfo& info);
 
-		void UpdateViewState(const glm::vec2& viewSize, const glm::vec2& viewPos, bool isFocused);
+		void UpdateViewState(const glm::vec2& viewSize, const glm::vec2& viewPos, bool mouseInsideView, bool isFocused);
 
 		virtual bool Render(CommandBuffer* cmdBuffer);
 		virtual void Update(GraphicsWindow* pWindow, const GWEventData* pEvents, uint nEvents, float dt, float et);
-		virtual void RenderGUI();
+		virtual void RenderGUI() {};
 		virtual uint GetGUIColumns() const { return 1; }
+
+		bool NeedsResize() const { return _needsResize; }
+
+		void SetRenderToGraphicsWindow(bool bRender) { _renderToGraphicsWindow = bRender; }
+		bool GetRenderToGraphicsWindow() const { return _renderToGraphicsWindow; }
 
 	protected:
 		View(const String& uniqueName);
@@ -95,6 +100,7 @@ namespace SunEngine
 		bool _viewFocused;
 		bool _needsResize;
 		bool _mouseInsideView;
+		bool _renderToGraphicsWindow;
 
 		glm::vec2 _relativeMousePosition;
 	};

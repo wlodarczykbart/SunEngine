@@ -30,6 +30,18 @@ namespace SunEngine
 		
 		const Component* C() const { return _c;  }
 		SceneNode* GetNode() const { return _node; }
+
+		template<typename T>
+		T* As()
+		{
+			return static_cast<T*>(this);
+		}
+
+		template<typename T>
+		const T* As() const
+		{
+			return static_cast<const T*>(this);
+		}
 	private:
 		Component* _c;
 		SceneNode* _node;
@@ -51,9 +63,6 @@ namespace SunEngine
 
 		virtual void Initialize(SceneNode* pNode, ComponentData* pData);
 		virtual void Update(SceneNode* pNode, ComponentData* pData, float dt, float et);
-
-		virtual bool CanRender() const { return false; }
-
 		template<typename T>
 		T* As()
 		{
@@ -79,7 +88,6 @@ namespace SunEngine
 		const Component* GetBase() const override { return _base; }
 		void Initialize(SceneNode* pNode, ComponentData* pData) override  { _base->Initialize(pNode, pData); }
 		void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override { _base->Update(pNode, pData, dt, et); }
-		bool CanRender() const { return _base->CanRender(); }
 	private:
 		ComponentRef() = delete;
 

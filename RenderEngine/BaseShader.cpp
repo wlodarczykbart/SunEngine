@@ -158,8 +158,8 @@ namespace SunEngine
 		StrMap<ResourceInfo>::iterator foundIter = _resourceMap.find(name);
 		if (foundIter != _resourceMap.end())
 		{
-			if ((*foundIter).second.Resource == pTexture && (*foundIter).second.CurrentHandle == pTexture->GetAPIHandle())
-				return true;
+			//if ((*foundIter).second.Resource == pTexture && (*foundIter).second.CurrentHandle == pTexture->GetAPIHandle())
+			//	return true;
 
 			const String& binding = (*foundIter).second.Name;
 			_iBindings->SetTexture((ITexture*)pTexture->GetAPIHandle(), binding);
@@ -177,8 +177,8 @@ namespace SunEngine
 		StrMap<ResourceInfo>::iterator foundIter = _resourceMap.find(name);
 		if (foundIter != _resourceMap.end())
 		{
-			if ((*foundIter).second.Resource == pSampler && (*foundIter).second.CurrentHandle == pSampler->GetAPIHandle())
-				return true;
+			//if ((*foundIter).second.Resource == pSampler && (*foundIter).second.CurrentHandle == pSampler->GetAPIHandle())
+			//	return true;
 
 			const String& binding = (*foundIter).second.Name;
 			_iBindings->SetSampler((ISampler*)pSampler->GetAPIHandle(), binding);
@@ -196,8 +196,8 @@ namespace SunEngine
 		StrMap<ResourceInfo>::iterator foundIter = _resourceMap.find(name);
 		if (foundIter != _resourceMap.end())
 		{
-			if ((*foundIter).second.Resource == pTextureCube && (*foundIter).second.CurrentHandle == pTextureCube->GetAPIHandle())
-				return true;
+			//if ((*foundIter).second.Resource == pTextureCube && (*foundIter).second.CurrentHandle == pTextureCube->GetAPIHandle())
+			//	return true;
 
 			const String& binding = (*foundIter).second.Name;
 			_iBindings->SetTextureCube((ITextureCube*)pTextureCube->GetAPIHandle(), binding);
@@ -215,8 +215,8 @@ namespace SunEngine
 		StrMap<ResourceInfo>::iterator foundIter = _resourceMap.find(name);
 		if (foundIter != _resourceMap.end())
 		{
-			if ((*foundIter).second.Resource == pTextureArray && (*foundIter).second.CurrentHandle == pTextureArray->GetAPIHandle())
-				return true;
+			//if ((*foundIter).second.Resource == pTextureArray && (*foundIter).second.CurrentHandle == pTextureArray->GetAPIHandle())
+			//	return true;
 
 			const String& binding = (*foundIter).second.Name;
 			_iBindings->SetTextureArray((ITextureArray*)pTextureArray->GetAPIHandle(), binding);

@@ -10,7 +10,7 @@ namespace SunEngine
 		MipMapGenerator();
 		~MipMapGenerator();
 
-		bool Create(const ImageData &baseImage);
+		bool Create(const ImageData &baseImage, bool threaded = true);
 
 		uint GetMipLevels() const;
 		ImageData* GetMipMaps() const;

@@ -23,6 +23,6 @@ namespace SunEngine
 		bool CreateDefaultScene();
 
 		SceneRenderer _sceneRenderer;
-		Asset* _queuedAsset;
+		View* _view;
 	};
 }

@@ -222,7 +222,7 @@ namespace SunEngine
 					for (uint k = i; k < lines.size() && valid; k++)
 					{
 						//Add other things as needed to invalidate any resources which are not declerations(ie function arguments)
-						if (lines[k].find('(') != String::npos || lines[k].find(')') != String::npos)
+						if (lines[k].find('(') != String::npos || lines[k].find(')') != String::npos || lines[k].find("struct") != String::npos)
 							valid = false;
 
 						if (lines[k].find(';'))
@@ -619,10 +619,11 @@ namespace SunEngine
 				if (includeStart != includeEnd && includeStart != String::npos)
 				{
 					String includeName = StrTrim(line.substr(includeStart + 1, includeEnd - includeStart - 1));
-					if (includeFiles.count(includeName))
+					String fileCheck = StrToLower(GetFileName(includeName));
+					if (includeFiles.count(fileCheck))
 						continue;
 
-					includeFiles.insert(includeName);
+					includeFiles.insert(fileCheck);
 
 					FileStream includeReader;
 					if (!includeReader.OpenForRead((g_ShaderAuxDir + includeName).data()))

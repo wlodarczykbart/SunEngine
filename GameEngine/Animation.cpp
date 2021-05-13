@@ -15,6 +15,11 @@ namespace SunEngine
 		_boneData.resize(boneCount);
 	}
 
+	void AnimatorComponentData::SetClip(uint clip)
+	{
+		_clip = glm::min(clip, C()->As<Animator>()->GetClipCount() - 1);
+	}
+
 	Animator::Animator()
 	{
 		_boneCount = 0;
@@ -26,7 +31,7 @@ namespace SunEngine
 
 	void Animator::Update(SceneNode*, ComponentData* pData, float dt, float)
 	{
-		auto* data = static_cast<AnimatorComponentData*>(pData);
+		auto* data = pData->As<AnimatorComponentData>();
 
 		if(!data->ShouldUpdate())
 			return;
@@ -80,12 +85,12 @@ namespace SunEngine
 
 	ComponentData* AnimatedBone::AllocData(SceneNode* pNode)
 	{
-		return new AnimatedBoneComponentData(this, pNode, static_cast<AnimatorComponentData*>(pNode->GetComponentDataInParent(COMPONENT_ANIMATOR)));
+		return new AnimatedBoneComponentData(this, pNode, pNode->GetComponentDataInParent(COMPONENT_ANIMATOR)->As<AnimatorComponentData>());
 	}
 
 	void AnimatedBone::Update(SceneNode* pNode, ComponentData* pData, float, float)
 	{
-		auto* data = static_cast<AnimatedBoneComponentData*>(pData);
+		auto* data = pData->As<AnimatedBoneComponentData>();
 
 		auto* animator = data->GetAnimatorData();
 		if (!animator->ShouldUpdate())
@@ -119,6 +124,6 @@ namespace SunEngine
 
 	ComponentData* SkinnedMesh::AllocData(SceneNode* pNode)
 	{
-		return new SkinnedMeshComponentData(this, pNode, static_cast<AnimatorComponentData*>(pNode->GetComponentDataInParent(COMPONENT_ANIMATOR)));
+		return new SkinnedMeshComponentData(this, pNode, pNode->GetComponentDataInParent(COMPONENT_ANIMATOR)->As<AnimatorComponentData>());
 	}
 }

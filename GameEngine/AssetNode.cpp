@@ -62,7 +62,7 @@ namespace SunEngine
 	glm::mat4 AssetNode::BuildWorldMatrix() const
 	{
 		glm::mat4 mtxWorld = BuildLocalMatrix();
-		auto parent = this;
+		auto parent = _parent;
 		while (parent)
 		{
 			mtxWorld = parent->BuildLocalMatrix() * mtxWorld;

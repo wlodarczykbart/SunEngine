@@ -9,7 +9,7 @@
 
 namespace SunEngine
 {
-	int NativeKeyCodes[]
+	int NativeKeyCodes[KEY_CODE_COUNT]
 	{
 		'0',
 		'1',

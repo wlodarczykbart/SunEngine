@@ -40,9 +40,10 @@ namespace SunEngine
 		Options _options;
 		Asset* _asset;
 		Map<void*, Mesh*> _meshFixup;
-		Map<Material*, void*> _materialCache;
+		Map<Material*, Pair<void*, StrMap<Texture2D*>>> _materialCache;
 		Map<void*, AssetNode*> _nodeFixup;
 		Vector<AssetNode*> _nodes;
+		Vector<Texture2D*> _textureLoadList;
 	};
 
 }

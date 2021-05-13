@@ -32,21 +32,49 @@ namespace SunEngine
 	class SceneView : public ICameraView
 	{
 	public:
+		struct Settings
+		{
+			Settings();
+
+			struct 
+			{
+				bool enabled;
+				float subpixel;
+				float edgeThreshold;
+				float edgeThresholdMin;
+			} fxaa;
+
+			struct
+			{
+				bool showFXAA;
+			} gui;
+		};
+
 		SceneView(SceneRenderer* pRenderer);
 		~SceneView();
 
 		bool Render(CommandBuffer* cmdBuffer) override;
 		void RenderGUI() override;
-
 		uint GetGUIColumns() const override { return 3; }
 
+		Settings& GetSettings() { return _settings; }
+
+		void Update(GraphicsWindow* pWindow, const GWEventData* pEvents, uint nEvents, float dt, float et) override;
+
 	private:
+		struct RenderPassData
+		{
+			GraphicsPipeline pipeline;
+			ShaderBindings bindings;
+			int bufferIndex;
+		};
+
 		bool OnCreate(const CreateInfo& info) override;
 		bool OnResize(const CreateInfo& info) override;
 
 		void BuildSceneTree(SceneNode* pNode);
 		void BuildSelectedNodeGUI(Scene* pScene);
-		bool CreateRenderPassData(const String& shader, Pair<GraphicsPipeline, ShaderBindings>& data);
+		bool CreateRenderPassData(const String& shader, RenderPassData& data);
 
 		SceneRenderer* _renderer;
 		String _selNodeName;
@@ -54,14 +82,22 @@ namespace SunEngine
 		RenderTarget _outputTarget;
 		RenderTarget _deferredTarget;
 		RenderTarget _deferredResolveTarget;
+		RenderTarget _toneMapTarget;
 
-		Pair<GraphicsPipeline, ShaderBindings> _gammaData;
-		Pair<GraphicsPipeline, ShaderBindings> _outputData;
-		Pair<GraphicsPipeline, ShaderBindings> _deferredData;
-		Pair<GraphicsPipeline, ShaderBindings> _deferredCopyData;
+		RenderPassData _toneMapData;
+		RenderPassData _fxaaData;
+		RenderPassData _outputData;
+		RenderPassData _deferredData;
+		RenderPassData _deferredCopyData;
 #ifdef SUPPORT_SSR
 		Pair<GraphicsPipeline, ShaderBindings> _ssrData;
 #endif
+		UniformBuffer _shaderBuffer;
+		int _shaderBufferUsageCount;
+
+		Settings _settings;
+
+		SceneNode* _debugFrustum;
 	};
 
 }

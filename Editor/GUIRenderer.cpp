@@ -104,6 +104,8 @@ namespace SunEngine
 		if (!pView)
 			return false;
 
+		if (pView->GetRenderToGraphicsWindow())
+			return false;
 
 		ShaderBindings* pBindings = 0;
 
@@ -129,6 +131,24 @@ namespace SunEngine
 			return false;
 
 		if (!pBindings->SetSampler("Sampler", GraphicsContext::GetDefaultSampler(GraphicsContext::DS_LINEAR_CLAMP)))
+			return false;
+
+		return true;
+	}
+
+	bool GUIRenderer::UpdateView(View* pView)
+	{
+		if (!pView)
+			return false;
+
+		if (pView->GetRenderToGraphicsWindow())
+			return false;
+
+		auto found = _textureBindings.find(pView);
+		if (found == _textureBindings.end())
+			return false;
+
+		if (!(*found).second->SetTexture("Texture", pView->GetRenderTarget()->GetColorTexture()))
 			return false;
 
 		return true;
@@ -380,13 +400,6 @@ namespace SunEngine
 		//// Update game controllers (if enabled and available)
 		//ImGui_ImplWin32_UpdateGamepads();
 
-		Vector<View*> views;
-		for (uint i = 0; i < _pEditor->GetViews(views); i++)
-		{
-			View* pView = views[i];
-			_textureBindings.at(pView).get()->SetTexture("Texture", pView->GetRenderTarget()->GetColorTexture());
-		}
-
 		while (!_updateCommands.empty())
 		{
 			_updateCommands.front()->Execute();
@@ -398,8 +411,8 @@ namespace SunEngine
 	{
 		ImGui::NewFrame();
 
-		//static bool show_demo_window = true;
-		//ImGui::ShowDemoWindow(&show_demo_window);
+		static bool show_demo_window = true;
+		ImGui::ShowDemoWindow(&show_demo_window);
 
 		CustomRender();
 		RenderViews();
@@ -548,30 +561,32 @@ namespace SunEngine
 		for (uint i = 0; i < _pEditor->GetViews(views); i++)
 		{
 			View* pView = views[i];
-			if (ImGui::Begin(pView->GetName().c_str()))
+			if (pView->GetRenderToGraphicsWindow() == false && ImGui::Begin(pView->GetName().c_str()))
 			{
-				glm::vec2 viewSize = pView->GetSize();
-				glm::vec2 viewPos = pView->GetPos();
-				bool viewFocus = pView->IsFocused();
-
 				ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV;
-				if (ImGui::BeginTable(StrFormat("%s_table", pView->GetName().c_str()).c_str(), pView->GetGUIColumns(), tableFlags))
+				String strTable = StrFormat("%s_table", pView->GetName().c_str());
+				if (ImGui::BeginTable(strTable.c_str(), pView->GetGUIColumns(), tableFlags))
 				{
 					ImGui::TableNextRow();
 
 					ImGui::TableSetColumnIndex(0);
+					ImVec2 imageSpace = ImGui::GetContentRegionAvail();
 					ImGui::Image(pView, ImVec2((float)pView->GetRenderTarget()->Width(), (float)pView->GetRenderTarget()->Height()));
-					viewSize.x = ImGui::GetColumnWidth(0);
+
+					ImGuiItemStatusFlags viewFlags = ImGui::GetItemStatusFlags();
+					glm::vec2 viewPos = glm::vec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y);
+					glm::vec2 viewSize = glm::vec2(imageSpace.x, imageSpace.y);
+					
+					bool mouseInsideView = viewFlags & ImGuiItemStatusFlags_HoveredRect;
+					bool viewFocus = ImGui::IsWindowFocused() && mouseInsideView;
+					pView->UpdateViewState(viewSize, viewPos, mouseInsideView, viewFocus);
 
 					pView->RenderGUI();
 
 					ImGui::EndTable();
+					//float w = ImGui::table(ImGui::TableFindByID(ImGui::GetID(strTable.c_str())), 0);
+					//spdlog::info("{}", w);
 				}
-
-				viewFocus = ImGui::IsWindowFocused();
-				viewPos = glm::vec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y);
-				viewSize.y = ImGui::GetWindowSize().y * 0.9f;
-				pView->UpdateViewState(viewSize, viewPos, viewFocus);
 				ImGui::End();
 			}
 		}

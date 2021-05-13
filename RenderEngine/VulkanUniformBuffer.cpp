@@ -88,7 +88,8 @@ namespace SunEngine
 
 	uint VulkanUniformBuffer::GetAlignedSize() const
 	{
-		return  (1 + _size / _device->GetMinUniformBufferAlignment()) * _device->GetMinUniformBufferAlignment();
+		uint minAlign = _device->GetMinUniformBufferAlignment();
+		return _size <= minAlign ? minAlign : (_size / minAlign) * minAlign;
 	}
 
 	void VulkanUniformBuffer::Bind(ICommandBuffer* cmdBuffer, IBindState*)

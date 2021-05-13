@@ -77,6 +77,8 @@ namespace SunEngine
 
 		bool SaveAsTGA(const String& filename);
 
+		bool Save(const String& filename);
+
 		ImageData ImageData() const;
 
 		bool Write(StreamBase& stream) override;

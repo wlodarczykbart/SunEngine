@@ -37,6 +37,7 @@ namespace SunEngine
 		
 	protected:
 		RenderComponentData* AllocRenderData(SceneNode* pNode) { return new MeshRendererComponentData(this, pNode); }
+		bool RequestData(RenderNode* pNode, RenderComponentData* pData, Mesh*& pMesh, Material*& pMaterial, const glm::mat4*& worldMtx, const AABB*& aabb, uint& idxCount, uint& instanceCount, uint& firstIdx, uint& vtxOffset) const override;
 
 	private:
 		Mesh* _mesh;

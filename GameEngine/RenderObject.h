@@ -29,24 +29,23 @@ namespace SunEngine
 
 		void BuildPipelineSettings(PipelineSettings& settings) const;
 
-		void SetWorld(const glm::mat4& mtx) { _worldMatrix = mtx; }
 		const glm::mat4& GetWorld() const { return _worldMatrix; }
-
-		const AABB& GetAABB() const { return _aabb; }
-		const Sphere& GetSphere() const { return _sphere; }
+		const glm::mat4& GetInvWorldMatirx() const { return _invWorldMatrix; }
+		const AABB& GetWorldAABB() const { return _worldAABB; }
 
 	private:
-		RenderNode(SceneNode *pNode, RenderObject* pObject, Mesh* pMesh, Material* pMaterial, const AABB& aabb, const Sphere& sphere, uint idxCount, uint instanceCount, uint firstIdx, uint vtxOffset);
+		RenderNode(SceneNode *pNode, RenderObject* pObject);
 		friend class RenderObject;
 
 		glm::mat4 _worldMatrix;
+		glm::mat4 _invWorldMatrix;
 
 		SceneNode* _node;
 		RenderObject* _renderObject;
 		Mesh* _mesh;
 		Material* _material;
 		AABB _aabb;
-		Sphere _sphere;
+		AABB _worldAABB;
 
 		uint _indexCount;
 		uint _instanceCount;
@@ -76,14 +75,16 @@ namespace SunEngine
 		virtual void BuildPipelineSettings(PipelineSettings&) const {};
 
 		ComponentData* AllocData(SceneNode* pNode) override { return AllocRenderData(pNode); }
+		virtual void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override;
 
 		virtual void Initialize(SceneNode* pNode, ComponentData* pData) override;
-
-		bool CanRender() const override { return true; }
-
 	protected:
-		virtual RenderComponentData* AllocRenderData(SceneNode* pNode) { return new RenderComponentData(this, pNode); }
+		virtual RenderComponentData* AllocRenderData(SceneNode* pNode) = 0;
+		virtual bool RequestData(RenderNode* pNode, RenderComponentData* pData, Mesh*& pMesh, Material*& pMaterial, const glm::mat4*& worldMtx, const AABB*& aabb, uint& idxCount, uint& instanceCount, uint& firstIdx, uint& vtxOffset) const = 0;
 
-		RenderNode* CreateRenderNode(RenderComponentData* pData, Mesh* pMesh, Material* pMaterial, const AABB& aabb, const Sphere& sphere, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset);
+		RenderNode* CreateRenderNode(RenderComponentData* pData);
+
+	private:
+		void UpdateRenderNode(RenderNode& node, RenderComponentData* pData);
 	};
 }

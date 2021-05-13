@@ -9,6 +9,5 @@ SamplerState Sampler;
 
 float4 main(PS_In pIn) : SV_TARGET
 {
-	float4 color = DiffuseMap.Sample(Sampler, pIn.texCoord);
-	return float4(pow(color.rgb, float3(1,1,1) * (1.0 / 2.2)), color.a);
+	return DiffuseMap.Sample(Sampler, pIn.texCoord);
 }

@@ -9,7 +9,6 @@ namespace SunEngine
 		_scene = pScene;
 		_worldMatrix = g_MtxIden;
 		_localMatrix = g_MtxIden;
-		_numRenderComponents = 0;
 		_bInitialized = false;
 	}
 
@@ -86,9 +85,6 @@ namespace SunEngine
 
 	void SceneNode::OnAddComponent(Component* pComponent)
 	{
-		if (pComponent->CanRender())
-			_numRenderComponents++;
-
 		_componentList.push_back(pComponent);
 		ComponentData* pData = pComponent->AllocData(this);
 		if (pData)

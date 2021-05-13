@@ -4,6 +4,7 @@
 #include "ShaderMgr.h"
 #include "Animation.h"
 #include "glm/gtx/matrix_decompose.hpp"
+#include "ThreadPool.h"
 
 #include "AssetImporter.h"
 
@@ -66,6 +67,8 @@ namespace SunEngine
 		if (!_asset)
 			return false;
 
+		//Map<uint, float> inUseBones;
+
 		for (uint m = 0; m < pImporter->GetMeshDataCount(); m++)
 		{
 			auto iMesh = pImporter->GetMeshData(m);
@@ -109,6 +112,8 @@ namespace SunEngine
 					{
 						bones[b] = sortedBones[b].first;
 						weights[b] = sortedBones[b].second / sum; //renormalize around 4 max weights
+
+						//inUseBones[(uint)bones[b]] = glm::max(inUseBones[(uint)bones[b]], weights[b]);
 					}
 
 					float sum1 = glm::dot(weights, glm::vec4(1.0f));
@@ -286,13 +291,27 @@ namespace SunEngine
 			_nodeFixup[iNode] = pNode;
 		}
 
+		//textures were added when materials were parsed
+		ThreadPool& tp = ThreadPool::Get();
+		tp.Wait();
+
+		for (auto pTexture : _textureLoadList)
+		{
+			if (!pTexture->RegisterToGPU())
+				return false;
+		}
+
+		for (auto& mtl : _materialCache)
+		{
+			auto& textures = mtl.second.second;
+			for (auto& tex : textures)
+				mtl.first->SetTexture2D(tex.first, tex.second);
+		}
+
 		if (pAnimator)
 		{
 			_asset->GetRoot()->AddComponent(pAnimator);
 		}
-		
-		_asset->UpdateBoundingVolume();
-
 		return true;
 	}
 
@@ -300,6 +319,12 @@ namespace SunEngine
 	{
 		ModelImporter::Importer::Mesh* pMesh = (ModelImporter::Importer::Mesh*)iMesh;
 		ModelImporter::Importer::Material* pMtl = pMesh->Material;
+
+		if (pMtl == 0)
+		{
+			pOutMtl = ResourceMgr::Get().GetMaterial(DefaultResource::Material::StandardSpecular);
+			return true;
+		}
 
 		String strRoughness = pMtl->ShininessExponentMap ? StrToLower(GetFileName(pMtl->ShininessExponentMap->FileName)) : "";
 
@@ -347,7 +372,7 @@ namespace SunEngine
 		for (auto& cached : _materialCache)
 		{
 			bool equalShader = shader == cached.first->GetShader()->GetName();
-			bool equalMaterial = _options.CombineMaterials ? (cached.second == pMtl || ImportedMaterialsSame(pMtl, (ModelImporter::Importer::Material*)cached.second)) : cached.second == pMtl;
+			bool equalMaterial = _options.CombineMaterials ? (cached.second.first == pMtl || ImportedMaterialsSame(pMtl, (ModelImporter::Importer::Material*)cached.second.first)) : cached.second.first == pMtl;
 			if (equalShader && equalMaterial)
 			{
 				pOutMtl = cached.first;
@@ -375,17 +400,21 @@ namespace SunEngine
 			if (pTex == 0)
 			{
 				pTex = ResourceMgr::Get().AddTexture2D(GetFileName(filename));
-				if (!pTex->LoadFromFile((*iter).second->FileName))
-					return false;
-
-				if (!pTex->GenerateMips())
-					return false;
+				pTex->SetFilename((*iter).second->FileName);
 
 				if ((*iter).first == MaterialStrings::DiffuseMap)
 					pTex->SetSRGB(true);
 
-				if (!pTex->RegisterToGPU())
-					return false;
+				ThreadPool& tp = ThreadPool::Get();
+				tp.AddTask([](uint, void* pData) -> void {
+					Texture2D* pTexture = static_cast<Texture2D*>(pData);
+					if (pTexture->LoadFromFile())
+					{
+						pTexture->GenerateMips(false);
+					}
+				}, pTex);
+
+				_textureLoadList.push_back(pTex);
 			}
 
 			textures[(*iter).first] = pTex;
@@ -398,13 +427,7 @@ namespace SunEngine
 			return false;
 
 		pOutMtl->GetShader()->SetDefaults(pOutMtl);
-
-		for (auto iter = textures.begin(); iter != textures.end(); ++iter)
-		{
-			pOutMtl->SetTexture2D((*iter).first, (*iter).second);
-		}
-
-		_materialCache[pOutMtl] = pMtl;
+		_materialCache[pOutMtl] = { pMtl, textures };
 		return true;
 	}
 }

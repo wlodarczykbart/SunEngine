@@ -24,7 +24,6 @@ namespace SunEngine
 
 	GameEditor::GameEditor()
 	{
-		_queuedAsset = 0;
 	}
 
 	GameEditor::~GameEditor()
@@ -67,15 +66,17 @@ namespace SunEngine
 			viewInfo.width = pWindow->Width() / 2;
 			viewInfo.height = pWindow->Height() / 2;
 			viewInfo.visibile = true;
+			viewInfo.floatingPointColorBuffer = false;
 		}
 
-		View* pView = new SceneView(&_sceneRenderer);
-		if (!pView->Create(viewInfo))
+		_view = new SceneView(&_sceneRenderer);
+		//_view->SetRenderToGraphicsWindow(true);
+		if (!_view->Create(viewInfo))
 		{
-			spdlog::error("Failed to create {} RenderTarget: {}", pView->GetName().c_str(), pView->GetRenderTarget()->GetErrStr().c_str());
+			spdlog::error("Failed to create {} RenderTarget: {}", _view->GetName().c_str(), _view->GetRenderTarget()->GetErrStr().c_str());
 			return false;
 		}
-		AddView(pView);
+		AddView(_view);
 
 		//String inputFile = GetFilenameFromConfig("GameFile");
 		bool loadDefault = true;
@@ -94,7 +95,9 @@ namespace SunEngine
 			return false;
 		}
 
-		*ppOutGUI = new GameEditorGUI();
+		GameEditorGUI* gui = new GameEditorGUI();
+		gui->RegisterSceneView(_view);
+		*ppOutGUI = gui;
 		spdlog::info("GameEditor initialization succesfull");
 		return true;
 	}
@@ -104,8 +107,7 @@ namespace SunEngine
 		AssetImporter importer;
 		if (importer.Import(filename, options))
 		{
-			_queuedAsset = importer.GetAsset();
-			return _queuedAsset;
+			return importer.GetAsset();
 		}
 		else
 		{
@@ -116,13 +118,6 @@ namespace SunEngine
 	void GameEditor::CustomUpdate()
 	{
 		Scene* pScene = SceneMgr::Get().GetActiveScene();
-
-		if (_queuedAsset)
-		{
-			_queuedAsset->CreateSceneNode(pScene);
-			_queuedAsset = 0;
-		}
-
 		for (SceneNode* node : TEST_NODES)
 		{
 			node->Orientation.Angles.y += 5.0f;
@@ -251,17 +246,13 @@ namespace SunEngine
 		auto& sceneMgr = SceneMgr::Get();
 		Scene* pScene = sceneMgr.AddScene("NewScene");
 
-		SceneNode* pCamNode = pScene->AddNode("Camera");
-		Camera* pCamera = pCamNode->AddComponent(new Camera())->As<Camera>();
-		pCamera->SetFrustum(45.0f, 1.0f, 0.1f, 500.0f);
-		pCamera->SetRenderToWindow(true);
-
 		SceneNode* pLightNode = pScene->AddNode("Sun");
 		Light* pSun = pLightNode->AddComponent(new Light())->As<Light>();
 		pSun->SetLightType(LT_DIRECTIONAL);
 		pSun->SetColor(glm::vec4(1));
 		pLightNode->Orientation.Angles.y = -60;
 		pLightNode->Orientation.Angles.z = -120;
+		pLightNode->Initialize();
 
 		Asset* pAssetStandard = resMgr.AddAsset("AssetStandard");
 		{
@@ -271,9 +262,9 @@ namespace SunEngine
 			pRenderer->SetMaterial(resMgr.Clone(pMetalMaterial));
 			pRenderer->GetMaterial()->RegisterToGPU();
 			
-			//SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
-			//pSceneNode->Position = glm::vec3(2.0f, 0.5f, 1.0f);
-			//pSceneNode->Orientation.Angles = glm::vec3(65, 55, -125);
+			SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
+			pSceneNode->Position = glm::vec3(2.0f, 0.5f, 1.0f);
+			pSceneNode->Orientation.Angles = glm::vec3(65, 55, -125);
 		}
 
 		Asset* pAssetBlinnPhong = resMgr.AddAsset("AssetBlinnPhong");
@@ -284,8 +275,8 @@ namespace SunEngine
 			pRenderer->SetMaterial(resMgr.Clone(pSpecularMaterial));
 			pRenderer->GetMaterial()->RegisterToGPU();
 
-			//SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
-			//pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
+			SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
+			pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
 			//pSceneNode->Scale = glm::vec3(30, 0.01f, 30.0f);
 		}
 
@@ -299,9 +290,9 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
-			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
-			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
+			//SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
+			//pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
+			//pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
 		int Slices = 0;
@@ -332,9 +323,16 @@ namespace SunEngine
 		sceneMgr.SetActiveScene(pScene->GetName());
 
 
+		//String strAsset = "F:/Models/FBX/_Animated_/teddy.fbx";
+		//Asset* pAsset = ImportAsset(strAsset, SunEngine::AssetImporter::Options::Default);
+		////pAsset->GetRoot()->Scale *= 0.01f;
+
 		String strAsset = "F:/Models/FBX/_Animated_/teddy.fbx";
+		strAsset = "F:/Downloads/EmeraldSquare1024/EmeraldSquare.fbx";
+		//strAsset = "F:/Models/OBJ/Small_Tropical_Island/Small Tropical Island.obj";
+		//strAsset = "F:/Models/FBX/_PHONG_/RuralStallObj/RuralStall_phong.fbx";
 		Asset* pAsset = ImportAsset(strAsset, SunEngine::AssetImporter::Options::Default);
-		pAsset->GetRoot()->Scale *= 0.01f;
+		pAsset->CreateSceneNode(pScene, 450.0f);
 
 		return true;
 	}

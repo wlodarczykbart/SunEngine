@@ -1,5 +1,5 @@
 #include "SceneNode.h"
-
+#include "Scene.h"
 #include "Light.h"
 
 namespace SunEngine
@@ -14,8 +14,13 @@ namespace SunEngine
 	{
 	}
 
+	void Light::Initialize(SceneNode* pNode, ComponentData* pData)
+	{
+		pNode->GetScene()->RegisterLight(pData->As<LightComponentData>());
+	}
+
 	void Light::Update(SceneNode* pNode, ComponentData* pData, float, float)
 	{
-		static_cast<LightComponentData*>(pData)->Direction = pNode->GetWorld()[2];
+		pData->As<LightComponentData>()->Direction = pNode->GetWorld()[2];
 	}
 }

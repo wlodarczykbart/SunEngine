@@ -2,16 +2,54 @@
 #include "StringUtil.h"
 #include "RenderObject.h"
 #include "Mesh.h"
+#include "Timer.h"
 #include "Scene.h"
 
 #define SCENE_ROOT_NAME "SceneRoot"
+#define BOX_TREE_DEPTH 2
 
 namespace SunEngine
 {
+	struct Scene::BoxTreeSizeData
+	{
+		struct ThreadData
+		{
+			AABB aabb;
+			Vector<RenderNode*> nodes;
+			uint nodeCounter;
+		};
+
+		BoxTreeSizeData()
+		{
+			threadData.resize(ThreadPool::Get().GetThreadCount());
+		}
+
+		void Reset()
+		{
+			for (uint i = 0; i < threadData.size(); i++)
+			{
+				threadData[i].nodeCounter = 0;
+				threadData[i].aabb.Reset();
+			}
+		}
+
+		void Expand(AABB& sceneBounds)
+		{
+			for (uint i = 0; i < threadData.size(); i++)
+			{
+				if(threadData[i].nodeCounter)
+					sceneBounds.Expand(threadData[i].aabb);
+			}
+		}
+
+		Vector<ThreadData> threadData;
+	};
+
 	Scene::Scene()
 	{
 		_root = UniquePtr<SceneNode>(new SceneNode(this));
 		_root->_name = SCENE_ROOT_NAME;
+		_boxTreeSizeData = UniquePtr<BoxTreeSizeData>(new BoxTreeSizeData());
 	}
 
 	Scene::~Scene()
@@ -65,13 +103,14 @@ namespace SunEngine
 				for (auto citer = pRemoveNode->BeginComponent(); citer != pRemoveNode->EndComponent(); ++citer)
 				{
 					Component* component = (*citer);
-					if (component->CanRender())
+					RenderObject* pRenderObject = dynamic_cast<RenderObject*>(component->GetBase());
+					if (pRenderObject)
 					{
 						RenderComponentData* pRenderData = pRemoveNode->GetComponentData<RenderComponentData>(component);
 						for (auto renderIter = pRenderData->BeginNode(); renderIter != pRenderData->EndNode(); ++renderIter)
 						{
-							const RenderNode* pRenderNode = &(*renderIter);
-							_renderNodes.erase(pRenderNode);
+							RenderNode* pRenderNode = const_cast<RenderNode*>(&(*renderIter));
+							_boxTree.Remove(pRenderNode);
 						}
 					}
 				}
@@ -104,7 +143,7 @@ namespace SunEngine
 	void Scene::Update(float dt, float et)
 	{
 		CallUpdate(GetRoot(), dt, et);
-		UpdateRenderNodes();
+		RebuildBoxTree();
 	}
 
 	void Scene::CallUpdate(SceneNode* pNode, float dt, float et)
@@ -134,20 +173,74 @@ namespace SunEngine
 		}
 	}
 
-	void Scene::UpdateRenderNodes()
+	void Scene::RebuildBoxTree()
 	{
-		for (auto& kv : _renderNodes)
-		{
-			auto pNode = kv.first;
-			auto data = &kv.second;
-			if (pNode->GetWorld() != data->mtx || pNode->GetAABB() != data->aabb) //assume sphere changes when aabb changes
+		Timer timer;
+		//if (_pendingBoxTreeNodes.size() == 0)
+		//	return;
+
+		//Vector<RenderNode*> nodes;
+		//nodes.reserve(_pendingOctTreeNodes.size() + _boxTree.GetObjectCount());
+		//while (_pendingOctTreeNodes.size())
+		//{
+		//	nodes.push_back(_pendingOctTreeNodes.front());
+		//	_pendingOctTreeNodes.pop();
+		//}
+
+		timer.Start();
+
+		_boxTreeSizeData->Reset();
+
+		_boxTree.TraverseThreaded([](const IBoxTree<RenderNode*>::Node& node, void* pUserData, uint threadIndex) -> bool {
+			auto& threadData = static_cast<BoxTreeSizeData*>(pUserData)->threadData[threadIndex];
+			for (auto& rNode : node.objects)
 			{
-				data->mtx = pNode->GetWorld();
-				data->invMtx = glm::inverse(data->mtx);
-				data->aabb = pNode->GetAABB();
-				data->sphere = pNode->GetSphere();
+				if (threadData.nodeCounter < threadData.nodes.size())
+					threadData.nodes[threadData.nodeCounter] = rNode;
+				else
+					threadData.nodes.push_back(rNode);
+
+				threadData.aabb.Expand(rNode->GetWorldAABB());
+				++threadData.nodeCounter;
+			}
+			return true;
+		}, _boxTreeSizeData.get());
+
+		AABB sceneBounds;
+		for (auto pending : _pendingBoxTreeNodes)
+			sceneBounds.Expand(pending->GetWorldAABB());
+
+		sceneBounds.Min.y = -10000000.0f;
+		sceneBounds.Max.y = -sceneBounds.Min.y;
+		_boxTreeSizeData->Expand(sceneBounds);
+		_boxTree.Create(sceneBounds, BOX_TREE_DEPTH);
+
+		for(auto& t : _boxTreeSizeData->threadData)
+		{
+			for (uint n = 0; n < t.nodeCounter; n++)
+			{
+				if (!_boxTree.Insert(t.nodes[n], t.nodes[n]->GetWorldAABB()))
+				{
+					assert(false);
+				}
 			}
 		}
+
+		for (auto pending : _pendingBoxTreeNodes)
+		{
+			if (!_boxTree.Insert(pending, pending->GetWorldAABB()))
+			{
+				assert(false);
+			}
+		}
+
+		_boxTree.ComputeHeights([](RenderNode* const& pNode, float& minH, float& maxH) -> void { minH = pNode->GetWorldAABB().Min.y; maxH = pNode->GetWorldAABB().Max.y; });
+
+		_pendingBoxTreeNodes.clear();
+
+		double elapsed = timer.Tick();
+		printf("%f\n", elapsed * 1000.0f);
+
 	}
 
 	void Scene::Clear()
@@ -158,21 +251,49 @@ namespace SunEngine
 
 	void Scene::RegisterRenderNode(RenderNode* pNode)
 	{
-		auto found = _renderNodes.find(pNode);
-		RenderNodeData* data = 0;
-		if (found == _renderNodes.end())
-		{
-			data = &_renderNodes[pNode];
-		}
-		else
-		{
-			data = &(*found).second;
-		}
+		_pendingBoxTreeNodes.push_back(pNode);
+	}
 
-		data->pNode = pNode;
-		data->mtx = pNode->GetWorld();
-		data->aabb = pNode->GetAABB();
-		data->sphere = pNode->GetSphere();
+	void Scene::RegisterLight(LightComponentData* pLight)
+	{
+		_lightList.push_back(pLight);
+	}
+
+	void Scene::RegisterCamera(CameraComponentData* pCamera)
+	{
+		_cameraList.push_back(pCamera);
+	}
+
+	void Scene::TraverseRenderNodes(TraverseAABBFunc aabbFunc, void* pAABBData, TraverseRenderNodeFunc nodeFunc, void* pNodeData)
+	{
+		struct OctTreeData
+		{
+			TraverseAABBFunc aaabFunc;
+			TraverseRenderNodeFunc nodeFunc;
+			void* pAABBData;
+			void* pNodeData;
+		} oData;
+
+		oData.aaabFunc = aabbFunc;
+		oData.nodeFunc = nodeFunc;
+		oData.pAABBData = pAABBData;
+		oData.pNodeData = pNodeData;
+
+		_boxTree.Traverse([](const OctTree<RenderNode*>::Node& node, void*pDataPtr) -> bool {
+			if (node.children == 0 && node.objects.size() == 0) //dont test empty leafs
+				return true;
+			auto* octData = static_cast<OctTreeData*>(pDataPtr);
+			if (octData->aaabFunc(node.box, octData->pAABBData))
+			{
+				for (auto& rNode : node.objects)
+					octData->nodeFunc(rNode, octData->pNodeData);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}, &oData);
 	}
 
 	bool Scene::Raycast(const glm::vec3& o, const glm::vec3& d, SceneRayHit& hit) const
@@ -181,48 +302,48 @@ namespace SunEngine
 #if 1
 		//hit.numHits = 0;
 		hit.pHitNode = 0;
-		for (auto& kv : _renderNodes)
-		{
-			auto& data = kv.second;
+		//for (auto& kv : _renderNodes)
+		//{
+		//	auto& data = kv.second;
 
-			Ray ray;
-			ray.Origin = o;
-			ray.Direction = d;
-			ray.Transform(data.invMtx);
+		//	Ray ray;
+		//	ray.Origin = o;
+		//	ray.Direction = d;
+		//	ray.Transform(data.invMtx);
 
-			bool hitSphere = RaySphereIntersect(ray, data.sphere.Center, data.sphere.Radius);
-			bool hitAABB = RayAABBIntersect(ray, data.aabb.Min, data.aabb.Max);
+		//	bool hitSphere = RaySphereIntersect(ray, data.sphere.Center, data.sphere.Radius);
+		//	bool hitAABB = RayAABBIntersect(ray, data.aabb.Min, data.aabb.Max);
 
-			if (hitSphere && hitAABB)
-			{
-				 Mesh* pMesh = data.pNode->GetMesh();
-				 auto& vtxDef = pMesh->GetVertexDef();
-				 uint nIndex = vtxDef.NormalIndex;
-				 float tMin = FLT_MAX;
+		//	if (hitSphere && hitAABB)
+		//	{
+		//		 Mesh* pMesh = data.pNode->GetMesh();
+		//		 auto& vtxDef = pMesh->GetVertexDef();
+		//		 uint nIndex = vtxDef.NormalIndex;
+		//		 float tMin = FLT_MAX;
 
-				 for (uint i = 0; i < pMesh->GetTriCount(); i++)
-				 {
-					 uint t0, t1, t2;
-					 pMesh->GetTri(i, t0, t1, t2);
+		//		 for (uint i = 0; i < pMesh->GetTriCount(); i++)
+		//		 {
+		//			 uint t0, t1, t2;
+		//			 pMesh->GetTri(i, t0, t1, t2);
 
-					 glm::vec3 p0, p1, p2;
-					 p0 = pMesh->GetVertexPos(t0);
-					 p1 = pMesh->GetVertexPos(t1);
-					 p2 = pMesh->GetVertexPos(t2);
+		//			 glm::vec3 p0, p1, p2;
+		//			 p0 = pMesh->GetVertexPos(t0);
+		//			 p1 = pMesh->GetVertexPos(t1);
+		//			 p2 = pMesh->GetVertexPos(t2);
 
-					 float w[3];
-					 if (RayTriangleIntersect(ray, p0, p1, p2, tMin, w))
-					 {
-						 hit.pHitNode = data.pNode;
-						 hit.position = p0 * w[0] + p1 * w[1] + p2 * w[2];
-						 if (nIndex != VertexDef::DEFAULT_INVALID_INDEX)
-						 {
-							 hit.normal = pMesh->GetVertexVar(t0, nIndex) * w[0] + pMesh->GetVertexVar(t1, nIndex) * w[1] + pMesh->GetVertexVar(t2, nIndex) * w[2];
-						 }
-						 break;
-					 }
-				 }
-			}
+		//			 float w[3];
+		//			 if (RayTriangleIntersect(ray, p0, p1, p2, tMin, w))
+		//			 {
+		//				 hit.pHitNode = data.pNode;
+		//				 hit.position = p0 * w[0] + p1 * w[1] + p2 * w[2];
+		//				 if (nIndex != VertexDef::DEFAULT_INVALID_INDEX)
+		//				 {
+		//					 hit.normal = pMesh->GetVertexVar(t0, nIndex) * w[0] + pMesh->GetVertexVar(t1, nIndex) * w[1] + pMesh->GetVertexVar(t2, nIndex) * w[2];
+		//				 }
+		//				 break;
+		//			 }
+		//		 }
+		//	}
 
 			//float r2 = glm::dot(halfExtent, halfExtent);
 			//glm::vec3 rayToCenter = center - o;
@@ -251,7 +372,7 @@ namespace SunEngine
 			//	continue;
 
 			//hit.numHits++;
-		}
+		//}
 #endif
 
 		return hit.pHitNode != NULL;

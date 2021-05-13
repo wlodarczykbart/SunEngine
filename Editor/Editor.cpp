@@ -15,6 +15,50 @@
 
 namespace SunEngine
 {
+	const char* TexCopyVertexText =
+		"struct PS_In\n"
+		"{\n"
+		"	float4 clipPos : SV_POSITION;\n"
+		"	float2 texCoord : TEXCOORD;\n"
+		"};\n"
+		"\n"
+		"static const float2 VERTS[] =\n"
+		"{\n"
+		"	float2(-1, -1),\n"
+		"	float2(+1, -1),\n"
+		"	float2(+1, +1),\n"
+		"\n"
+		"	float2(-1, -1),\n"
+		"	float2(+1, +1),\n"
+		"	float2(-1, +1)\n"
+		"};\n"
+		"\n"
+		"PS_In main(uint vIndex : SV_VERTEXID)\n"
+		"{\n"
+		"	PS_In pIn;\n"
+		"	pIn.clipPos = float4(VERTS[vIndex], 0.0, 1.0);\n"
+		"	pIn.texCoord = VERTS[vIndex] * 0.5 + 0.5;\n"
+		"	pIn.texCoord.y = 1.0 - pIn.texCoord.y;\n"
+		"	return pIn;\n"
+		"}\n"
+		;
+
+	const char* TexCopyPixelText =
+		"struct PS_In\n"
+		"{\n"
+		"	float4 clipPos : SV_POSITION;\n"
+		"	float2 texCoord : TEXCOORD;\n"
+		"};\n"
+		"\n"
+		"Texture2D Texture;\n"
+		"SamplerState Sampler;\n"
+		"\n"
+		"float4 main(PS_In pIn) : SV_TARGET\n"
+		"{\n"
+		"	return Texture.Sample(Sampler, pIn.texCoord);\n"
+		"}\n"
+		;
+
 	Editor::Editor()
 	{
 		_bInitialized = false;
@@ -109,9 +153,23 @@ namespace SunEngine
 			return false;
 		}
 
+		View* pGraphicsWindowView = 0;
 		for (auto iter = _views.begin(); iter != _views.end(); ++iter)
 		{
-			_guiRenderer->RegisterView((*iter).second.get());
+			View* pView = (*iter).second.get();
+			_guiRenderer->RegisterView(pView);
+
+			if (pView->GetRenderToGraphicsWindow())
+				pGraphicsWindowView = pView;
+		}
+
+		if (pGraphicsWindowView)
+		{
+			if (!CreateTextureCopyData(pGraphicsWindowView))
+			{
+				spdlog::error("Failed to create Texture Copy Data");
+				return false;
+			}
 		}
 
 		spdlog::info("Editor initialization succesfull");
@@ -140,6 +198,41 @@ namespace SunEngine
 	void Editor::AddView(View* pView)
 	{
 		_views[pView->GetName()] = UniquePtr<View>(pView);
+	}
+
+	bool Editor::CreateTextureCopyData(View* pGraphicsWindowView)
+	{
+		ShaderCompiler shaderCompiler;
+		shaderCompiler.SetVertexShaderSource(TexCopyVertexText);
+		shaderCompiler.SetPixelShaderSource(TexCopyPixelText);
+
+		if (!shaderCompiler.Compile())
+			return false;
+
+		if (!_shader.Create(shaderCompiler.GetCreateInfo()))
+			return false;
+
+		GraphicsPipeline::CreateInfo pipelineInfo = {};
+		pipelineInfo.pShader = &_shader;
+		pipelineInfo.settings.EnableAlphaBlend();
+		pipelineInfo.settings.rasterizer.enableScissor = true;
+		pipelineInfo.settings.rasterizer.cullMode = SE_CM_NONE;
+		pipelineInfo.settings.rasterizer.frontFace = SE_FF_COUNTER_CLOCKWISE;
+		//pipelineInfo.settings.depthClipEnable = true;
+		//pipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_ALWAYS;
+		if (!_pipeline.Create(pipelineInfo))
+			return false;
+
+		ShaderBindings::CreateInfo bindingInfo = {};
+		bindingInfo.pShader = &_shader;
+		bindingInfo.type = SBT_MATERIAL;
+
+		if (!_bindings.Create(bindingInfo)) return false;
+		if (!_bindings.SetTexture("Texture", pGraphicsWindowView->GetRenderTarget()->GetColorTexture())) return false;
+		//if (!_fontBinding.SetTexture("Texture", GraphicsContext::GetDefaultTexture(GraphicsContext::DT_WHITE))) return false;
+		if (!_bindings.SetSampler("Sampler", GraphicsContext::GetDefaultSampler(GraphicsContext::DS_NEAR_CLAMP))) return false;
+
+		return true;
 	}
 
 	uint Editor::GetViews(Vector<View*>& views) const
@@ -225,7 +318,20 @@ namespace SunEngine
 
 			for (auto iter = _views.begin(); iter != _views.end(); ++iter)
 			{
-				(*iter).second->Update(&_graphicsWindow, pEvents, nEvents, 1 / 60.0f, 0.0f);
+				View* pView = (*iter).second.get();
+
+				if (pView->GetRenderToGraphicsWindow())
+					pView->UpdateViewState(glm::vec2((float)_graphicsWindow.Width(), (float)_graphicsWindow.Height()), glm::vec2(0.0f), true, true);
+
+				bool resizing = pView->NeedsResize();
+				pView->Update(&_graphicsWindow, pEvents, nEvents, 1 / 60.0f, 0.0f);
+				if (resizing)
+				{
+					if (pView->GetRenderToGraphicsWindow())
+						_bindings.SetTexture("Texture", pView->GetRenderTarget()->GetColorTexture());
+					else
+						_guiRenderer->UpdateView(pView);
+				}
 			}
 			_guiRenderer->Update(pEvents, nEvents);
 		}
@@ -235,13 +341,28 @@ namespace SunEngine
 	{
 		CommandBuffer* cmdBuffer = _graphicsSurface.GetCommandBuffer();
 
+		View* pGraphicsWindowView = 0;
 		for (auto iter = _views.begin(); iter != _views.end(); ++iter)
 		{
-			bool result = (*iter).second->Render(cmdBuffer);
+			View* pView = (*iter).second.get();
+			bool result = pView->Render(cmdBuffer);
 			assert(result);
+
+			if (pView->GetRenderToGraphicsWindow())
+				pGraphicsWindowView = pView;
 		}
 
 		_graphicsSurface.Bind(cmdBuffer);
+		if (pGraphicsWindowView)
+		{
+			_shader.Bind(cmdBuffer);
+			_pipeline.Bind(cmdBuffer);
+			_bindings.Bind(cmdBuffer);
+			cmdBuffer->Draw(6, 1, 0, 0);
+			_bindings.Unbind(cmdBuffer);
+			_pipeline.Unbind(cmdBuffer);
+			_shader.Unbind(cmdBuffer);
+		}
 		_guiRenderer->Render(cmdBuffer);
 		_graphicsSurface.Unbind(cmdBuffer);
 

@@ -198,6 +198,19 @@ namespace SunEngine
 		}
 	}
 
+	bool ConfigSection::GetBool(const String& key, bool defaultValue) const
+	{
+		const String* pStr;
+		if (GetValue(key, &pStr))
+		{
+			return (*pStr == "true") ? true : false;
+		}
+		else
+		{
+			return defaultValue;
+		}
+	}
+
 	bool ConfigSection::GetBlock(const String& key, StrMap<String>& block, char blockStart, char blockEnd) const
 	{
 		const String *pStr;

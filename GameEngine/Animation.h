@@ -15,7 +15,7 @@ namespace SunEngine
 		void SetKeys(const Vector<float>& keys);
 
 	private:
-		friend class Aniamtor;
+		friend class Animator;
 
 		String _name;
 		float _length;
@@ -30,11 +30,21 @@ namespace SunEngine
 		AnimatorComponentData(Component* pComponent, SceneNode* pNode, uint boneCount);
 
 		uint GetClip() const { return _clip; }
+		void SetClip(uint clip);
+
 		uint GetKey() const { return _key; }
 		float GetKeyPercent() const { return _percent; }
-		bool ShouldUpdate() const { return _playing; }
+
 		bool GetPlaying() const { return _playing; }
 		void SetPlaying(bool playing) { _playing = playing; }
+
+		bool GetLoop() const { return _loop; }
+		void SetLoop(bool loop) { _loop = loop; }
+
+		float GetSpeed() const { return _speed; }
+		void SetSpeed(float speed) { _speed = speed; }
+
+		bool ShouldUpdate() const { return _playing; }
 
 		void SetBone(uint index, const AnimatedBoneComponentData* pBoneData) { _boneData[index] = pBoneData; }
 		const Vector<const AnimatedBoneComponentData*>& GetBoneData() const { return _boneData; }
@@ -63,6 +73,7 @@ namespace SunEngine
 		ComponentType GetType() const override { return COMPONENT_ANIMATOR; }
 		ComponentData* AllocData(SceneNode* pNode) override { return new AnimatorComponentData(this, pNode, _boneCount); }
 
+		uint GetClipCount() const { return _clips.size(); }
 		void SetClips(const Vector<AnimationClip>& clips) { _clips = clips; }
 		void SetBoneCount(uint count) { _boneCount = count; }
 		void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override;

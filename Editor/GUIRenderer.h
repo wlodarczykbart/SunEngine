@@ -41,6 +41,7 @@ namespace SunEngine
 		void Render(CommandBuffer* cmdBuffer);
 
 		bool RegisterView(View* pView);
+		bool UpdateView(View* pView);
 
 		Editor* GetEditor() const { return _pEditor; }
 

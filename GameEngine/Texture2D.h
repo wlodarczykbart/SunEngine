@@ -16,8 +16,7 @@ namespace SunEngine
 		bool RegisterToGPU() override;
 
 		bool Alloc(uint width, uint height);
-		bool LoadFromFile(const String& filename);
-		bool GenerateMips();
+		bool GenerateMips(bool threaded);
 
 		void FillColor(const glm::vec4& color);
 		void Invert();
@@ -28,7 +27,9 @@ namespace SunEngine
 
 		void SetSRGB(bool srgb) { _srgb = srgb; }
 
+		void SetFilename(const String& filename) { _filename = filename; }
 		const String& GetFilename() const { return _filename; }
+		bool LoadFromFile();
 
 	private:
 		String _filename;

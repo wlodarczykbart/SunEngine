@@ -22,6 +22,16 @@ namespace SunEngine
 
 	struct Sphere
 	{
+		bool operator == (const Sphere& rhs) const
+		{
+			return Center == rhs.Center && Radius == rhs.Radius;
+		}
+
+		bool operator != (const Sphere& rhs) const
+		{
+			return !(Center == rhs.Center && Radius == rhs.Radius);
+		}
+
 		glm::vec3 Center;
 		float Radius;
 	};
@@ -60,6 +70,15 @@ namespace SunEngine
 		void Transform(const glm::mat4& mtx)
 		{
 			glm::vec4 corners[8];
+			GetCorners(corners);
+
+			Reset();
+			for (uint i = 0; i < 8; i++)
+				Expand(mtx * corners[i]);
+		}
+
+		void GetCorners(glm::vec4 corners[8]) const
+		{
 			corners[0] = glm::vec4(Min, 1.0f);
 			corners[1] = glm::vec4(Max, 1.0f);
 
@@ -70,10 +89,6 @@ namespace SunEngine
 			corners[5] = glm::vec4(Max.x, Max.y, Min.z, 1.0f);
 			corners[6] = glm::vec4(Min.x, Max.y, Min.z, 1.0f);
 			corners[7] = glm::vec4(Max.x, Min.y, Min.z, 1.0f);
-
-			Reset();
-			for (uint i = 0; i < 8; i++)
-				Expand(mtx * corners[i]);
 		}
 
 		glm::vec3 GetExtent() const
@@ -84,6 +99,14 @@ namespace SunEngine
 		glm::vec3 GetCenter() const
 		{
 			return Min + GetExtent();
+		}
+
+		bool Contains(const AABB& rhs) const
+		{
+			return
+				rhs.Min.x >= Min.x && rhs.Max.x <= Max.x &&
+				rhs.Min.y >= Min.y && rhs.Max.y <= Max.y &&
+				rhs.Min.z >= Min.z && rhs.Max.z <= Max.z;
 		}
 
 		bool operator == (const AABB& rhs) const { return Min == rhs.Min && Max == rhs.Max; }
@@ -314,5 +337,12 @@ namespace SunEngine
 
 		return true; // this ray hits the triangle 
 #endif
+	}
+
+	inline glm::vec4 CreatePlane(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2)
+	{
+		glm::vec3 normal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
+		float D = -glm::dot(p0, normal);
+		return glm::vec4(normal, D);
 	}
 }
