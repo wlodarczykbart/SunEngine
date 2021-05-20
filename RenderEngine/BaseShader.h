@@ -39,19 +39,13 @@ namespace SunEngine
 		ShaderMat4 ProjectionMatrix;
 		ShaderMat4 InvViewMatrix;
 		ShaderMat4 InvProjectionMatrix;
+		ShaderVec4 Viewport;
 	};
 
 	struct ObjectBufferData
 	{
 		ShaderMat4 WorldMatrix;
 		ShaderMat4 InverseTransposeMatrix;
-	};
-
-	struct SunlightBufferData
-	{
-		ShaderVec4 Direction;
-		ShaderVec4 ViewDirection;
-		ShaderVec4 Color;
 	};
 
 	struct PointLightBufferData
@@ -69,14 +63,15 @@ namespace SunEngine
 		ShaderVec4 Color;
 	};
 
-	struct FogBufferData
-	{
-		ShaderVec4 FogColor;
-		ShaderVec4 FogControls;
-	};
-
 	struct EnvBufferData
 	{
+		ShaderVec4 SunDirection;
+		ShaderVec4 SunViewDirection;
+		ShaderVec4 SunColor;
+
+		ShaderVec4 FogColor;
+		ShaderVec4 FogControls;
+
 		ShaderVec4 TimeData;
 		ShaderVec4 WindDir;
 	};
@@ -108,9 +103,7 @@ namespace SunEngine
 		static String CameraBufferName;
 		static String ObjectBufferName;
 		static String EnvBufferName;
-		static String FogBufferName;
 		static String SkinnedBoneBufferName;
-		static String SunlightBufferName;
 		static String PointlightBufferName;
 		static String SpotlightBufferName;
 		static String TextureTransformBufferName;

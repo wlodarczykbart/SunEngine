@@ -65,6 +65,9 @@ namespace SunEngine
 		if (_mips.size())
 			return true;
 
+		if (_img.IsCompressed())
+			return true;
+
 		MipMapGenerator mipGen;
 		if (!mipGen.Create(_img.ImageData(), threaded))
 			return false;
@@ -97,6 +100,34 @@ namespace SunEngine
 		}
 
 		return  true;
+	}
+
+	bool Texture2D::Resize(uint width, uint height)
+	{
+		if (_mips.size())
+			return true;
+
+		if (_img.IsCompressed())
+			return true;
+
+		return _img.Resize(width, height);
+	}
+
+	bool Texture2D::Compress()
+	{
+		if (_img.IsCompressed())
+			return true;
+
+		if (!_img.Compress())
+			return false;
+
+		for (uint i = 0; i < _mips.size(); i++)
+		{
+			if (!_mips[i]->Compress())
+				return false;
+		}
+
+		return true;
 	}
 
 	void Texture2D::FillColor(const glm::vec4& color)

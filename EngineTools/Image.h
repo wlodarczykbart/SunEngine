@@ -85,8 +85,11 @@ namespace SunEngine
 		bool Read(StreamBase& stream) override;
 
 		bool Compress();
+		bool IsCompressed() const;
 
 		inline uint GetFlags() const { return _internalFlags; }
+
+		static bool CanLoad(const String& path);
 
 	private:
 		void CleanUp();

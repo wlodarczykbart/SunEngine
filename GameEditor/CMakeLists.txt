@@ -20,6 +20,7 @@ target_include_directories(GameEditor PUBLIC
 "${CMAKE_SOURCE_DIR}/Editor"
 "${CMAKE_SOURCE_DIR}/External/spdlog/include"
 "${CMAKE_SOURCE_DIR}/External/ModelImporter"
+"${CMAKE_SOURCE_DIR}/External/assimp/include"
 "${CMAKE_SOURCE_DIR}/External/imgui/${IMGUI_VER}")
 
-target_link_libraries(GameEditor GameEngine Editor ModelImporter)
+target_link_libraries(GameEditor GameEngine Editor ModelImporter assimp)

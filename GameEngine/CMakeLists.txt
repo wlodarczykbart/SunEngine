@@ -49,6 +49,13 @@ SpatialVolumes.h
 SpatialVolumes.cpp
 ThreadPool.h
 ThreadPool.cpp
+TextureCube.h
+TextureCube.cpp
+Environment.h
+Environment.cpp
+SkyModels.h
+SkyModels.cpp
+${CMAKE_SOURCE_DIR}/External/HosekWilkie_SkylightModel_C_Source.1.4a/ArHosekSkyModel.cpp
 )
 
 target_include_directories(GameEngine PUBLIC 
@@ -56,4 +63,6 @@ target_include_directories(GameEngine PUBLIC
 "${CMAKE_SOURCE_DIR}/RenderEngine"
 "${CMAKE_SOURCE_DIR}/External/glm"
 "${CMAKE_SOURCE_DIR}/External/ModelImporter"
+"${CMAKE_SOURCE_DIR}/External/assimp/include"
+"${CMAKE_SOURCE_DIR}/External/HosekWilkie_SkylightModel_C_Source.1.4a"
 )

@@ -30,6 +30,8 @@ namespace SunEngine
 		virtual bool CustomLoad(GraphicsWindow* pWindow, GUIRenderer** ppOutGUI) = 0;
 		virtual void CustomUpdate() = 0;
 
+		const ConfigFile& GetConfig() const { return _config; }
+
 		void AddView(View* pView);
 	private:
 		bool CreateTextureCopyData(View* pGraphicsWindowView);

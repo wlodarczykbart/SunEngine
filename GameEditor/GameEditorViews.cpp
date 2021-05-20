@@ -71,6 +71,7 @@ namespace SunEngine
 
 	SceneView::SceneView(SceneRenderer* pRenderer) : ICameraView("SceneView")
 	{
+		_resizeOccured = false;
 		_renderer = pRenderer;
 		_shaderBufferUsageCount = 0;
 		_debugFrustum = 0;
@@ -98,8 +99,9 @@ namespace SunEngine
 
 		_shaderBuffer.UpdateShared(bufferData, _shaderBufferUsageCount);
 
-		if (!_renderer->PrepareFrame(GetCameraData()))
+		if (!_renderer->PrepareFrame(_outputTarget.GetColorTexture(), _resizeOccured, GetCameraData()))
 			return false;
+		_resizeOccured = false;
 
 		RenderTargetPassInfo outputInfo = {};
 		outputInfo.pTarget = &_outputTarget;
@@ -124,7 +126,12 @@ namespace SunEngine
 #endif
 		}
 
-		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0))
+		RenderTargetPassInfo skyInfo = {};
+		skyInfo.pTarget = &_skyTarget;
+		skyInfo.pPipeline = &_skyData.pipeline;
+		skyInfo.pBindings = &_skyData.bindings;
+
+		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0, &skyInfo))
 			return false;
 
 		//Apply toneMap correction
@@ -279,6 +286,9 @@ namespace SunEngine
 #endif
 		}
 
+		if (!CreateRenderPassData(DefaultShaders::TextureCopy, _skyData, true))
+			return false;
+
 		return OnResize(info);
 	}
 
@@ -342,6 +352,16 @@ namespace SunEngine
 
 		if (!_fxaaData.bindings.SetTexture(MaterialStrings::DiffuseMap, _toneMapTarget.GetColorTexture()))
 			return false;
+
+		//TODO: should sky be a smaller resolution than the view resolution?
+		rtInfo.floatingPointColorBuffer = true;
+		if (!_skyTarget.Create(rtInfo))
+			return false;
+
+		if (!_skyData.bindings.SetTexture(MaterialStrings::DiffuseMap, _skyTarget.GetColorTexture()))
+			return false;
+
+		_resizeOccured = true;
 
 		return true;
 	}
@@ -417,9 +437,9 @@ namespace SunEngine
 		}
 	}
 
-	bool SceneView::CreateRenderPassData(const String& shader, RenderPassData& data)
+	bool SceneView::CreateRenderPassData(const String& shader, RenderPassData& data, bool useOneZ)
 	{
-		BaseShader* pShader = ShaderMgr::Get().GetShader(shader)->GetDefault();
+		BaseShader* pShader = ShaderMgr::Get().GetShader(shader)->GetVariant(useOneZ ? Shader::OneZ : Shader::Default);
 		assert(pShader);
 
 		if (!pShader)
@@ -441,6 +461,10 @@ namespace SunEngine
 
 		GraphicsPipeline::CreateInfo pipelineInfo = {};
 
+		//TODO: make sure this in fact should be default for screen space pipelines
+		pipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_LESS_EQUAL;
+		pipelineInfo.settings.depthStencil.enableDepthWrite = false;
+
 		//TODO: specific pipelineInfo based on shader string name
 		if (shader == DefaultShaders::ScreenSpaceReflection)
 		{
@@ -450,6 +474,11 @@ namespace SunEngine
 			//pipelineInfo.settings.blendState.srcColorBlendFactor = SE_BF_SRC_ALPHA;
 			//pipelineInfo.settings.blendState.dstColorBlendFactor = SE_BF_ONE_MINUS_SRC_ALPHA;
 			//pipelineInfo.settings.depthStencil.depthCompareOp = se; //we only want to test pixels which have depths < 1, the quad will have depth == 1, so pixels which are the background wont be tested
+		}
+		else if (shader == DefaultShaders::SceneCopy)
+		{
+			//this pipeline writes to depth buffer in pixel shader
+			pipelineInfo.settings.depthStencil.enableDepthWrite = true;
 		}
 
 		pipelineInfo.pShader = pShader;

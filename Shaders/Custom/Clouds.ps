@@ -1,0 +1,21 @@
+#include "EnvBuffer.hlsl"
+
+Texture2D DiffuseMap;
+SamplerState Sampler;
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 gridPos : POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float a = 1.0 - min(length(pIn.texCoord * 2.0 - 1.0), 1.0);	
+	//a = exp(-length(pIn.gridPos) * 0.001);
+	float4 color = DiffuseMap.Sample(Sampler, (pIn.texCoord * 6) + float2(0.0, ELAPSED_TIME * 0.005)).rrrr;
+	color.rgb *= 3.0;
+	color.a *= a;
+	return color;
+}

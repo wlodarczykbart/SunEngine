@@ -13,6 +13,7 @@
 #include "ResourceMgr.h"
 #include "SceneRenderer.h"
 #include "StringUtil.h"
+#include "Environment.h"
 #include "Animation.h"
 
 #include <DirectXMath.h>
@@ -23,8 +24,8 @@ namespace SunEngine
 	{
 		_bInit = false;
 		_currentCamera = 0;
-		_currentSunlight = 0;
-		_lightBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
+		_currentEnvironment = 0;
+		_environmentBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
 		_shadowMatrixBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
 	}
 
@@ -37,8 +38,8 @@ namespace SunEngine
 		UniformBuffer::CreateInfo uboInfo = {};
 		uboInfo.isShared = false;
 
-		uboInfo.size = sizeof(SunlightBufferData);
-		if (!_lightBuffer->Buffer.Create(uboInfo))
+		uboInfo.size = sizeof(EnvBufferData);
+		if (!_environmentBuffer->Buffer.Create(uboInfo))
 			return false;
 
 		if (!_cameraGroup.Init(ShaderStrings::CameraBufferName, SBT_CAMERA, sizeof(CameraBufferData)))
@@ -90,11 +91,27 @@ namespace SunEngine
 			return false;
 		_shaderVariantPipelineMap[Shader::Depth] = DefaultPipelines::ShadowDepth;
 
+		GraphicsPipeline::CreateInfo pipelineInfo = {};
+		pipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_LESS_EQUAL;
+
+		pipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Skybox)->GetDefault();
+		if (!_helperPipelines[DefaultShaders::Skybox].Create(pipelineInfo))
+			return false;
+
+		pipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::SkyArHosek)->GetDefault();
+		if (!_helperPipelines[DefaultShaders::SkyArHosek].Create(pipelineInfo))
+			return false;
+
+		pipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Clouds)->GetDefault();
+		pipelineInfo.settings.EnableAlphaBlend();
+		if (!_helperPipelines[DefaultShaders::Clouds].Create(pipelineInfo))
+			return false;
+
 		_bInit = true;
 		return true;
 	}
 
-	bool SceneRenderer::PrepareFrame(CameraComponentData* pCamera)
+	bool SceneRenderer::PrepareFrame(BaseTexture* pOutputTexture, bool updateTextures, CameraComponentData* pCamera)
 	{
 		if (!_bInit)
 			return false;
@@ -104,7 +121,7 @@ namespace SunEngine
 			return false;
 
 		_currentCamera = pCamera;
-		_currentSunlight = 0;
+		_currentEnvironment = 0;
 
 		if (_currentCamera == 0)
 		{
@@ -112,12 +129,22 @@ namespace SunEngine
 			_currentCamera = list.size() ? *list.begin() : 0;
 		}
 
-		auto& lightList = pScene->GetLightList();
-		for (auto& light : lightList)
+		//TODO: add support for point/spot lights
+		//auto& lightList = pScene->GetLightList();
+		//for (auto& light : lightList)
+		//{
+		//	const Light* pLight = light->C()->As<Light>();
+		//	if (pLight->GetLightType() == LT_DIRECTIONAL)
+		//		_currentSunlight = light;
+		//}
+
+		auto& environmentList = pScene->GetEnvironmentList();
+		float deltaTime = 0.0f, elapsedTime = 0.0f;
+		for (auto& env : environmentList)
 		{
-			const Light* pLight = light->C()->As<Light>();
-			if (pLight->GetLightType() == LT_DIRECTIONAL)
-				_currentSunlight = light;
+			_currentEnvironment = static_cast<const Environment*>(env->C());
+			deltaTime = env->GetDeltaTime();
+			elapsedTime = env->GetElapsedTime();
 		}
 
 		pScene->TraverseRenderNodes(
@@ -143,11 +170,11 @@ namespace SunEngine
 		if (!_currentCamera)
 			return false;
 
-		if (!_currentSunlight)
+		if (!_currentEnvironment)
 			return false;
 
 		CameraBufferData camData = {};
-		glm::mat4 view = _currentCamera->ViewMatrix;
+		glm::mat4 view = _currentCamera->GetView();
 		glm::mat4 proj = _currentCamera->C()->As<Camera>()->GetProj();
 		glm::mat4 invView = glm::inverse(view);
 		glm::mat4 invProj = glm::inverse(proj);
@@ -155,6 +182,7 @@ namespace SunEngine
 		camData.ProjectionMatrix.Set(&proj);
 		camData.InvViewMatrix.Set(&invView);
 		camData.InvProjectionMatrix.Set(&invProj);
+		camData.Viewport.Set(0.0f, 0.0f, pOutputTexture->GetWidth(), pOutputTexture->GetHeight());
 
 		uint camUpdateIndex = 0;
 		_cameraGroup.Update(&camData, camUpdateIndex, &_cameraBuffer);
@@ -163,7 +191,7 @@ namespace SunEngine
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
 			float sceneRadius = 20.0f;
-			glm::vec3 lightDir = glm::normalize(glm::vec3(_currentSunlight->Direction));
+			glm::vec3 lightDir = _currentEnvironment->GetSunDirection();
 			glm::vec3 lightPos = -2.0f * lightDir * sceneRadius;
 			glm::vec3 targetPos = glm::vec3(invView[3]);
 			targetPos = glm::vec3(0);
@@ -203,6 +231,7 @@ namespace SunEngine
 			camData.ProjectionMatrix.Set(&proj);
 			camData.InvViewMatrix.Set(&invView);
 			camData.InvProjectionMatrix.Set(&invProj);
+			camData.Viewport.Set(_depthPasses[i]->Viewport.x, _depthPasses[i]->Viewport.y, _depthPasses[i]->Viewport.width, _depthPasses[i]->Viewport.height);
 			_cameraGroup.Update(&camData, camUpdateIndex, &_cameraBuffer);
 			glm::mat4 viewProj = proj * view;
 			_shadowMatrixBuffer->Buffer.Update(&viewProj, i * sizeof(glm::mat4), sizeof(glm::mat4));
@@ -211,13 +240,18 @@ namespace SunEngine
 		_cameraGroup.Flush();
 		_cameraGroup.Reset();
 
-		SunlightBufferData sunData = {};
-		glm::vec4 sunDirView = _currentCamera->ViewMatrix * _currentSunlight->Direction;
-		sunData.Color.Set(&_currentSunlight->C()->As<Light>()->GetColor());
-		sunData.Direction.Set(&_currentSunlight->Direction);
-		sunData.ViewDirection.Set(&sunDirView);
-		if (!_lightBuffer->Buffer.Update(&sunData))
+		EnvBufferData envData = {};
+		glm::vec4 sunDir = glm::vec4(glm::normalize(_currentEnvironment->GetSunDirection()), 0.0);
+		glm::vec4 sunDirView = _currentCamera->GetView() * sunDir;
+		envData.SunColor.Set(1, 1, 1, 1);
+		envData.SunDirection.Set(&sunDir.x);
+		envData.SunViewDirection.Set(&sunDirView);
+		envData.TimeData.Set(deltaTime, elapsedTime, 0, 0);
+		if (!_environmentBuffer->Buffer.Update(&envData))
 			return false;
+
+		for (auto& pipeline : _helperPipelines)
+			_currentShaders.insert(pipeline.second.GetShader());
 
 		//plug in deferred shader so it gets camera/light buffers
 		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
@@ -241,14 +275,14 @@ namespace SunEngine
 					return false;
 			}
 
-			if (pShader->ContainsBuffer(ShaderStrings::SunlightBufferName) && _lightBuffer->ShaderBindings.find(pShader) == _lightBuffer->ShaderBindings.end())
+			if (pShader->ContainsBuffer(ShaderStrings::EnvBufferName) && (_environmentBuffer->ShaderBindings.find(pShader) == _environmentBuffer->ShaderBindings.end()))
 			{
 				ShaderBindings::CreateInfo bindInfo = {};
 				bindInfo.pShader = pShader;
-				bindInfo.type = SBT_LIGHT;
-				if (!_lightBuffer->ShaderBindings[pShader].Create(bindInfo))
+				bindInfo.type = SBT_ENVIRONMENT;
+				if (!_environmentBuffer->ShaderBindings[pShader].Create(bindInfo))
 					return false;
-				if (!_lightBuffer->ShaderBindings[pShader].SetUniformBuffer(ShaderStrings::SunlightBufferName, &_lightBuffer->Buffer))
+				if (!_environmentBuffer->ShaderBindings[pShader].SetUniformBuffer(ShaderStrings::EnvBufferName, &_environmentBuffer->Buffer))
 					return false;
 			}
 
@@ -270,20 +304,24 @@ namespace SunEngine
 		return true;
 	}
 
-	bool SceneRenderer::RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo)
+	bool SceneRenderer::RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo, RenderTargetPassInfo* pSkyInfo)
 	{
 		if (!_currentCamera)
 			return false;
 
-		if (!_currentSunlight)
+		if (!_currentEnvironment)
 			return false;
 
 		BaseShader* pShader = 0;
 
+		pSkyInfo->pTarget->Bind(cmdBuffer);
+		RenderSky(cmdBuffer);
+		pSkyInfo->pTarget->Unbind(cmdBuffer);
+
 		_depthTarget.Bind(cmdBuffer);
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
-			ProcessRenderQueue(cmdBuffer, _depthPasses[i]->RenderQueue, i+1);
+			ProcessRenderList(cmdBuffer, _depthPasses[i]->RenderList, i+1);
 		}
 		_depthTarget.Unbind(cmdBuffer);
 
@@ -292,7 +330,7 @@ namespace SunEngine
 		if (pDeferredInfo)
 		{
 			pDeferredInfo->pTarget->Bind(cmdBuffer);
-			ProcessRenderQueue(cmdBuffer, _gbufferRenderQueue, mainCamUpdateIndex);
+			ProcessRenderList(cmdBuffer, _gbufferRenderList, mainCamUpdateIndex);
 			pDeferredInfo->pTarget->Unbind(cmdBuffer);
 
 			//Draw deferred objects to the deferred resolve render target
@@ -304,7 +342,7 @@ namespace SunEngine
 			pDeferredInfo->pBindings->Bind(cmdBuffer);
 
 			TryBindBuffer(cmdBuffer, pShader, _cameraBuffer);
-			TryBindBuffer(cmdBuffer, pShader, _lightBuffer.get());
+			TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
 			TryBindBuffer(cmdBuffer, pShader, _shadowMatrixBuffer.get());
 
 			//draw 2 triangles that are generated by screen vertex shader
@@ -354,7 +392,9 @@ namespace SunEngine
 			pOpaqueTarget->Bind(cmdBuffer);
 		}
 
-		ProcessRenderQueue(cmdBuffer, _opaqueRenderQueue, mainCamUpdateIndex);
+		ProcessRenderList(cmdBuffer, _opaqueRenderList, mainCamUpdateIndex);
+
+		RenderEnvironment(cmdBuffer, pSkyInfo);
 
 		pOpaqueTarget->Unbind(cmdBuffer);
 
@@ -375,7 +415,8 @@ namespace SunEngine
 			pShader->Unbind(cmdBuffer);
 		}
 
-		ProcessRenderQueue(cmdBuffer, _sortedRenderQueue, mainCamUpdateIndex);
+		_sortedRenderList.sort([](const RenderNodeData& left, const RenderNodeData& right) -> bool { return left.SortingDistance > right.SortingDistance; });
+		ProcessRenderList(cmdBuffer, _sortedRenderList, mainCamUpdateIndex);
 
 		pOutputInfo->pTarget->Unbind(cmdBuffer);
 
@@ -426,10 +467,11 @@ namespace SunEngine
 			}
 		}
 
+		bool sorted = false;
 		RenderNodeData data = {};
 		data.SceneNode = pSceneNode;
 		data.RenderNode = pNode;
-		GetPipeline(data);
+		GetPipeline(data, sorted);
 
 		BaseShader* pShader = pMaterial->GetShaderVariant();
 
@@ -445,14 +487,18 @@ namespace SunEngine
 
 		_currentShaders.insert(pShader);
 
-		if (pMaterial->GetVariant() == Shader::Default)
+		if (!sorted)
 		{
-			//TODO: add logic to place these in either opaque or sorted based on the render node properties
-			_sortedRenderQueue.push(data);
+			if (pMaterial->GetVariant() == Shader::Default)
+				_opaqueRenderList.push_back(data);
+			else if (pMaterial->GetVariant() == Shader::GBuffer)
+				_gbufferRenderList.push_back(data);
 		}
-		else if (pMaterial->GetVariant() == Shader::GBuffer)
+		else
 		{
-			_gbufferRenderQueue.push(data);
+			glm::vec3 vDelta = pNode->GetWorldAABB().GetCenter() - _currentCamera->GetPosition();
+			data.SortingDistance = glm::dot(vDelta, vDelta);
+			_sortedRenderList.push_back(data);
 		}
 
 		if (EngineInfo::GetRenderer().ShadowsEnabled())
@@ -473,13 +519,13 @@ namespace SunEngine
 				{
 					RenderNodeData depthData = data;
 					depthData.MaterialOverride = pDepthMaterial;
-					GetPipeline(depthData);
+					GetPipeline(depthData, sorted);
 					_depthPasses[i]->ObjectBufferGroup.Update(&objBuffer, depthData.ObjectBufferIndex, &depthData.ObjectBindings, pDepthShader);
 
 					if (pSkinnedMesh)
 						_depthPasses[i]->SkinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), depthData.SkinnedBoneBufferIndex, &depthData.SkinnedBoneBindings, pDepthShader);
 
-					_depthPasses[i]->RenderQueue.push(depthData);
+					_depthPasses[i]->RenderList.push_back(depthData);
 				}
 
 				_currentShaders.insert(pDepthShader);
@@ -487,7 +533,7 @@ namespace SunEngine
 		}
 	}
 
-	void SceneRenderer::ProcessRenderQueue(CommandBuffer* cmdBuffer, Queue<RenderNodeData>& queue, uint cameraUpdateIndex)
+	void SceneRenderer::ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex)
 	{
 		IShaderBindingsBindState objectBindData = {};
 		objectBindData.DynamicIndices[0].first = ShaderStrings::ObjectBufferName;
@@ -498,9 +544,8 @@ namespace SunEngine
 		IShaderBindingsBindState skinnedBoneBindData = {};
 		skinnedBoneBindData.DynamicIndices[0].first = ShaderStrings::SkinnedBoneBufferName;
 
-		while (queue.size())
+		for(auto& renderData : renderList)
 		{
-			RenderNodeData& renderData = queue.front();
 			Material* pMaterial = renderData.MaterialOverride ? renderData.MaterialOverride : renderData.RenderNode->GetMaterial();
 
 			BaseShader* pShader = pMaterial->GetShaderVariant();
@@ -510,7 +555,7 @@ namespace SunEngine
 			pShader->Bind(cmdBuffer);
 			pipeline.Bind(cmdBuffer);
 			TryBindBuffer(cmdBuffer, pShader, _cameraBuffer, &cameraBindData);
-			TryBindBuffer(cmdBuffer, pShader, _lightBuffer.get());
+			TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
 			TryBindBuffer(cmdBuffer, pShader, _shadowMatrixBuffer.get());
 
 			renderData.RenderNode->GetMesh()->GetGPUObject()->Bind(cmdBuffer);
@@ -534,13 +579,13 @@ namespace SunEngine
 
 			pipeline.Unbind(cmdBuffer);
 			pShader->Unbind(cmdBuffer);
-
-			queue.pop();
 		}
+		renderList.clear();
 	}
 
-	bool SceneRenderer::GetPipeline(RenderNodeData& data)
+	bool SceneRenderer::GetPipeline(RenderNodeData& data, bool& sorted)
 	{
+		sorted = false;
 		PipelineSettings settings = {};
 		data.RenderNode->BuildPipelineSettings(settings);
 
@@ -550,6 +595,13 @@ namespace SunEngine
 		auto variantPipeline = _shaderVariantPipelineMap.find(pMaterial->GetVariant());
 		if (variantPipeline != _shaderVariantPipelineMap.end())
 			ShaderMgr::Get().BuildPipelineSettings((*variantPipeline).second, settings);
+
+		glm::vec4 diffuseColor;
+		if (pMaterial->GetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor) && diffuseColor.a < 1.0f)
+		{
+			settings.EnableAlphaBlend();
+			sorted = true;
+		}
 
 		for (uint i = 0; i < _graphicsPipelines.size(); i++)
 		{
@@ -579,6 +631,83 @@ namespace SunEngine
 		auto found = buffer->ShaderBindings.find(pShader);
 		if(found != buffer->ShaderBindings.end())
 			(*found).second.Bind(cmdBuffer, pBindState);
+	}
+
+	void SceneRenderer::RenderSky(CommandBuffer* cmdBuffer)
+	{
+		SkyModel* pSkyModel = _currentEnvironment->GetActiveSkyModel();
+		Material* pMaterial = pSkyModel->GetMaterial();
+		BaseShader* pShader = pMaterial->GetShaderVariant();
+		auto& pipeline = _helperPipelines.at(pMaterial->GetShader()->GetName());
+
+		pShader->Bind(cmdBuffer);
+		pipeline.Bind(cmdBuffer);
+		pMaterial->GetGPUObject()->Bind(cmdBuffer);
+		TryBindBuffer(cmdBuffer, pShader, _cameraBuffer);
+		TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
+		cmdBuffer->Draw(pSkyModel->GetVertexDrawCount(), 1, 0, 0);
+		pMaterial->GetGPUObject()->Unbind(cmdBuffer);
+		pipeline.Unbind(cmdBuffer);
+		pShader->Unbind(cmdBuffer);
+
+		//if (skyModel == Environment::SM_SKYBOX)
+		//{
+		//	ShaderBindings* pBindings = _currentEnvironment->GetSkyboxBindings();
+		//	if (pBindings)
+		//	{
+		//		pShader = _skyboxPipeline.GetShader();
+		//		pShader->Bind(cmdBuffer);
+		//		_skyboxPipeline.Bind(cmdBuffer);
+		//		pBindings->Bind(cmdBuffer);
+		//		TryBindBuffer(cmdBuffer, pShader, _cameraBuffer);
+		//		TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
+		//		cmdBuffer->Draw(36, 1, 0, 0);
+		//		pBindings->Unbind(cmdBuffer);
+		//		_skyboxPipeline.Unbind(cmdBuffer);
+		//		pShader->Unbind(cmdBuffer);
+		//	}
+		//}
+		//else if (skyModel == Environment::SM_AR_HOSEK)
+		//{
+
+		//}
+	}
+
+	void SceneRenderer::RenderEnvironment(CommandBuffer* cmdBuffer, RenderTargetPassInfo* pSkyInfo)
+	{
+		BaseShader* pShader = 0;
+		ShaderBindings* pBindings = 0;
+
+		//Copy the texture containing the sky background to main framebuffer
+		pBindings = pSkyInfo->pBindings;
+		if (pBindings)
+		{
+			pShader = pSkyInfo->pPipeline->GetShader();
+			pShader->Bind(cmdBuffer);
+			pSkyInfo->pPipeline->Bind(cmdBuffer);
+			pBindings->Bind(cmdBuffer);
+			cmdBuffer->Draw(6, 1, 0, 0);
+			pBindings->Unbind(cmdBuffer);
+			pSkyInfo->pPipeline->Unbind(cmdBuffer);
+			pShader->Unbind(cmdBuffer);
+		}
+
+		//Draw clouds over sky
+		pBindings = _currentEnvironment->GetCloudBindings();
+		if (pBindings)
+		{
+			auto& pipeline = _helperPipelines.at(DefaultShaders::Clouds);
+			pShader = pipeline.GetShader();
+			pShader->Bind(cmdBuffer);
+			pipeline.Bind(cmdBuffer);
+			pBindings->Bind(cmdBuffer);
+			TryBindBuffer(cmdBuffer, pShader, _cameraBuffer);
+			TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
+			cmdBuffer->Draw(6, 1, 0, 0);
+			pBindings->Unbind(cmdBuffer);
+			pipeline.Unbind(cmdBuffer);
+			pShader->Unbind(cmdBuffer);
+		}
 	}
 
 

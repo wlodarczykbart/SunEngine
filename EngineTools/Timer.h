@@ -5,7 +5,7 @@ namespace SunEngine
 	class Timer final
 	{
 	public:
-		Timer();
+		explicit Timer(bool startOnConstructor = false);
 		~Timer();
 
 		void Start();

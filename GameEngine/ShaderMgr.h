@@ -19,6 +19,9 @@ namespace SunEngine
 		static const String SceneCopy;
 		static const String FXAA;
 		static const String TextureCopy;
+		static const String Skybox;
+		static const String Clouds;
+		static const String SkyArHosek;
 
 	private:
 		DefaultShaders() = delete;

@@ -47,6 +47,7 @@ namespace SunEngine
 			struct
 			{
 				bool showFXAA;
+				bool showEnvironments;
 			} gui;
 		};
 
@@ -74,7 +75,7 @@ namespace SunEngine
 
 		void BuildSceneTree(SceneNode* pNode);
 		void BuildSelectedNodeGUI(Scene* pScene);
-		bool CreateRenderPassData(const String& shader, RenderPassData& data);
+		bool CreateRenderPassData(const String& shader, RenderPassData& data, bool useOneZ = false);
 
 		SceneRenderer* _renderer;
 		String _selNodeName;
@@ -83,12 +84,14 @@ namespace SunEngine
 		RenderTarget _deferredTarget;
 		RenderTarget _deferredResolveTarget;
 		RenderTarget _toneMapTarget;
+		RenderTarget _skyTarget;
 
 		RenderPassData _toneMapData;
 		RenderPassData _fxaaData;
 		RenderPassData _outputData;
 		RenderPassData _deferredData;
 		RenderPassData _deferredCopyData;
+		RenderPassData _skyData;
 #ifdef SUPPORT_SSR
 		Pair<GraphicsPipeline, ShaderBindings> _ssrData;
 #endif
@@ -98,6 +101,8 @@ namespace SunEngine
 		Settings _settings;
 
 		SceneNode* _debugFrustum;
+
+		bool _resizeOccured;
 	};
 
 }

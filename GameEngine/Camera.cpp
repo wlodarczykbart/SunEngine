@@ -43,9 +43,19 @@ namespace SunEngine
 		CameraComponentData* pCamData = pData->As<CameraComponentData>();
 
 		glm::mat4 camWorld = pNode->GetWorld();
-		pCamData->ViewMatrix = glm::inverse(camWorld);
 
-		glm::vec3* corners = pCamData->FrustumCorners;
+		//remove scaling
+		camWorld[0] = glm::normalize(camWorld[0]);
+		camWorld[1] = glm::normalize(camWorld[1]);
+		camWorld[2] = glm::normalize(camWorld[2]);
+
+		pCamData->_viewMatrix = glm::inverse(camWorld);
+		pCamData->_right = camWorld[0];
+		pCamData->_up = camWorld[1];
+		pCamData->_forward = -camWorld[2];
+		pCamData->_position = camWorld[3];
+
+		glm::vec3* corners = pCamData->_frustumCorners;
 		corners[CameraComponentData::LBN] = glm::vec3(-1.0f, -1.0f, +0.0f);
 		corners[CameraComponentData::RBN] = glm::vec3(+1.0f, -1.0f, +0.0f);
 		corners[CameraComponentData::LTN] = glm::vec3(-1.0f, +1.0f, +0.0f);
@@ -110,12 +120,21 @@ namespace SunEngine
 		}
 #endif
 	
-		pCamData->FrustumPlanes[CameraComponentData::LEFT] = CreatePlane(corners[CameraComponentData::LBN], corners[CameraComponentData::LTF], corners[CameraComponentData::LBF]);
-		pCamData->FrustumPlanes[CameraComponentData::RIGHT] = CreatePlane(corners[CameraComponentData::RBN], corners[CameraComponentData::RBF], corners[CameraComponentData::RTF]);
-		pCamData->FrustumPlanes[CameraComponentData::BOTTOM] = CreatePlane(corners[CameraComponentData::LBF], corners[CameraComponentData::RBF], corners[CameraComponentData::RBN]);
-		pCamData->FrustumPlanes[CameraComponentData::TOP] = CreatePlane(corners[CameraComponentData::LTN], corners[CameraComponentData::RTN], corners[CameraComponentData::RTF]);
-		pCamData->FrustumPlanes[CameraComponentData::NEAR] = CreatePlane(corners[CameraComponentData::LBN], corners[CameraComponentData::RBN], corners[CameraComponentData::RTN]);
-		pCamData->FrustumPlanes[CameraComponentData::FAR] = CreatePlane(corners[CameraComponentData::RBF], corners[CameraComponentData::LBF], corners[CameraComponentData::LTF]);
+		pCamData->_frustumPlanes[CameraComponentData::LEFT] = CreatePlane(corners[CameraComponentData::LBN], corners[CameraComponentData::LTF], corners[CameraComponentData::LBF]);
+		pCamData->_frustumPlanes[CameraComponentData::RIGHT] = CreatePlane(corners[CameraComponentData::RBN], corners[CameraComponentData::RBF], corners[CameraComponentData::RTF]);
+		pCamData->_frustumPlanes[CameraComponentData::BOTTOM] = CreatePlane(corners[CameraComponentData::LBF], corners[CameraComponentData::RBF], corners[CameraComponentData::RBN]);
+		pCamData->_frustumPlanes[CameraComponentData::TOP] = CreatePlane(corners[CameraComponentData::LTN], corners[CameraComponentData::RTN], corners[CameraComponentData::RTF]);
+		pCamData->_frustumPlanes[CameraComponentData::NEAR] = CreatePlane(corners[CameraComponentData::LBN], corners[CameraComponentData::RBN], corners[CameraComponentData::RTN]);
+		pCamData->_frustumPlanes[CameraComponentData::FAR] = CreatePlane(corners[CameraComponentData::RBF], corners[CameraComponentData::LBF], corners[CameraComponentData::LTF]);
+	}
+
+	CameraComponentData::CameraComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode)
+	{
+		_viewMatrix = glm::mat4(1.0f);
+		_position = glm::vec3(0.0f);
+		_right = glm::vec3(1.0f, 0.0f, 0.0f);
+		_up = glm::vec3(0.0f, 1.0f, 0.0f);
+		_forward = glm::vec3(0.0f, 0.0f, -1.0f);
 	}
 
 	bool CameraComponentData::FrustumIntersects(const AABB& aabb) const
@@ -128,14 +147,14 @@ namespace SunEngine
 		for (uint i = 0; i < 6; i++)
 		{
 			//if any point is inside the plane, the plane test is passed for this plane against the cube
-			if (glm::dot(corners[0], FrustumPlanes[i]) < 0.0f) continue;
-			if (glm::dot(corners[1], FrustumPlanes[i]) < 0.0f) continue;
-			if (glm::dot(corners[2], FrustumPlanes[i]) < 0.0f) continue;
-			if (glm::dot(corners[3], FrustumPlanes[i]) < 0.0f) continue;
-			if (glm::dot(corners[4], FrustumPlanes[i]) < 0.0f) continue;
-			if (glm::dot(corners[5], FrustumPlanes[i]) < 0.0f) continue;
-			if (glm::dot(corners[6], FrustumPlanes[i]) < 0.0f) continue;
-			if (glm::dot(corners[7], FrustumPlanes[i]) < 0.0f) continue;
+			if (glm::dot(corners[0], _frustumPlanes[i]) < 0.0f) continue;
+			if (glm::dot(corners[1], _frustumPlanes[i]) < 0.0f) continue;
+			if (glm::dot(corners[2], _frustumPlanes[i]) < 0.0f) continue;
+			if (glm::dot(corners[3], _frustumPlanes[i]) < 0.0f) continue;
+			if (glm::dot(corners[4], _frustumPlanes[i]) < 0.0f) continue;
+			if (glm::dot(corners[5], _frustumPlanes[i]) < 0.0f) continue;
+			if (glm::dot(corners[6], _frustumPlanes[i]) < 0.0f) continue;
+			if (glm::dot(corners[7], _frustumPlanes[i]) < 0.0f) continue;
 				
 			//all points of the cube are outside the plane, so the cube is outside the frustum
 			return false;

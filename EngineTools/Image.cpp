@@ -7,8 +7,12 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include "stbi_DDS.h"
+#include "stbi_DDS_c.h"
+
 #include "FileBase.h"
 #include "StringUtil.h"
+#include "MemBuffer.h"
 
 #include "Image.h"
 
@@ -58,6 +62,28 @@ namespace SunEngine
 	{
 		int width, height, comp;
 		stbi_uc* pixels = stbi_load(filename.data(), &width, &height, &comp, STBI_rgb_alpha);
+
+		if (pixels == 0)
+		{
+			String ext = StrToLower(GetExtension(filename));
+			if (ext == "dds")
+			{
+				FILE* f = 0;
+				fopen_s(&f, filename.c_str(), "rb");
+				if (f)
+				{
+					int compressed = 0;
+					if (stbi__dds_info_from_file(f, &width, &height, &comp, &compressed) != 0)
+					{
+						pixels = (stbi_uc*)stbi__dds_load_from_file(f, &width, &height, &comp, STBI_rgb_alpha);
+						if (compressed == 1)
+							_internalFlags |= ImageData::COMPRESSED_BC1;
+					}
+					fclose(f);
+				}
+			}
+		}
+
 		if (pixels)
 		{
 			CleanUp();
@@ -68,6 +94,7 @@ namespace SunEngine
 		}
 		else
 		{
+
 			return false;
 		}
 	}
@@ -427,6 +454,39 @@ namespace SunEngine
 		_height = heightPadded;
 
 		return true;
+	}
+
+	bool Image::IsCompressed() const
+	{
+		return _internalFlags & (ImageData::COMPRESSED_BC1 | ImageData::COMPRESSED_BC3);
+	}
+
+	bool Image::CanLoad(const String& path)
+	{
+		String ext = StrToLower(GetExtension(path));
+		if (
+			ext == "jpg" ||
+			ext == "jpeg" ||
+			ext == "png" ||
+			ext == "bmp" ||
+			ext == "hdr" ||
+			ext == "psd" ||
+			ext == "tga" ||
+			ext == "gif" ||
+			ext == "pic" ||
+			ext == "pgm" ||
+			ext == "ppm" ||
+			ext == "tif" || //unsure if this format can be loaded, are mentioned in stbi but not listed where the formats are listed
+			ext == "tiff" ||
+			ext == "dds"
+			)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	bool ReadBufferAs16BitGrayscaleImage(const void* pData, uint size, int& width, int& height, Vector<unsigned short>& output)

@@ -1,3 +1,5 @@
+#if 0
+
 #include "StringUtil.h"
 #include "ResourceMgr.h"
 #include "MeshRenderer.h"
@@ -5,7 +7,6 @@
 #include "Animation.h"
 #include "glm/gtx/matrix_decompose.hpp"
 #include "ThreadPool.h"
-
 #include "AssetImporter.h"
 
 #define COMPARE_MTL_VAR(left, right, Var) if(!(left->Var == right->Var)) return false;
@@ -34,6 +35,7 @@ namespace SunEngine
 	{
 		AssetImporter::Options opt;
 		opt.CombineMaterials = false;
+		opt.MaxTextureSize = 4096;
 
 		return opt;
 	}
@@ -297,7 +299,7 @@ namespace SunEngine
 
 		for (auto pTexture : _textureLoadList)
 		{
-			if (!pTexture->RegisterToGPU())
+			if (!pTexture.first->RegisterToGPU())
 				return false;
 		}
 
@@ -413,6 +415,7 @@ namespace SunEngine
 			{
 				pTex = ResourceMgr::Get().AddTexture2D(GetFileName(filename));
 				pTex->SetFilename((*iter).second->FileName);
+				pTex->SetUserDataPtr(this);
 
 				if ((*iter).first == MaterialStrings::DiffuseMap)
 					pTex->SetSRGB(true);
@@ -420,13 +423,22 @@ namespace SunEngine
 				ThreadPool& tp = ThreadPool::Get();
 				tp.AddTask([](uint, void* pData) -> void {
 					Texture2D* pTexture = static_cast<Texture2D*>(pData);
+					AssetImporter* pThis = static_cast<AssetImporter*>(pTexture->GetUserDataPtr());
 					if (pTexture->LoadFromFile())
 					{
+						uint maxSize = pThis->_options.MaxTextureSize;
+						if (pTexture->GetWidth() > maxSize || pTexture->GetHeight() > maxSize) 
+						{
+							pTexture->Resize(glm::min(pTexture->GetWidth(), maxSize), glm::min(pTexture->GetHeight(), maxSize));
+						}
 						pTexture->GenerateMips(false);
+
+						if((*pThis->_textureLoadList.find(pTexture)).second != MaterialStrings::NormalMap)
+							pTexture->Compress();
 					}
 				}, pTex);
 
-				_textureLoadList.push_back(pTex);
+				_textureLoadList[pTex] = (*iter).first;
 			}
 
 			textures[(*iter).first] = pTex;
@@ -443,3 +455,398 @@ namespace SunEngine
 		return true;
 	}
 }
+
+#else
+
+#include <assimp/cimport.h>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
+#include <filesystem>
+
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/euler_angles.hpp>
+
+#include "StringUtil.h"
+#include "ResourceMgr.h"
+#include "MeshRenderer.h"
+#include "ShaderMgr.h"
+#include "Animation.h"
+#include "FileBase.h"
+#include "ThreadPool.h"
+
+
+#include "AssetImporter.h"
+
+namespace SunEngine
+{
+	AssetImporter::Options MakeDefaultImporterOptions()
+	{
+		AssetImporter::Options opt;
+		opt.CombineMaterials = false;
+		opt.MaxTextureSize = 4096;
+
+		return opt;
+	}
+
+	const AssetImporter::Options AssetImporter::Options::Default = MakeDefaultImporterOptions();
+
+	AssetImporter::AssetImporter()
+	{
+		_asset = 0;
+	}
+
+	AssetImporter::~AssetImporter()
+	{
+	}
+
+	glm::vec3 FromAssimp(const aiVector3D& v)
+	{
+		return glm::vec3(v.x, v.y, v.z);
+	}
+
+	void CollectNodes(aiNode* pNode, Vector<aiNode*>& nodes)
+	{
+		nodes.push_back(pNode);
+
+		for (uint i = 0; i < pNode->mNumChildren; i++)
+			CollectNodes(pNode->mChildren[i], nodes);
+	}
+
+	bool ParseMesh(aiMesh* pSrc, Mesh* pDst)
+	{
+		pDst->AllocIndices(pSrc->mNumFaces * 3);
+		pDst->AllocVertices(pSrc->mNumVertices, VertexDef::POS_TEXCOORD_NORMAL_TANGENT);
+
+		for (uint i = 0; i < pSrc->mNumVertices; i++)
+		{
+			pDst->SetVertexVar(i, glm::vec4(FromAssimp(pSrc->mVertices[i]), 1.0f));
+			if (pSrc->HasTextureCoords(0))
+			{
+				glm::vec4 uv = glm::vec4(FromAssimp(pSrc->mTextureCoords[0][i]), 0.0f);
+				uv.y = 1.0f - uv.y;
+				pDst->SetVertexVar(i, uv, VertexDef::DEFAULT_TEX_COORD_INDEX);
+			}
+			if(pSrc->HasNormals())
+				pDst->SetVertexVar(i, glm::vec4(FromAssimp(pSrc->mNormals[i]), 0.0f), VertexDef::DEFAULT_NORMAL_INDEX);
+			if(pSrc->HasTangentsAndBitangents())
+				pDst->SetVertexVar(i, glm::vec4(FromAssimp(pSrc->mTangents[i]), 0.0f), VertexDef::DEFAULT_TANGENT_INDEX);
+		}
+
+		for (uint i = 0; i < pSrc->mNumFaces; i++)
+		{
+			auto& tri = pSrc->mFaces[i];
+			pDst->SetTri(i, tri.mIndices[0], tri.mIndices[1], tri.mIndices[2]);
+		}
+
+		pDst->UpdateBoundingVolume();
+
+		if (!pDst->RegisterToGPU())
+			return false;
+
+		return true;
+	}
+
+	bool ParseMaterial(aiMaterial* pSrc, Material* pDst, StrMap<Pair<Texture2D*, bool>>& textures, const String& fileDir)
+	{
+		static const Map<aiTextureType, String> TextureTypeLookup =
+		{
+			{ aiTextureType_DIFFUSE, MaterialStrings::DiffuseMap },
+			{ aiTextureType_SPECULAR, MaterialStrings::SpecularMap },
+			{ aiTextureType_NORMALS, MaterialStrings::NormalMap },
+			{ aiTextureType_OPACITY, MaterialStrings::AlphaMap },
+			{ aiTextureType_SHININESS, MaterialStrings::SmoothnessMap },
+			{ aiTextureType_BASE_COLOR, MaterialStrings::DiffuseMap },
+			{ aiTextureType_METALNESS, MaterialStrings::MetalMap },
+			{ aiTextureType_DIFFUSE_ROUGHNESS, MaterialStrings::Smoothness },
+			{ aiTextureType_AMBIENT_OCCLUSION, MaterialStrings::AmbientOcclusionMap },
+			{ aiTextureType_LIGHTMAP, MaterialStrings::AmbientOcclusionMap },
+		};
+
+		StrMap<aiTextureType> allTextures;
+		for (uint i = aiTextureType_NONE + 1; i < aiTextureType_UNKNOWN; i++)
+		{
+			uint texCount = pSrc->GetTextureCount(aiTextureType(i));
+			for (uint j = 0; j < texCount; j++)
+			{
+				aiString path;
+				if (pSrc->GetTexture((aiTextureType)i, j, &path) == aiReturn_SUCCESS)
+					allTextures[path.C_Str()] = (aiTextureType)i;
+			}
+		}
+
+		Map<aiTextureType, bool> usedTextureTypes;
+		for (auto& texType : TextureTypeLookup)
+		{
+			uint texCount = pSrc->GetTextureCount(texType.first);
+			if (texCount)
+			{
+				String strPath;
+
+				aiString path;
+				pSrc->GetTexture(texType.first, 0, &path);
+				FileStream fs;
+				if (fs.OpenForRead(path.C_Str())) //easiest case if file path is correct
+				{
+					strPath = path.C_Str();
+					fs.Close();
+				}
+				else if (fs.OpenForRead((fileDir + path.C_Str()).c_str())) //second easiest case if the file is relative to the input file directory
+				{
+					strPath = fileDir + path.C_Str();
+					fs.Close();
+				}
+				else //try to find the file somewhere in the input file directory
+				{
+					String filename = StrToLower(GetFileName(path.C_Str()));
+					for (auto& fsiter : std::filesystem::recursive_directory_iterator(fileDir))
+					{
+						if (fsiter.path().has_filename())
+						{
+							String currFile = fsiter.path().filename().u8string();
+							if (filename == StrToLower(GetFileName(currFile)))
+							{
+								strPath = currFile;
+								break;
+							}
+						}
+					}
+				}
+
+				if (!strPath.empty() && Image::CanLoad(strPath))
+				{
+					auto& resMgr = ResourceMgr::Get();
+					Texture2D* pTexture = resMgr.GetTexture2D(strPath);
+					bool needsLoad = false;
+					if (!pTexture)
+					{
+						pTexture = resMgr.AddTexture2D(strPath);
+						pTexture->SetFilename(strPath);
+
+						if (texType.second == MaterialStrings::DiffuseMap)
+							pTexture->SetSRGB(true);
+
+						needsLoad = true;
+					}
+
+					usedTextureTypes[texType.first] = true;
+					textures[texType.second] = { pTexture, needsLoad };
+					allTextures.erase(path.C_Str());
+				}
+			}
+		}
+
+		bool metallic =
+			usedTextureTypes.find(aiTextureType_DIFFUSE_ROUGHNESS) != usedTextureTypes.end() ||
+			usedTextureTypes.find(aiTextureType_METALNESS) != usedTextureTypes.end();
+
+		bool alphaTest = usedTextureTypes.find(aiTextureType_OPACITY) != usedTextureTypes.end();
+
+		String strShader;
+		if (metallic)
+		{
+			strShader = alphaTest ? DefaultShaders::MetallicAlphaTest : DefaultShaders::Metallic;
+		}
+		else
+		{
+			strShader = alphaTest ? DefaultShaders::SpecularAlphaTest : DefaultShaders::Specular;
+		}
+
+		pDst->SetShader(ShaderMgr::Get().GetShader(strShader));
+		if (!pDst->RegisterToGPU())
+			return false;
+
+		pDst->GetShader()->SetDefaults(pDst);
+
+		//values that are in shader material buffer
+		aiColor4D diffuseColor;
+		aiColor4D transparencyFactor;
+		aiColor4D transparentColor;
+
+		aiColor4D specularColor;
+		aiColor4D smoothness;
+		aiColor4D shininessStrength;
+
+		aiColor4D twoSided;
+		aiColor4D ambientColor;
+		aiColor4D emissiveColor;
+
+		pDst->GetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor);
+		pDst->GetMaterialVar(MaterialStrings::SpecularColor, specularColor);
+		pDst->GetMaterialVar(MaterialStrings::Smoothness, smoothness);
+
+		pSrc->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor);
+		pSrc->Get(AI_MATKEY_OPACITY, diffuseColor.a);
+		//if(pSrc->Get(AI_MATKEY_TRANSPARENCYFACTOR, transparencyFactor) == aiReturn_SUCCESS) diffuseColor.a *= transparencyFactor.r;
+		if(pSrc->Get(AI_MATKEY_COLOR_TRANSPARENT, transparentColor) == aiReturn_SUCCESS && transparentColor.a != 0.0f)  
+			diffuseColor.a *= transparentColor.r;
+
+		pSrc->Get(AI_MATKEY_COLOR_SPECULAR, specularColor);
+		pSrc->Get(AI_MATKEY_SHININESS, smoothness);
+		pSrc->Get(AI_MATKEY_SHININESS_STRENGTH, shininessStrength);
+
+		//Not sure if these are of any use to me
+		pSrc->Get(AI_MATKEY_TWOSIDED, twoSided);
+		pSrc->Get(AI_MATKEY_COLOR_AMBIENT, ambientColor);
+		pSrc->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor);
+
+		//handle phong specualar exponent this way for now...
+		if (smoothness.r > 1.0f)
+			smoothness.r = 1.0f - expf(-smoothness.r * 0.008f);
+
+		//pDst->SetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor);
+		//pDst->SetMaterialVar(MaterialStrings::SpecularColor, specularColor);
+		//pDst->SetMaterialVar(MaterialStrings::Smoothness, smoothness);
+
+		return true;
+	}
+
+	bool AssetImporter::Import(const String& filename, const Options& options)
+	{
+		_options = options;
+
+		auto pScene = aiImportFile(filename.c_str(), aiProcessPreset_TargetRealtime_MaxQuality);
+		if (!pScene)
+			return false;
+
+		bool lights = pScene->HasLights();
+		bool cameras = pScene->HasCameras();
+
+		auto& resMgr = ResourceMgr::Get();
+
+		_asset = resMgr.AddAsset(GetFileNameNoExt(filename));
+		if (!_asset)
+			return false;
+
+		Vector<aiNode*> nodes;
+		CollectNodes(pScene->mRootNode, nodes);
+
+		String fileDir = GetDirectory(filename) + "/";
+
+		ThreadPool& tp = ThreadPool::Get();
+
+		for (auto aNode : nodes)
+		{
+			auto pNode = _asset->AddNode(aNode->mName.length ? aNode->mName.C_Str() : StrFormat("%p", aNode));
+			_nodeFixup[aNode] = pNode;
+
+			glm::mat4 mtxLocal;
+			memcpy(&mtxLocal, &aNode->mTransformation, sizeof(glm::mat4));
+			mtxLocal = glm::transpose(mtxLocal);
+
+			glm::vec3 skew;
+			glm::vec4 perspective;
+			if (glm::decompose(mtxLocal, pNode->Scale, pNode->Orientation.Quat, pNode->Position, skew, perspective))
+			{
+				if (aNode != pScene->mRootNode)
+				{
+					pNode->Orientation.Quat = glm::conjugate(pNode->Orientation.Quat);
+					pNode->Orientation.Mode = ORIENT_QUAT;
+				}
+				else
+				{
+					//Allow root node to be rotated from eular angles
+					glm::mat4 rotMtx = glm::toMat4(pNode->Orientation.Quat);
+					glm::extractEulerAngleXYZ(rotMtx, pNode->Orientation.Angles.x, pNode->Orientation.Angles.y, pNode->Orientation.Angles.z);
+					pNode->Orientation.Angles = glm::degrees(pNode->Orientation.Angles);
+					pNode->Orientation.Mode = ORIENT_XYZ;
+				}
+			}
+
+			for (uint m = 0; m < aNode->mNumMeshes; m++)
+			{
+				auto aMesh = pScene->mMeshes[aNode->mMeshes[m]];
+				MeshRenderer* pRenderer = pNode->AddComponent(new MeshRenderer())->As<MeshRenderer>();
+
+				auto foundMesh = _meshFixup.find(aMesh);
+				if (foundMesh == _meshFixup.end())
+				{
+					Mesh* pMesh = resMgr.AddMesh(aMesh->mName.C_Str());
+					ParseMesh(aMesh, pMesh);
+					_meshFixup[aMesh] = pMesh;
+					pRenderer->SetMesh(pMesh);
+				}
+				else
+				{
+					pRenderer->SetMesh((*foundMesh).second);
+				}
+
+				auto aMaterial = pScene->mMaterials[aMesh->mMaterialIndex];
+				auto foundMaterial = _materialFixup.find(aMaterial);
+				if (foundMaterial == _materialFixup.end())
+				{
+					Material* pMaterial = resMgr.AddMaterial(aMaterial->GetName().C_Str());
+					StrMap<Pair<Texture2D*, bool>> textureLoadMap;
+					ParseMaterial(aMaterial, pMaterial, textureLoadMap, fileDir);
+
+					StrMap<Texture2D*> textureMap;
+					for (auto& tex : textureLoadMap)
+					{
+						if (tex.second.second)
+						{
+							Texture2D* pTexture = tex.second.first;
+							pTexture->SetUserDataPtr(this);
+							tp.AddTask([](uint, void* pData) -> void {
+								Texture2D* pTexture = static_cast<Texture2D*>(pData);
+								AssetImporter* pThis = static_cast<AssetImporter*>(pTexture->GetUserDataPtr());
+								if (pTexture->LoadFromFile())
+								{
+									uint maxSize = pThis->_options.MaxTextureSize;
+									if (pTexture->GetWidth() > maxSize || pTexture->GetHeight() > maxSize)
+									{
+										pTexture->Resize(glm::min(pTexture->GetWidth(), maxSize), glm::min(pTexture->GetHeight(), maxSize));
+									}
+									pTexture->GenerateMips(false);
+
+									if ((*pThis->_textureLoadList.find(pTexture)).second != MaterialStrings::NormalMap)
+										pTexture->Compress();
+								}
+							}, pTexture);
+							_textureLoadList[pTexture] = tex.first;
+						}
+						textureMap[tex.first] = tex.second.first;
+					}
+					_materialFixup[aMaterial] = { pMaterial, textureMap };
+					pRenderer->SetMaterial(pMaterial);
+				}
+				else
+				{
+					pRenderer->SetMaterial((*foundMaterial).second.first);
+				}
+			}
+		}
+
+		tp.Wait();
+
+		for (auto pTexture : _textureLoadList)
+		{
+			if (!pTexture.first->RegisterToGPU())
+				return false;
+		}
+
+		for (auto& mtl : _materialFixup)
+		{
+			auto& textures = mtl.second.second;
+			for (auto& tex : textures)
+			{
+				mtl.second.first->SetTexture2D(tex.first, tex.second);
+			}
+		}
+
+		for (auto& node : _nodeFixup)
+		{
+			auto aNode = static_cast<aiNode*>(node.first);
+			if (aNode->mParent)
+				_asset->SetParent(node.second->GetName(), _nodeFixup[aNode->mParent]->GetName());
+		}
+
+		return true;
+	}
+
+	bool AssetImporter::ChooseMaterial(void*, Material*&)
+	{
+		return false;
+	}
+}
+#endif

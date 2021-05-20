@@ -17,6 +17,8 @@ namespace SunEngine
 
 		bool Alloc(uint width, uint height);
 		bool GenerateMips(bool threaded);
+		bool Resize(uint width, uint height);
+		bool Compress();
 
 		void FillColor(const glm::vec4& color);
 		void Invert();

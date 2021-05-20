@@ -6,11 +6,10 @@
 namespace SunEngine
 {
 
-	Timer::Timer()
+	Timer::Timer(bool startOnConstructor)
 	{
-
-
-
+		if (startOnConstructor)
+			Start();
 	}
 
 

@@ -18,6 +18,7 @@ namespace SunEngine
 		struct Options
 		{
 			bool CombineMaterials;
+			uint MaxTextureSize;
 
 			static const Options Default;
 		};
@@ -40,10 +41,10 @@ namespace SunEngine
 		Options _options;
 		Asset* _asset;
 		Map<void*, Mesh*> _meshFixup;
-		Map<Material*, Pair<void*, StrMap<Texture2D*>>> _materialCache;
+		Map<void*, Pair<Material*, StrMap<Texture2D*>>> _materialFixup;
 		Map<void*, AssetNode*> _nodeFixup;
 		Vector<AssetNode*> _nodes;
-		Vector<Texture2D*> _textureLoadList;
+		Map<Texture2D*, String> _textureLoadList;
 	};
 
 }

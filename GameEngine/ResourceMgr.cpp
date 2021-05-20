@@ -142,6 +142,12 @@ namespace SunEngine
 		return pRes;
 	}
 
+	TextureCube* ResourceMgr::AddTextureCube(const String& name)
+	{
+		TextureCube* pRes = AddResourceToMap(_textureCubes, name);
+		return pRes;
+	}
+
 	Asset* ResourceMgr::GetAsset(const String& name) const
 	{
 		auto found = _assets.find(name);
@@ -164,6 +170,12 @@ namespace SunEngine
 	{
 		auto found = _textures2D.find(name);
 		return found != _textures2D.end() ? (*found).second.get() : 0;
+	}
+
+	TextureCube* ResourceMgr::GetTextureCube(const String& name) const
+	{
+		auto found = _textureCubes.find(name);
+		return found != _textureCubes.end() ? (*found).second.get() : 0;
 	}
 
 	bool ResourceMgr::CloneResource(Resource* pDst, Resource* pSrc) const

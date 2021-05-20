@@ -25,6 +25,7 @@ add_subdirectory(GameEngine)
 add_subdirectory(Editor)
 add_subdirectory(GameEditor)
 add_subdirectory(FBXEditor)
+add_subdirectory(External/assimp)
 
 add_dependencies(RenderEngine EngineTools)
 add_dependencies(GameEngine RenderEngine)

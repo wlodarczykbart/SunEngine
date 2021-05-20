@@ -10,6 +10,7 @@ namespace SunEngine
 	const String Shader::Default = "DefaultPass";
 	const String Shader::GBuffer = "GBufferPass";
 	const String Shader::Depth = "DepthPass";
+	const String Shader::OneZ = "OneZPass";
 
 	Shader::Shader()
 	{
@@ -72,6 +73,7 @@ namespace SunEngine
 		variantSections.push_back(_config.GetSection(Default));
 		variantSections.push_back(_config.GetSection(GBuffer));
 		variantSections.push_back(_config.GetSection(Depth));
+		variantSections.push_back(_config.GetSection(OneZ));
 
 		String shaderName = GetFileNameNoExt(config.GetFilename());
 

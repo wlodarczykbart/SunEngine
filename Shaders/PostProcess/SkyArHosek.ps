@@ -1,0 +1,61 @@
+#include "EnvBuffer.hlsl"
+#include "CameraBuffer.hlsl"
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+#define CONFIG_VARS 12
+
+cbuffer MaterialBuffer
+{
+	float StateConfigR[CONFIG_VARS];
+	float StateConfigG[CONFIG_VARS];
+	float StateConfigB[CONFIG_VARS];
+	float4 StateRadiances;
+};
+
+Texture2D DiffuseMap;
+SamplerState Sampler;
+
+//copy from c source file
+float ArHosekSkyModel_GetRadianceInternal(
+        in float  						configuration[CONFIG_VARS], 
+        in float                        theta, 
+        in float                        gamma
+        )
+{
+    float expM = exp(configuration[4] * gamma);
+    float rayM = cos(gamma)*cos(gamma);
+    float mieM = (1.0 + cos(gamma)*cos(gamma)) / pow((1.0 + configuration[8]*configuration[8] - 2.0*configuration[8]*cos(gamma)), 1.5);
+    float zenith = sqrt(cos(theta));
+
+    return (1.0 + configuration[0] * exp(configuration[1] / (cos(theta) + 0.01))) *
+            (configuration[2] + configuration[3] * expM + configuration[5] * rayM + configuration[6] * mieM + configuration[7] * zenith);
+}
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float4 sphericalCoords = DiffuseMap.Sample(Sampler, pIn.texCoord) * 2.0f - 1.0f;
+	float3 dir = sphericalCoords.xyz;
+	float theta = sphericalCoords.w;
+	
+	dir = normalize(mul(float4(dir, 0.0), ViewMatrix).xyz);
+	
+	float4 color;
+	float3 sunDir = normalize(SunDirection.xyz);
+	
+	float gamma = max(dot(dir, sunDir), 0.0f);
+	gamma = acos(gamma);
+
+	color.r = ArHosekSkyModel_GetRadianceInternal(StateConfigR, theta, gamma) * StateRadiances.r;
+	color.g = ArHosekSkyModel_GetRadianceInternal(StateConfigG, theta, gamma) * StateRadiances.g;
+	color.b = ArHosekSkyModel_GetRadianceInternal(StateConfigB, theta, gamma) * StateRadiances.b;
+	color /= 255.0;
+	
+	//color.rgb = sphericalCoords.www;
+	color.a = 1.0;
+	return color;
+}

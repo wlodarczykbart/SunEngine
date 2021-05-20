@@ -38,6 +38,6 @@ float4 main(PS_In pIn) : SV_TARGET
 	float4 position = PositionMap.Sample(Sampler, pIn.texCoord);
 	
 	PS_Out pOut;
-	ShadePixel(albedo.rgb, albedo.a, specular.rgb, specular.a, normal.xyz, position.xyz, pOut);
+	ShadePixel(albedo.rgb, albedo.a, specular.rgb, specular.a, normal.xyz, position.xyz, pIn.texCoord, pOut);
 	return float4(pOut.color.rgb, 1.0);
 }

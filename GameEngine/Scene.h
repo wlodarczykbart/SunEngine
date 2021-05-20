@@ -8,6 +8,7 @@ namespace SunEngine
 	class RenderNode;
 	class CameraComponentData;
 	class LightComponentData;
+	class EnvironmentComponentData;
 
 	struct SceneRayHit
 	{
@@ -50,6 +51,9 @@ namespace SunEngine
 		void RegisterCamera(CameraComponentData* pCamera);
 		const LinkedList<CameraComponentData*>& GetCameraList() const { return _cameraList; }
 
+		void RegisterEnvironment(EnvironmentComponentData* pEnvironment);
+		const LinkedList<EnvironmentComponentData*>& GetEnvironmentList() const { return _environmentList; }
+
 		void TraverseRenderNodes(TraverseAABBFunc aabbFunc, void* pAABBData, TraverseRenderNodeFunc nodeFunc, void* pNodeData);
 
 		bool Raycast(const glm::vec3& o, const glm::vec3& d, SceneRayHit& hit) const;
@@ -76,5 +80,6 @@ namespace SunEngine
 
 		LinkedList<LightComponentData*> _lightList;
 		LinkedList<CameraComponentData*> _cameraList;
+		LinkedList<EnvironmentComponentData*> _environmentList;
 	};
 }

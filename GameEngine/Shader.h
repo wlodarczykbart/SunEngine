@@ -41,6 +41,7 @@ namespace SunEngine
 		static const String Default;
 		static const String GBuffer;
 		static const String Depth;
+		static const String OneZ; //post processing shaders that want clip pos z set to 1 insted of 0(default)
 
 		Shader();
 		~Shader();

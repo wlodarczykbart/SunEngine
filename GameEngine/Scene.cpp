@@ -264,6 +264,11 @@ namespace SunEngine
 		_cameraList.push_back(pCamera);
 	}
 
+	void Scene::RegisterEnvironment(EnvironmentComponentData* pEnvironment)
+	{
+		_environmentList.push_back(pEnvironment);
+	}
+
 	void Scene::TraverseRenderNodes(TraverseAABBFunc aabbFunc, void* pAABBData, TraverseRenderNodeFunc nodeFunc, void* pNodeData)
 	{
 		struct OctTreeData

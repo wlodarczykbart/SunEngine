@@ -33,13 +33,11 @@ namespace SunEngine
 			names.bufferNames.push_back(ShaderStrings::ObjectBufferName);
 			break;
 		case SunEngine::SBT_LIGHT:
-			names.bufferNames.push_back(ShaderStrings::SunlightBufferName);
 			names.bufferNames.push_back(ShaderStrings::PointlightBufferName);
 			names.bufferNames.push_back(ShaderStrings::SpotlightBufferName);
 			break;
 		case SunEngine::SBT_ENVIRONMENT:
 			names.bufferNames.push_back(ShaderStrings::EnvBufferName);
-			names.bufferNames.push_back(ShaderStrings::FogBufferName);
 			break;
 		case SunEngine::SBT_SHADOW:
 			names.bufferNames.push_back(ShaderStrings::ShadowBufferName);
@@ -48,8 +46,8 @@ namespace SunEngine
 			break;
 		case SunEngine::SBT_SCENE:
 			names.textureNames.push_back(ShaderStrings::SceneTextureName);
-			names.textureNames.push_back(ShaderStrings::SceneSamplerName);
-			names.samplerNames.push_back(ShaderStrings::DepthTextureName);
+			names.samplerNames.push_back(ShaderStrings::SceneSamplerName);
+			names.textureNames.push_back(ShaderStrings::DepthTextureName);
 			names.samplerNames.push_back(ShaderStrings::DepthSamplerName);
 			break;
 		case SunEngine::SBT_BONES:
@@ -203,6 +201,7 @@ namespace SunEngine
 			{"b", "cbuffer"},
 			{"t", "Texture2DArray"},
 			{"t", "Texture2D"},
+			{"t", "TextureCube"},
 			{"s", "SamplerState"},
 		};
 

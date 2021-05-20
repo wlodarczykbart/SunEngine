@@ -6,7 +6,6 @@ namespace SunEngine
 {
 	enum LightType
 	{
-		LT_DIRECTIONAL,
 		LT_POINT,
 		LT_SPOT,
 	};

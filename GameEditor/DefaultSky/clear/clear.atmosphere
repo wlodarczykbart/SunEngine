@@ -1,0 +1,21 @@
+//default fog, sun, shadow color settings for skybox go here
+$Sky::visibleDistance 600
+$Sky::fogDistance 500
+$Sky::fogColor 0.900000 0.900000 1.000000 
+
+$Sky::sunAzimuth 238
+$Sky::sunElevation 21
+$Sky::sunFlareColor 0.2 0.2 0.2
+$Sky::sunFlareSize 1.0
+$Sky::sunFlareTopTexture base/lighting/flare2.png
+$Sky::sunFlareBottomTexture base/lighting/corona2.png
+
+$Sky::directLightColor 0.6 0.6 0.6
+$Sky::ambientLightColor 0.5 0.5 0.5
+$Sky::shadowColor 0.3 0.3 0.4 1.0
+
+$Sky::vignetteMultiply 0
+$Sky::vignetteColor 0 0 0 100
+
+$Sky::dayCycleEnabled 0
+

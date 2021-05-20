@@ -27,9 +27,7 @@ namespace SunEngine
 	String ShaderStrings::CameraBufferName = "CameraBuffer";
 	String ShaderStrings::ObjectBufferName = "ObjectBuffer";
 	String ShaderStrings::EnvBufferName = "EnvBuffer";
-	String ShaderStrings::FogBufferName = "FogBuffer";
 	String ShaderStrings::SkinnedBoneBufferName = "SkinnedBoneBuffer";
-	String ShaderStrings::SunlightBufferName = "SunlightBuffer";
 	String ShaderStrings::PointlightBufferName = "PointlightBuffer";
 	String ShaderStrings::SpotlightBufferName = "SpotlightBuffer";
 	String ShaderStrings::TextureTransformBufferName = "TextureTransformBuffer";

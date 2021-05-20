@@ -7,6 +7,8 @@
 #include "ResourceMgr.h"
 #include "AssetImporter.h"
 #include "GameEditorViews.h"
+#include "SceneMgr.h"
+#include "Environment.h"
 #include "GameEditorGUI.h"
 
 //#define TEST_IMGUI_BASIC
@@ -372,16 +374,16 @@ namespace SunEngine
 	{
 		SceneView* pView = static_cast<SceneView*>(pBaseView);
 		auto& settings = pView->GetSettings();
-		if (ImGui::MenuItem("FXAA Settings"))
-		{
-			settings.gui.showFXAA = true;
-		}
+		if (ImGui::MenuItem("FXAA Settings")) settings.gui.showFXAA = true;
+		if (ImGui::MenuItem("Environments")) settings.gui.showEnvironments = true;
 	}
 
 	void GameEditorGUI::RenderSceneViewWindows(View* pBaseView, GameEditor* pEditor)
 	{
 		SceneView* pView = static_cast<SceneView*>(pBaseView);
 		auto& settings = pView->GetSettings();
+
+		Scene* pScene = SceneMgr::Get().GetActiveScene();
 
 		bool& showFXAA = settings.gui.showFXAA;
 		if (showFXAA && ImGui::Begin("FXAA", &showFXAA))
@@ -390,6 +392,25 @@ namespace SunEngine
 			ImGui::DragFloat("Subpixel", &settings.fxaa.subpixel, 0.005f, 0.0f, 1.0f);
 			ImGui::DragFloat("EdgeThreshold", &settings.fxaa.edgeThreshold, 0.0025f, 0.0f, 0.5f);
 			ImGui::DragFloat("EdgeThresholdMin", &settings.fxaa.edgeThresholdMin, 0.001f, 0.0f, 0.1f);
+			ImGui::End();
+		}
+
+		bool& showEnv = settings.gui.showEnvironments;
+		if (showEnv && ImGui::Begin("Environments", &showEnv))
+		{
+			auto& envList = pScene->GetEnvironmentList();
+			for (auto env : envList)
+			{
+				if (ImGui::TreeNode(env->GetNode()->GetName().c_str()))
+				{
+					Environment* pEnv = const_cast<Environment*>(static_cast<const Environment*>(env->C()));
+					glm::vec3 sunDir = pEnv->GetSunDirection();
+					if (ImGui::DragFloat3("SunDir", &sunDir.x, 0.01f, -1.0f, 1.0f))
+						pEnv->SetSunDirection(sunDir);
+
+					ImGui::TreePop();
+				}
+			}
 			ImGui::End();
 		}
 	}

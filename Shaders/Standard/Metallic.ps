@@ -11,7 +11,7 @@ SamplerState Sampler;
 
 cbuffer MaterialBuffer
 {
-	float4 Diffuse;
+	float4 DiffuseColor;
 	float Metallic;
 	float Smoothness;
 };
@@ -40,7 +40,7 @@ PS_Out main(PS_In pIn)
 
 	float2 texCoord = pIn.texCoord.xy;
 
-	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * Diffuse;
+	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * DiffuseColor;
 	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
 #ifdef ALPHA_TEST
 	if(diffuse.a < 0.5)
@@ -67,7 +67,10 @@ PS_Out main(PS_In pIn)
 	
 	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
 		
-	ShadePixel(albedo, ao, f0, smoothness, n, pIn.position.xyz, pOut);
+	ShadePixel(albedo, ao, f0, smoothness, n, pIn.position.xyz, GetScreenTexCoord(pIn.clipPos.xy), pOut);
+#ifndef GBUFFER
+	pOut.color.a = diffuse.a;
+#endif
 	return pOut;
 #endif
 #endif

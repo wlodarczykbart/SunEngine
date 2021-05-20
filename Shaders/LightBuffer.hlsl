@@ -4,14 +4,6 @@
 #define EPSILON 0.00001
 #define GAMMA_V float3(2.2, 2.2, 2.2)
 
-cbuffer SunlightBuffer
-{
-	float4 SunDirection;
-	float4 SunViewDirection;
-	float4 SunColor;
-};
-
-
 float D_GGX(float nDotH, float a)
 {
 	float a2 = a*a;

@@ -1,0 +1,18 @@
+#include "EnvBuffer.hlsl"
+
+TextureCube DiffuseMap;
+SamplerState Sampler;
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float3 normal : NORMAL;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float3 skyColor = DiffuseMap.Sample(Sampler, pIn.normal).rgb;
+	float3 sunColor = pow(max(dot(normalize(pIn.normal), SunDirection.xyz), 0.0), 1024.0) * 2;
+	
+	return float4(skyColor + sunColor, 1.0);
+}

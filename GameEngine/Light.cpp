@@ -6,7 +6,7 @@ namespace SunEngine
 {
 	Light::Light()
 	{
-		SetLightType(LT_DIRECTIONAL);
+		SetLightType(LT_SPOT);
 		SetColor(glm::vec4(1));
 	}
 

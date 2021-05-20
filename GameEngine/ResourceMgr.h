@@ -3,6 +3,7 @@
 #include "Mesh.h"
 #include "Material.h"
 #include "Texture2D.h"
+#include "TextureCube.h"
 #include "Shader.h"
 #include "Asset.h"
 #include "Sampler.h"
@@ -68,11 +69,13 @@ namespace SunEngine
 		Mesh* AddMesh(const String& name);
 		Material* AddMaterial(const String& name);
 		Texture2D* AddTexture2D(const String& name);
+		TextureCube* AddTextureCube(const String& name);
 
 		Asset* GetAsset(const String& name) const;
 		Mesh* GetMesh(const String& name) const;
 		Material* GetMaterial(const String& name) const;
 		Texture2D* GetTexture2D(const String& name) const;
+		TextureCube* GetTextureCube(const String& name) const;
 
 		Iter<Material> IterMaterials() const;
 		Iter<Texture2D> IterTextures2D() const;
@@ -103,6 +106,7 @@ namespace SunEngine
 		StrMap<UniquePtr<Mesh>> _meshes;
 		StrMap<UniquePtr<Material>> _materials;
 		StrMap<UniquePtr<Texture2D>> _textures2D;
+		StrMap<UniquePtr<TextureCube>> _textureCubes;
 
 		StrMap<UniquePtr<Sampler>> _samplers;
 

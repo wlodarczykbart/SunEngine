@@ -86,9 +86,9 @@ namespace SunEngine
 	bool Material::SetMaterialVar(const String& name, const void* pData, const uint size)
 	{
 		auto found = _mtlVariables.find(name);
-		if (found != _mtlVariables.end() && (*found).second.size <= size)
+		if (found != _mtlVariables.end() && size <= (*found).second.size)
 		{
-			_memBuffer.SetData(pData, size, (*found).second.offset);
+			_memBuffer.SetData(pData, glm::min(size, (*found).second.size), (*found).second.offset);
 			if (!_mtlBuffer.Update(_memBuffer.GetData()))
 				return false;
 
@@ -109,6 +109,23 @@ namespace SunEngine
 				return false;
 
 			(*found).second.pTexture = pTexture;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool Material::SetTextureCube(const String& name, TextureCube* pTexture)
+	{
+		auto found = _mtlTextureCubes.find(name);
+		if (found != _mtlTextureCubes.end())
+		{
+			if (!_gpuObject.SetTextureCube(name, pTexture->GetGPUObject()))
+				return false;
+
+			(*found).second.pTextureCube = pTexture;
 			return true;
 		}
 		else
@@ -152,6 +169,7 @@ namespace SunEngine
 
 		_mtlVariables.clear();
 		_mtlTextures2D.clear();
+		_mtlTextureCubes.clear();
 		_mtlSamplers.clear();
 
 		if (_shader)
@@ -193,11 +211,18 @@ namespace SunEngine
 					IShaderResource& res = resInfos[i];
 					if (res.type == SRT_TEXTURE)
 					{
-						if (res.dimension == SRD_TEXTURE_2D)
+						MaterialTextureData data = {};
+						data.Res = res;
+						switch (res.dimension)
 						{
-							MaterialTextureData data = {};
-							data.Res = res;
+						case SRD_TEXTURE_2D:
 							_mtlTextures2D[res.name] = data;
+							break;
+						case SRD_TEXTURE_CUBE:
+							_mtlTextureCubes[res.name] = data;
+							break;
+						default:
+							break;
 						}
 					}
 					else if (res.type == SRT_SAMPLER)
@@ -230,6 +255,7 @@ namespace SunEngine
 		if (!_memBuffer.Write(stream)) return false;
 		if (!stream.WriteSimple(_mtlVariables)) return false;
 		if (!stream.WriteSimple(_mtlTextures2D)) return false;
+		if (!stream.WriteSimple(_mtlTextureCubes)) return false;
 		if (!stream.WriteSimple(_mtlSamplers)) return false;
 
 		return true;
@@ -245,6 +271,7 @@ namespace SunEngine
 		if (!_memBuffer.Read(stream)) return false;
 		if (!stream.ReadSimple(_mtlVariables)) return false;
 		if (!stream.ReadSimple(_mtlTextures2D)) return false;
+		if (!stream.ReadSimple(_mtlTextureCubes)) return false;
 		if (!stream.ReadSimple(_mtlSamplers)) return false;
 
 		return true;

@@ -23,6 +23,9 @@ namespace SunEngine
 	DefineStaticStr(DefaultShaders, SceneCopy)
 	DefineStaticStr(DefaultShaders, FXAA)
 	DefineStaticStr(DefaultShaders, TextureCopy)
+	DefineStaticStr(DefaultShaders, Skybox)
+	DefineStaticStr(DefaultShaders, Clouds)
+	DefineStaticStr(DefaultShaders, SkyArHosek)
 
 	DefineStaticStr(DefaultPipelines, ShadowDepth)
 

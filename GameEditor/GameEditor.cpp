@@ -14,6 +14,8 @@
 #include "GameEditorViews.h"
 #include "ShaderMgr.h"
 #include "GameEditorGUI.h"
+#include "Environment.h"
+#include "Timer.h"
 #include "FilePathMgr.h"
 
 #include "GameEditor.h"
@@ -124,7 +126,10 @@ namespace SunEngine
 
 		}
 
-		pScene->Update(1 / 60.0f, 0.0f);
+		static Timer timer(true);
+
+		float dt = (float)timer.Tick();
+		pScene->Update(dt, (float)timer.ElapsedTime());
 	}
 
 	bool GameEditor::CreateDefaultScene()
@@ -246,13 +251,42 @@ namespace SunEngine
 		auto& sceneMgr = SceneMgr::Get();
 		Scene* pScene = sceneMgr.AddScene("NewScene");
 
-		SceneNode* pLightNode = pScene->AddNode("Sun");
-		Light* pSun = pLightNode->AddComponent(new Light())->As<Light>();
-		pSun->SetLightType(LT_DIRECTIONAL);
-		pSun->SetColor(glm::vec4(1));
-		pLightNode->Orientation.Angles.y = -60;
-		pLightNode->Orientation.Angles.z = -120;
-		pLightNode->Initialize();
+		SceneNode* pEnvironmentNode = pScene->AddNode("Environment");
+		auto* pEnv = pEnvironmentNode->AddComponent(new Environment())->As<Environment>();
+		pEnvironmentNode->Initialize();
+
+		const ConfigSection* pEnvSection = GetConfig().GetSection("Environment");
+		if (pEnvSection)
+		{
+			String skyPath = pEnvSection->GetString("Skybox");
+			String skyOrder = pEnvSection->GetString("SkyboxOrder");
+			Vector<String> skySides;
+			StrSplit(skyOrder, skySides, ',');
+			if (!skyPath.empty() && skySides.size() == 6)
+			{
+				TextureCube* pSkyCube = resMgr.AddTextureCube("DefaultSkybox");
+				String path = GetDirectory(GetConfig().GetFilename()) + "/" + skyPath + "/";
+				SkyModelSkybox* pSkybox = static_cast<SkyModelSkybox*>(pEnv->GetSkyModel(DefaultShaders::Skybox));
+				if (!(pSkyCube->LoadFromFile(path, skySides) && pSkyCube->RegisterToGPU() && pSkybox->SetSkybox(pSkyCube)))
+				{
+					spdlog::error("Failed to load skybox located at {}", path.c_str());
+					return false;
+				}
+			}
+
+			String cloudPath = pEnvSection->GetString("Clouds");
+			if (!cloudPath.empty())
+			{
+				Texture2D* pCloudTex = resMgr.AddTexture2D("DefaultClouds");
+				String path = GetDirectory(GetConfig().GetFilename()) + "/" + cloudPath;
+				pCloudTex->SetFilename(path);
+				if (!(pCloudTex->LoadFromFile() && pCloudTex->RegisterToGPU() && pEnv->SetCloudTexture(pCloudTex)))
+				{
+					spdlog::error("Failed to load clouds located at {}", path.c_str());
+					return false;
+				}
+			}
+		}
 
 		Asset* pAssetStandard = resMgr.AddAsset("AssetStandard");
 		{
@@ -290,9 +324,9 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
-			//SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			//pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
-			//pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
+			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
+			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
+			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
 		int Slices = 0;
@@ -328,11 +362,20 @@ namespace SunEngine
 		////pAsset->GetRoot()->Scale *= 0.01f;
 
 		String strAsset = "F:/Models/FBX/_Animated_/teddy.fbx";
-		strAsset = "F:/Downloads/EmeraldSquare1024/EmeraldSquare.fbx";
+		strAsset = "F:/Models/Scenes/EmeraldSquare1024/EmeraldSquare.fbx";
+		//strAsset = "F:/Downloads/SunTemple_v3/SunTemple/SunTemple.fbx";
 		//strAsset = "F:/Models/OBJ/Small_Tropical_Island/Small Tropical Island.obj";
 		//strAsset = "F:/Models/FBX/_PHONG_/RuralStallObj/RuralStall_phong.fbx";
-		Asset* pAsset = ImportAsset(strAsset, SunEngine::AssetImporter::Options::Default);
-		pAsset->CreateSceneNode(pScene, 450.0f);
+		//strAsset = "F:/Models/Scenes/Bistro/Bistro_Research_Interior.fbx";
+		//strAsset = "F:/Downloads/Bistro/Bistro_Research_Exterior.fbx";
+		//strAsset = "F:/Models/Scenes/sponza/sponza.obj";
+		//strAsset = "F:/Models/Scenes/sibenik/sibenik.obj";
+		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
+
+		//auto options = SunEngine::AssetImporter::Options::Default;
+		//options.MaxTextureSize = 1024;
+		//Asset* pAsset = ImportAsset(strAsset, options);
+		//pAsset->CreateSceneNode(pScene, 200.0f);
 
 		return true;
 	}

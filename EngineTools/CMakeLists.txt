@@ -5,6 +5,9 @@ ${CMAKE_SOURCE_DIR}/External/stb/stb_dxt.h
 ${CMAKE_SOURCE_DIR}/External/stb/stb_image_write.h
 ${CMAKE_SOURCE_DIR}/External/FastNoise/FastNoise.h
 ${CMAKE_SOURCE_DIR}/External/FastNoise/FastNoise.cpp
+${CMAKE_SOURCE_DIR}/External/SOIL2/image_DXT.h
+${CMAKE_SOURCE_DIR}/External/SOIL2/stbi_DDS.h
+${CMAKE_SOURCE_DIR}/External/SOIL2/stbi_DDS_c.h
 FileBase.h
 FileReader.h
 FileWriter.h
@@ -46,3 +49,4 @@ TimeImpl.cpp
 target_include_directories(EngineTools PUBLIC "${CMAKE_SOURCE_DIR}/External/stb/")
 target_include_directories(EngineTools PUBLIC "${CMAKE_SOURCE_DIR}/External/FastNoise/")
 target_include_directories(EngineTools PUBLIC "${CMAKE_SOURCE_DIR}/External/Urho3D/")
+target_include_directories(EngineTools PUBLIC "${CMAKE_SOURCE_DIR}/External/SOIL2/")

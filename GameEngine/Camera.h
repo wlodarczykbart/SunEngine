@@ -29,13 +29,25 @@ namespace SunEngine
 			RTF,
 		};
 
-		CameraComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode) {}
+		CameraComponentData(Component* pComponent, SceneNode* pNode);
 
 		bool FrustumIntersects(const AABB& aabb) const;
 
-		glm::mat4 ViewMatrix;
-		glm::vec4 FrustumPlanes[6];
-		glm::vec3 FrustumCorners[8];
+		const glm::mat4& GetView() const { return _viewMatrix; }
+		const glm::vec3& GetPosition() const { return _position; }
+		const glm::vec3& GetRight() const { return _right; }
+		const glm::vec3& GetUp() const { return _up; }
+		const glm::vec3& GetForward() const { return _forward; }
+					  
+	private:
+		friend class Camera;
+		glm::mat4 _viewMatrix;
+		glm::vec3 _position;
+		glm::vec3 _right;
+		glm::vec3 _up;
+		glm::vec3 _forward;
+		glm::vec4 _frustumPlanes[6];
+		glm::vec3 _frustumCorners[8];
 	};
 
 	class Camera : public Component

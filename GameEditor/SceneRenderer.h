@@ -17,6 +17,7 @@ namespace SunEngine
 	class BaseShader;
 	class RenderTarget;
 	class Material;
+	class Environment;
 
 	struct RenderTargetPassInfo
 	{
@@ -41,8 +42,8 @@ namespace SunEngine
 		~SceneRenderer();
 
 		bool Init();
-		bool PrepareFrame(CameraComponentData* pCamera = 0);
-		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo);
+		bool PrepareFrame(BaseTexture* pOutputTexture, bool updateTextures, CameraComponentData* pCamera = 0);
+		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo, RenderTargetPassInfo* pSkyInfo);
 
 	private:
 		struct UniformBufferData
@@ -84,35 +85,39 @@ namespace SunEngine
 
 			UniformBufferData* SkinnedBoneBindings;
 			uint SkinnedBoneBufferIndex;
+
+			float SortingDistance;
 		};
 
 		struct DepthRenderData
 		{
 			UniformBufferGroup ObjectBufferGroup;
 			UniformBufferGroup SkinnedBonesBufferGroup;
-			Queue<RenderNodeData> RenderQueue;
+			LinkedList<RenderNodeData> RenderList;
 			Viewport Viewport;
 		};
 
 		void ProcessRenderNode(RenderNode* pNode);
-		void ProcessRenderQueue(CommandBuffer* cmdBuffer, Queue<RenderNodeData>& queue, uint cameraUpdateIndex);
-		bool GetPipeline(RenderNodeData& node);
+		void ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex);
+		bool GetPipeline(RenderNodeData& node, bool& sorted);
 		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
+		void RenderSky(CommandBuffer* cmdBuffer);
+		void RenderEnvironment(CommandBuffer* cmdBuffer, RenderTargetPassInfo* pSkyInfo);
 
 		bool _bInit;
 		UniformBufferGroup _cameraGroup;
 		UniformBufferData* _cameraBuffer;
-		UniquePtr<UniformBufferData> _lightBuffer;
+		UniquePtr<UniformBufferData> _environmentBuffer;
 		UniquePtr<UniformBufferData> _shadowMatrixBuffer;
 		Vector<UniquePtr<GraphicsPipeline>> _graphicsPipelines;
 		UniformBufferGroup _objectBufferGroup;
 		UniformBufferGroup _skinnedBonesBufferGroup;
 		CameraComponentData* _currentCamera;
-		LightComponentData* _currentSunlight;
+		const Environment* _currentEnvironment;
 		HashSet<BaseShader*> _currentShaders;
-		Queue<RenderNodeData> _gbufferRenderQueue;
-		Queue<RenderNodeData> _opaqueRenderQueue;
-		Queue<RenderNodeData> _sortedRenderQueue;
+		LinkedList<RenderNodeData> _gbufferRenderList;
+		LinkedList<RenderNodeData> _opaqueRenderList;
+		LinkedList<RenderNodeData> _sortedRenderList;
 
 		Map<usize, UniquePtr<Material>> _depthMaterials;
 		RenderTarget _depthTarget;
@@ -120,6 +125,8 @@ namespace SunEngine
 
 		StrMap<String> _shaderVariantPipelineMap;
 		Vector<ShaderMat4> _skinnedBoneMatrixBlock;
+
+		StrMap<GraphicsPipeline> _helperPipelines;
 	};
 
 }
