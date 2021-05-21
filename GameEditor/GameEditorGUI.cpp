@@ -9,6 +9,7 @@
 #include "GameEditorViews.h"
 #include "SceneMgr.h"
 #include "Environment.h"
+#include "ShaderMgr.h"
 #include "GameEditorGUI.h"
 
 //#define TEST_IMGUI_BASIC
@@ -404,9 +405,56 @@ namespace SunEngine
 				if (ImGui::TreeNode(env->GetNode()->GetName().c_str()))
 				{
 					Environment* pEnv = const_cast<Environment*>(static_cast<const Environment*>(env->C()));
-					glm::vec3 sunDir = pEnv->GetSunDirection();
-					if (ImGui::DragFloat3("SunDir", &sunDir.x, 0.01f, -1.0f, 1.0f))
-						pEnv->SetSunDirection(sunDir);
+
+					if (ImGui::TreeNode("Sun"))
+					{
+						glm::vec3 sunDir = pEnv->GetSunDirection();
+						if (ImGui::DragFloat3("SunDir", &sunDir.x, 0.01f, -1.0f, 1.0f))
+							pEnv->SetSunDirection(sunDir);
+
+						ImGui::TreePop();
+					}
+
+					if (ImGui::TreeNode("Sky"))
+					{
+						String strSkyModel;
+						Vector<String> names;
+						pEnv->GetSkyModelNames(names);
+
+						bool checkStates[32];
+
+						SkyModel* pActiveModel = pEnv->GetActiveSkyModel();
+
+						if (ImGui::TreeNode("ActiveModel"))
+						{
+							for(uint i = 0; i < names.size(); i++)
+							{
+								checkStates[i] = pActiveModel == pEnv->GetSkyModel(names[i]);
+								if (ImGui::Checkbox(names[i].c_str(), &checkStates[i]))
+									pEnv->SetActiveSkyModel(names[i]);
+							}
+							ImGui::TreePop();
+						}
+
+						
+						strSkyModel = DefaultShaders::SkyArHosek;
+						auto* pSkyModel = static_cast<SkyModelArHosek*>(pEnv->GetSkyModel(strSkyModel));
+						if (pSkyModel && ImGui::TreeNode(strSkyModel.c_str()))
+						{
+							float Turbidity = pSkyModel->GetTurbidity();
+							if (ImGui::DragFloat("Turbidity", &Turbidity, 0.01f, 1.0f, 32.0f)) pSkyModel->SetTurbidity(Turbidity);
+
+							float Albedo = pSkyModel->GetAlbedo();
+							if (ImGui::DragFloat("Albedo", &Albedo, 0.01f, -100.0f, 100.0f)) pSkyModel->SetAlbedo(Albedo);
+
+							float Intensity = pSkyModel->GetIntensity();
+							if (ImGui::DragFloat("Intensity", &Intensity, 0.01f, 1.0f, 64.0f)) pSkyModel->SetIntensity(Intensity);
+
+							ImGui::TreePop();
+						}
+
+						ImGui::TreePop();
+					}
 
 					ImGui::TreePop();
 				}

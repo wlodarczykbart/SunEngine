@@ -83,7 +83,7 @@ namespace SunEngine
 		}
 	}
 
-	bool Material::SetMaterialVar(const String& name, const void* pData, const uint size)
+	bool Material::SetMaterialVar(const String& name, const void* pData, uint size)
 	{
 		auto found = _mtlVariables.find(name);
 		if (found != _mtlVariables.end() && size <= (*found).second.size)
@@ -92,6 +92,20 @@ namespace SunEngine
 			if (!_mtlBuffer.Update(_memBuffer.GetData()))
 				return false;
 
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool Material::GetMaterialVar(const String& name, void* pData, uint size) const
+	{
+		auto found = _mtlVariables.find(name);
+		if (found != _mtlVariables.end() && size <= (*found).second.size)
+		{
+			memcpy(pData, _memBuffer.GetData((*found).second.offset), glm::min(size, (*found).second.size));
 			return true;
 		}
 		else

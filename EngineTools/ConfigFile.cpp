@@ -35,6 +35,8 @@ namespace SunEngine
 			for (uint i = 0; i < lines.size(); i++)
 			{
 				String &line = lines[i];
+				if (StrStartsWith(line, ";"))
+					continue;
 
 				usize startBracket = line.find('[');
 				usize endBracket = line.find(']');

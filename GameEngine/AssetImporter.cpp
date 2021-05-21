@@ -625,7 +625,7 @@ namespace SunEngine
 						pTexture->SetFilename(strPath);
 
 						if (texType.second == MaterialStrings::DiffuseMap)
-							pTexture->SetSRGB(true);
+							pTexture->SetSRGB();
 
 						needsLoad = true;
 					}

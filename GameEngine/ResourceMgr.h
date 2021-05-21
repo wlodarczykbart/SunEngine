@@ -30,6 +30,7 @@ namespace SunEngine
 			static const String Cube;
 			static const String Sphere;
 			static const String Plane;
+			static const String Quad;
 		};
 
 		class Material

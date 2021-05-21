@@ -63,6 +63,14 @@ namespace SunEngine
 		{
 			imgInfo.format = VK_FORMAT_BC3_UNORM_BLOCK;
 		}
+		else if (info.image.Flags & ImageData::SAMPLED_TEXTURE_R32F)
+		{
+			imgInfo.format = VK_FORMAT_R32_SFLOAT;
+		}
+		else if (info.image.Flags & ImageData::SAMPLED_TEXTURE_R32G32B32A32F)
+		{
+			imgInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT; //TODO: not sure if this needs more work on vulkan side, haven't tested
+		}
 
 		if (info.image.Flags & ImageData::SRGB)
 		{

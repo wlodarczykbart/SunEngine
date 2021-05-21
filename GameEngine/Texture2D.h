@@ -23,11 +23,15 @@ namespace SunEngine
 		void FillColor(const glm::vec4& color);
 		void Invert();
 		void SetPixel(uint x, uint y, const glm::vec4& color);
+		void SetPixel(uint x, uint y, const Pixel& color);
+		void GetPixel(uint x, uint y, glm::vec4& color) const;
+		void GetPixel(uint x, uint y, Pixel& color) const;
 
 		uint GetWidth() const { return _img.Width(); }
 		uint GetHeight() const { return _img.Height(); }
 
-		void SetSRGB(bool srgb) { _srgb = srgb; }
+		void SetSRGB() { _img.SetFlags(ImageData::SRGB); }
+		void SetSingleFloatTexture() { _img.SetFlags(ImageData::SAMPLED_TEXTURE_R32F); }
 
 		void SetFilename(const String& filename) { _filename = filename; }
 		const String& GetFilename() const { return _filename; }
@@ -37,6 +41,5 @@ namespace SunEngine
 		String _filename;
 		Image _img;
 		Vector<UniquePtr<Image>> _mips;
-		bool _srgb;
 	};
 }

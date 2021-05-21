@@ -288,6 +288,45 @@ namespace SunEngine
 		UpdateBoundingVolume();
 	}
 
+	void Mesh::AllocateQuad()
+	{
+		AllocVertices(4, VertexDef{ 4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX });
+		AllocIndices(6);
+
+		uint vtx = 0;
+
+		//Top
+		SetVertexVar(vtx, glm::vec4(-0.5f, -0.5f, +0.0f, 1.0f)); vtx++;
+		SetVertexVar(vtx, glm::vec4(+0.5f, -0.5f, +0.0f, 1.0f)); vtx++;
+		SetVertexVar(vtx, glm::vec4(+0.5f, +0.5f, -0.0f, 1.0f)); vtx++;
+		SetVertexVar(vtx, glm::vec4(-0.5f, +0.5f, -0.0f, 1.0f)); vtx++;
+
+		glm::vec4 tcQuad[] = { glm::vec4(0.0f, 1.0f, 0.0f, 0.0f), glm::vec4(1.0f, 1.0f, 0.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 0.0f), };
+
+		uint idx = 0;
+		for (uint i = 0; i < GetVertexCount(); i += 4)
+		{
+			glm::vec4 normal = glm::vec4(glm::normalize(glm::cross(glm::vec3(GetVertexPos(i + 1) - GetVertexPos(i + 0)), glm::vec3(GetVertexPos(i + 2) - GetVertexPos(i + 0)))), 0.0f);
+			glm::vec4 tangent = glm::vec4(-normal.y, normal.z, normal.x, 0.0f);
+
+			for (uint j = 0; j < 4; j++)
+			{
+				SetVertexVar(i + j, tcQuad[j], VertexDef::DEFAULT_TEX_COORD_INDEX);
+				SetVertexVar(i + j, normal, VertexDef::DEFAULT_NORMAL_INDEX);
+				SetVertexVar(i + j, tangent, VertexDef::DEFAULT_TANGENT_INDEX);
+			}
+
+			_indices[idx++] = i + 0;
+			_indices[idx++] = i + 2;
+			_indices[idx++] = i + 1;
+			_indices[idx++] = i + 0;
+			_indices[idx++] = i + 3;
+			_indices[idx++] = i + 2;
+		}
+
+		UpdateBoundingVolume();
+	}
+
 	void Mesh::SetVertexVar(uint vertexIndex, const glm::vec4& value, uint varIndex)
 	{
 		if (varIndex < _vertexDef.NumVars)

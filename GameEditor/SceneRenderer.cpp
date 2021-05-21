@@ -91,20 +91,23 @@ namespace SunEngine
 			return false;
 		_shaderVariantPipelineMap[Shader::Depth] = DefaultPipelines::ShadowDepth;
 
-		GraphicsPipeline::CreateInfo pipelineInfo = {};
-		pipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_LESS_EQUAL;
+		GraphicsPipeline::CreateInfo skyPipelineInfo = {};
+		skyPipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_LESS_EQUAL;
+		skyPipelineInfo.settings.rasterizer.frontFace = SE_FF_CLOCKWISE;
 
-		pipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Skybox)->GetDefault();
-		if (!_helperPipelines[DefaultShaders::Skybox].Create(pipelineInfo))
+		skyPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Skybox)->GetDefault();
+		if (!_helperPipelines[DefaultShaders::Skybox].Create(skyPipelineInfo))
 			return false;
 
-		pipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::SkyArHosek)->GetDefault();
-		if (!_helperPipelines[DefaultShaders::SkyArHosek].Create(pipelineInfo))
+		skyPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::SkyArHosek)->GetDefault();
+		if (!_helperPipelines[DefaultShaders::SkyArHosek].Create(skyPipelineInfo))
 			return false;
 
-		pipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Clouds)->GetDefault();
-		pipelineInfo.settings.EnableAlphaBlend();
-		if (!_helperPipelines[DefaultShaders::Clouds].Create(pipelineInfo))
+		GraphicsPipeline::CreateInfo cloudPipelineInfo = {};
+		cloudPipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_LESS_EQUAL;
+		cloudPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Clouds)->GetDefault();
+		cloudPipelineInfo.settings.EnableAlphaBlend();
+		if (!_helperPipelines[DefaultShaders::Clouds].Create(cloudPipelineInfo))
 			return false;
 
 		_bInit = true;
@@ -314,10 +317,6 @@ namespace SunEngine
 
 		BaseShader* pShader = 0;
 
-		pSkyInfo->pTarget->Bind(cmdBuffer);
-		RenderSky(cmdBuffer);
-		pSkyInfo->pTarget->Unbind(cmdBuffer);
-
 		_depthTarget.Bind(cmdBuffer);
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
@@ -326,6 +325,10 @@ namespace SunEngine
 		_depthTarget.Unbind(cmdBuffer);
 
 		uint mainCamUpdateIndex = 0;
+
+		pSkyInfo->pTarget->Bind(cmdBuffer);
+		RenderSky(cmdBuffer);
+		pSkyInfo->pTarget->Unbind(cmdBuffer);
 
 		if (pDeferredInfo)
 		{
@@ -639,13 +642,39 @@ namespace SunEngine
 		Material* pMaterial = pSkyModel->GetMaterial();
 		BaseShader* pShader = pMaterial->GetShaderVariant();
 		auto& pipeline = _helperPipelines.at(pMaterial->GetShader()->GetName());
+		SkyModel::MeshType meshType = pSkyModel->GetMeshType();
+
+		Mesh* pMesh = 0;
+		switch (meshType)
+		{
+		case SunEngine::SkyModel::MT_CUBE:
+			pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Cube);
+			break;
+		case SunEngine::SkyModel::MT_SPHERE:
+			pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Sphere);
+			break;
+		case SunEngine::SkyModel::MT_QUAD:
+			pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Quad);
+			break;
+		default:
+			break;
+		}
 
 		pShader->Bind(cmdBuffer);
 		pipeline.Bind(cmdBuffer);
 		pMaterial->GetGPUObject()->Bind(cmdBuffer);
 		TryBindBuffer(cmdBuffer, pShader, _cameraBuffer);
 		TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
-		cmdBuffer->Draw(pSkyModel->GetVertexDrawCount(), 1, 0, 0);
+		if (pMesh)
+		{
+			pMesh->GetGPUObject()->Bind(cmdBuffer);
+			cmdBuffer->DrawIndexed(pMesh->GetIndexCount(), 1, 0, 0, 0);
+		}
+		else
+		{
+			//screen quad default, is generated in shader
+			cmdBuffer->Draw(6, 1, 0, 0);
+		}
 		pMaterial->GetGPUObject()->Unbind(cmdBuffer);
 		pipeline.Unbind(cmdBuffer);
 		pShader->Unbind(cmdBuffer);

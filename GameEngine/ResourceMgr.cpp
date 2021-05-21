@@ -15,6 +15,7 @@ namespace SunEngine
 		DefineStaticStr(Mesh, Cube);
 		DefineStaticStr(Mesh, Sphere);
 		DefineStaticStr(Mesh, Plane);
+		DefineStaticStr(Mesh, Quad);
 
 		DefineStaticStr(Material, StandardMetallic);
 		DefineStaticStr(Material, StandardSpecular);
@@ -75,6 +76,13 @@ namespace SunEngine
 		Mesh* pPlaneMesh = AddMesh(DefaultResource::Mesh::Plane);
 		pPlaneMesh->AllocatePlane();
 		if (!pPlaneMesh->RegisterToGPU())
+		{
+			return false;
+		}
+
+		Mesh* pQuadMesh = AddMesh(DefaultResource::Mesh::Quad);
+		pQuadMesh->AllocateQuad();
+		if (!pQuadMesh->RegisterToGPU())
 		{
 			return false;
 		}

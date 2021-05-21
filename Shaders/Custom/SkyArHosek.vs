@@ -11,16 +11,14 @@ struct VS_In
 struct PS_In
 {
 	float4 clipPos : SV_POSITION;
-	float3 normal : NORMAL;
+	float2 texCoord : TEXCOORD;
 };
 
 PS_In main(VS_In vIn)
 {
 	PS_In pIn;
-	float3 pos = vIn.position.xyz * 2.0; //assumes a unit cube is input which has radius of 0.5, need to double it
-	
-	pIn.clipPos = mul(mul(float4(pos, 0.0), ViewMatrix), ProjectionMatrix).xyww;
-	pIn.normal = pos;
+	pIn.clipPos = float4(vIn.position.xyz * 2.0, 1.0);
+	pIn.texCoord = float2(vIn.texCoord.x, 1.0 - vIn.texCoord.y);
 	
 	return pIn;
 }

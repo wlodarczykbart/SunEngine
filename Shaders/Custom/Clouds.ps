@@ -13,6 +13,7 @@ struct PS_In
 float4 main(PS_In pIn) : SV_TARGET
 {
 	float a = 1.0 - min(length(pIn.texCoord * 2.0 - 1.0), 1.0);	
+	a *= max(dot(SunDirection.xyz, float3(0, 1, 0)), 0.0001);
 	//a = exp(-length(pIn.gridPos) * 0.001);
 	float4 color = DiffuseMap.Sample(Sampler, (pIn.texCoord * 6) + float2(0.0, ELAPSED_TIME * 0.005)).rrrr;
 	color.rgb *= 3.0;

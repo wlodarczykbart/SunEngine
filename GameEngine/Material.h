@@ -62,21 +62,14 @@ namespace SunEngine
 		template<typename T>
 		bool GetMaterialVar(const String& name, T& value)
 		{
-			auto found = _mtlVariables.find(name);
-			if (found != _mtlVariables.end())
-			{
-				memcpy(&value, _memBuffer.GetData((*found).second.offset), (*found).second.size);
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+			return GetMaterialVar(name, &value, sizeof(T));
 		}	
 
 		Texture2D* GetTexture2D(const String& name) const { auto found = _mtlTextures2D.find(name); return found != _mtlTextures2D.end() ? (*found).second.pTexture : 0; }
 
-		bool SetMaterialVar(const String& name, const void* pData, const uint size);
+		bool SetMaterialVar(const String& name, const void* pData, uint size);
+		bool GetMaterialVar(const String& name, void* pData, uint size) const;
+
 		bool SetTexture2D(const String& name, Texture2D* pTexture);
 		bool SetTextureCube(const String& name, TextureCube* pTexture);
 		bool SetSampler(const String& name, Sampler* pSampler);

@@ -111,4 +111,12 @@ namespace SunEngine
 			return 0;
 		}
 	}
+
+	uint Environment::GetSkyModelNames(Vector<String>& names) const
+	{
+		for (auto& sky : _skyModels)
+			names.push_back(sky.first);
+
+		return _skyModels.size();
+	}
 }

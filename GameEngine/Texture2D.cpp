@@ -5,7 +5,6 @@ namespace SunEngine
 {
 	Texture2D::Texture2D()
 	{
-		_srgb = false;
 	}
 
 	Texture2D::~Texture2D()
@@ -19,15 +18,12 @@ namespace SunEngine
 
 		BaseTexture::CreateInfo info = {};
 		info.image = _img.ImageData();
-		if (_srgb)
-			info.image.Flags |= ImageData::SRGB;
 
 		Vector<ImageData> mipData;
 		for (uint i = 0; i < _mips.size(); i++)
 		{
 			ImageData mipImage = _mips[i]->ImageData();
-			if (_srgb)
-				mipImage.Flags |= ImageData::SRGB;
+			mipImage.Flags |= _img.GetFlags();
 
 			mipData.push_back(mipImage);
 		}
@@ -159,5 +155,21 @@ namespace SunEngine
 	void Texture2D::SetPixel(uint x, uint y, const glm::vec4& color)
 	{
 		_img.SetPixel(x, y, Pixel(color.r, color.g, color.b, color.a));
+	}
+
+	void Texture2D::SetPixel(uint x, uint y, const Pixel& color)
+	{
+		return _img.SetPixel(x, y, color);
+	}
+
+	void Texture2D::GetPixel(uint x, uint y, glm::vec4& color) const
+	{
+		Pixel p = _img.GetPixel(x, y);
+		p.Get(color.x, color.y, color.z, color.w);
+	}
+
+	void Texture2D::GetPixel(uint x, uint y, Pixel& color) const
+	{
+		color = _img.GetPixel(x, y);
 	}
 }

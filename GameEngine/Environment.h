@@ -44,6 +44,7 @@ namespace SunEngine
 		bool SetActiveSkyModel(const String& shaderName);
 		SkyModel* GetActiveSkyModel() const;
 		SkyModel* GetSkyModel(const String& shaderName) const;
+		uint GetSkyModelNames(Vector<String>& names) const;
 	private:
 		glm::vec3 _sunDirection;
 		Texture2D* _cloudtexture;

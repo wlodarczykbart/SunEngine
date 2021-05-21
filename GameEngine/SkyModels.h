@@ -10,13 +10,20 @@ namespace SunEngine
 	class SkyModel
 	{
 	public:
+		enum MeshType
+		{
+			MT_QUAD,
+			MT_CUBE,
+			MT_SPHERE,
+		};
+
 		SkyModel();
 		virtual ~SkyModel();
 		Material* GetMaterial() const { return _material.get(); }
 
 		virtual void Init() = 0;
 		virtual void Update(const glm::vec3& sunDirection) { (void)sunDirection; };
-		virtual uint GetVertexDrawCount() const = 0;
+		virtual MeshType GetMeshType() const = 0;
 	protected:
 		UniquePtr<Material> _material;
 	};
@@ -26,7 +33,7 @@ namespace SunEngine
 	public:
 		SkyModelSkybox();
 		void Init() override;
-		uint GetVertexDrawCount() const override { return 36; }
+		MeshType GetMeshType() const override { return MT_CUBE; }
 
 		bool SetSkybox(TextureCube* pSkybox);
 	private:
@@ -36,10 +43,24 @@ namespace SunEngine
 	class SkyModelArHosek : public SkyModel
 	{
 	public:
+		SkyModelArHosek();
+
 		void Init() override;
 		void Update(const glm::vec3& sunDirection) override;
-		uint GetVertexDrawCount() const override { return 6; }
+		MeshType GetMeshType() const override { return MT_QUAD; }
+
+		float GetTurbidity() const { return _turbidity; }
+		void SetTurbidity(float value) { _turbidity = value; }
+
+		float GetAlbedo() const { return _albedo; }
+		void SetAlbedo(float value) { _albedo = value; }
+
+		float GetIntensity() const { return _intensity; }
+		void SetIntensity(float value) { _intensity = value; }
+
 	private:
-		Texture2D _sphericalLookupTexture;
+		float _turbidity;
+		float _albedo;
+		float _intensity;
 	};
 }

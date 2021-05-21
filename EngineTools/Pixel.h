@@ -11,10 +11,7 @@ namespace SunEngine
 
 		Pixel(float r, float g, float b, float a)
 		{
-			R = uchar(std::clamp(r, 0.0f, 1.0f) * 255.0f);
-			G = uchar(std::clamp(g, 0.0f, 1.0f) * 255.0f);
-			B = uchar(std::clamp(b, 0.0f, 1.0f) * 255.0f);
-			A = uchar(std::clamp(a, 0.0f, 1.0f) * 255.0f);
+			Set(r, g, b, a);
 		}
 
 		uchar R;
@@ -40,6 +37,22 @@ namespace SunEngine
 		inline uchar Grayscale()  const
 		{
 			return (uchar)((((float)R + (float)G + (float)B) / 3.0f));
+		}
+
+		void Set(float r, float g, float b, float a)
+		{
+			R = uchar(std::clamp(r, 0.0f, 1.0f) * 255.0f);
+			G = uchar(std::clamp(g, 0.0f, 1.0f) * 255.0f);
+			B = uchar(std::clamp(b, 0.0f, 1.0f) * 255.0f);
+			A = uchar(std::clamp(a, 0.0f, 1.0f) * 255.0f);
+		}
+
+		void Get(float& r, float& g, float& b, float& a)
+		{
+			r = R / 255.0f;
+			g = G / 255.0f;
+			b = B / 255.0f;
+			a = A / 255.0f;
 		}
 	};
 

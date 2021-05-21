@@ -77,6 +77,7 @@ namespace SunEngine
 		void AllocateCube();
 		void AllocateSphere();
 		void AllocatePlane();
+		void AllocateQuad();
 
 		const AABB& GetAABB() const { return _aabb; }
 		const Sphere& GetSphere() const { return _sphere; }

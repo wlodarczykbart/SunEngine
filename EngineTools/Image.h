@@ -88,6 +88,7 @@ namespace SunEngine
 		bool IsCompressed() const;
 
 		inline uint GetFlags() const { return _internalFlags; }
+		inline void SetFlags(uint flags) { _internalFlags |= flags; }
 
 		static bool CanLoad(const String& path);
 
