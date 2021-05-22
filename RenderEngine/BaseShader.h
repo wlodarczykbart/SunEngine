@@ -37,8 +37,10 @@ namespace SunEngine
 	{
 		ShaderMat4 ViewMatrix;
 		ShaderMat4 ProjectionMatrix;
+		ShaderMat4 ViewProjectionMatrix;
 		ShaderMat4 InvViewMatrix;
 		ShaderMat4 InvProjectionMatrix;
+		ShaderMat4 InvViewProjectionMatrix;
 		ShaderVec4 Viewport;
 	};
 
@@ -70,9 +72,9 @@ namespace SunEngine
 		ShaderVec4 SunColor;
 
 		ShaderVec4 FogColor;
-		ShaderVec4 FogControls;
+		ShaderVec4 FogControls; //x = enabled, y = sampleSky, z = density
 
-		ShaderVec4 TimeData;
+		ShaderVec4 TimeData; //x = deltaTime, y = elapsedTime
 		ShaderVec4 WindDir;
 	};
 
@@ -116,6 +118,8 @@ namespace SunEngine
 		static String DepthSamplerName;
 		static String ShadowTextureName;
 		static String ShadowSamplerName;
+		static String SkyTextureName;
+		static String SkySamplerName;
 	};
 
 	class BaseShader;

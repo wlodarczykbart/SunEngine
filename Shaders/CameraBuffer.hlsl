@@ -1,9 +1,11 @@
 cbuffer CameraBuffer
 {
 	float4x4 ViewMatrix;
-	float4x4 ProjectionMatrix;
+	float4x4 ProjectionMatfrix;
+	float4x4 ViewProjectionMatrix;
 	float4x4 InvViewMatrix;
-	float4x4 InvProjMatrix;
+	float4x4 InvProjectionMatrix;
+	float4x4 InvViewProjectionMatrix;
 	float4 Viewport;
 };
 

@@ -578,6 +578,94 @@ namespace SunEngine
 		return true;
 	}
 
+	bool VulkanDevice::TransferImageData(VkImage image, const ImageData* images, uint imageCount)
+	{
+		uint size = 0;
+		for (uint i = 0; i < imageCount; i++)
+		{
+			size += images[i].GetImageSize();
+		}
+
+		VkCommandBufferBeginInfo cmdInfo = {};
+		cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		cmdInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		VkBuffer transferSrc;
+		VkDeviceMemory transferMem;
+		VkBufferCreateInfo transferInfo = {};
+		transferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		transferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		transferInfo.size = size;
+		transferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		if (!CreateBuffer(transferInfo, &transferSrc)) return false;
+		if (!AllocBufferMemory(transferSrc, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &transferMem)) return false;
+
+		void* deviceMem = 0;
+		CheckVkResult(vkMapMemory(_device, transferMem, 0, size, 0, &deviceMem));
+		usize memAddr = (usize)deviceMem;
+		for (uint i = 0; i < imageCount; i++)
+		{
+			const ImageData& img = images[i];
+			uint imgSize = img.GetImageSize();
+			memcpy((void*)memAddr, img.Pixels, imgSize);
+			memAddr += imgSize;
+		}
+		vkUnmapMemory(_device, transferMem);
+
+		CheckVkResult(vkBeginCommandBuffer(_utilCmd, &cmdInfo));
+		{
+			VkImageMemoryBarrier barrier = {};
+			barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			barrier.image = image;
+			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			barrier.subresourceRange.layerCount = 6;
+			barrier.subresourceRange.levelCount = 1;
+
+			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.srcAccessMask = 0;
+			vkCmdPipelineBarrier(_utilCmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 0, 0, 1, &barrier);
+
+			uint imgOffset = 0;
+			for (uint i = 0; i < imageCount; i++)
+			{
+				const ImageData& img = images[i];
+
+				VkBufferImageCopy buffCopy = {};
+				//buffCopy.bufferImageHeight = img.Height;
+				//buffCopy.bufferRowLength = img.Width;
+				buffCopy.bufferOffset = imgOffset;
+				buffCopy.imageExtent.width = img.Width;
+				buffCopy.imageExtent.height = img.Height;
+				buffCopy.imageExtent.depth = 1;
+				buffCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				buffCopy.imageSubresource.layerCount = 1;
+				buffCopy.imageSubresource.baseArrayLayer = i;
+				vkCmdCopyBufferToImage(_utilCmd, transferSrc, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffCopy);
+
+				imgOffset += img.GetImageSize();
+			}
+
+			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			vkCmdPipelineBarrier(_utilCmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, 0, 0, 0, 1, &barrier);
+		}
+		CheckVkResult(vkEndCommandBuffer(_utilCmd));
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &_utilCmd;
+		CheckVkResult(vkQueueSubmit(_queue._queue, 1, &submitInfo, _utilFence));
+		if (!ProcessFences(&_utilFence, 1, UINT64_MAX, true)) return false;
+
+		FreeMemory(transferMem);
+		DestroyBuffer(transferSrc);
+	}
+
 	bool VulkanDevice::FreeMemory(VkDeviceMemory memory)
 	{
 		vkFreeMemory(_device, memory, VK_NULL_HANDLE);

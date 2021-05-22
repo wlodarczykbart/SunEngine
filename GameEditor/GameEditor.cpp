@@ -372,10 +372,10 @@ namespace SunEngine
 		//strAsset = "F:/Models/Scenes/sibenik/sibenik.obj";
 		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
 
-		//auto options = SunEngine::AssetImporter::Options::Default;
-		//options.MaxTextureSize = 1024;
-		//Asset* pAsset = ImportAsset(strAsset, options);
-		//pAsset->CreateSceneNode(pScene, 200.0f);
+		auto options = SunEngine::AssetImporter::Options::Default;
+		options.MaxTextureSize = 1024;
+		Asset* pAsset = ImportAsset(strAsset, options);
+		pAsset->CreateSceneNode(pScene, 200.0f);
 
 		return true;
 	}

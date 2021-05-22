@@ -43,7 +43,7 @@ namespace SunEngine
 
 		bool Init();
 		bool PrepareFrame(BaseTexture* pOutputTexture, bool updateTextures, CameraComponentData* pCamera = 0);
-		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo, RenderTargetPassInfo* pSkyInfo);
+		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo);
 
 	private:
 		struct UniformBufferData
@@ -102,7 +102,7 @@ namespace SunEngine
 		bool GetPipeline(RenderNodeData& node, bool& sorted);
 		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
 		void RenderSky(CommandBuffer* cmdBuffer);
-		void RenderEnvironment(CommandBuffer* cmdBuffer, RenderTargetPassInfo* pSkyInfo);
+		void RenderEnvironment(CommandBuffer* cmdBuffer);
 
 		bool _bInit;
 		UniformBufferGroup _cameraGroup;
@@ -127,6 +127,9 @@ namespace SunEngine
 		Vector<ShaderMat4> _skinnedBoneMatrixBlock;
 
 		StrMap<GraphicsPipeline> _helperPipelines;
+
+		RenderTarget _skyTarget;
+		ShaderBindings _skyBindings;
 	};
 
 }

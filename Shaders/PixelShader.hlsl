@@ -86,12 +86,12 @@ void ShadePixel(float3 albedo, float ambient, float3 specular, float smoothness,
 	
     float3 ambientColor = 0.03 * albedo * ambient;	
 	
-	float3 EnvColor = float3(0.5,0.5,0.5);
-	float ft = 1.0-exp(-distToEye * 0.005);
-	float heightFactor = exp(-worldPos.y * 0.1);
-	EnvColor = lerp(EnvColor, float3(0.1, 0.1, 0.1), 1.0-heightFactor);
+	//float3 EnvColor = float3(0.5,0.5,0.5);
+	//float ft = 1.0-exp(-distToEye * 0.005);
+	//float heightFactor = exp(-worldPos.y * 0.1);
+	//EnvColor = lerp(EnvColor, float3(0.1, 0.1, 0.1), 1.0-heightFactor);
 	
 	pOut.color = float4(litColor + ambientColor, 1.0);	
-	//pOut.color.rgb = lerp(pOut.color.rgb, EnvColor, ft);
+	pOut.color.rgb = ComputeFogContribution(pOut.color.rgb, distToEye, screenTexCoord);
 #endif
 }

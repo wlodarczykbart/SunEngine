@@ -479,6 +479,7 @@ namespace SunEngine
 		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 		switch (vkTexture->GetFormat())
 		{
+		case VK_FORMAT_D24_UNORM_S8_UINT:
 		case VK_FORMAT_D32_SFLOAT:
 			layout = VulkanRenderTarget::GetDepthFinalLayout();
 			break;

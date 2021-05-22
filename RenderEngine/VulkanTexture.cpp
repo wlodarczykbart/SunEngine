@@ -54,6 +54,7 @@ namespace SunEngine
 		{
 			imgInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 			imgInfo.format = VK_FORMAT_D32_SFLOAT;
+			//imgInfo.format = VK_FORMAT_D24_UNORM_S8_UINT;
 		}
 		else if (info.image.Flags & ImageData::COMPRESSED_BC1)
 		{

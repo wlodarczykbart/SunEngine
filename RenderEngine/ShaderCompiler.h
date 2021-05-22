@@ -45,13 +45,9 @@ namespace SunEngine
 		uint _numUserTextures;
 		uint _numUserSamplers;
 
-		String _vertexSource;
-		String _vertexHLSL;
-		String _vertexGLSL;
-
-		String _pixelSource;
-		String _pixelHLSL;
-		String _pixelGLSL;
+		Map<ShaderStage, String> _hlslShaderText;
+		Map<ShaderStage, String> _glslShaderText;
+		Map<ShaderStage, String> _shaderSource;
 
 		String _lastErr;
 		String _uniqueName;

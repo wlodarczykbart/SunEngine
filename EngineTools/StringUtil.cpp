@@ -89,7 +89,7 @@ namespace SunEngine
 
 	String StrFormat(const char * fmt, ...)
 	{
-		static char buffer[4096 * 4];
+		char buffer[4096 * 2];
 
 		va_list va;
 		va_start(va, fmt);

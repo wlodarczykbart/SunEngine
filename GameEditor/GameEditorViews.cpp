@@ -126,12 +126,7 @@ namespace SunEngine
 #endif
 		}
 
-		RenderTargetPassInfo skyInfo = {};
-		skyInfo.pTarget = &_skyTarget;
-		skyInfo.pPipeline = &_skyData.pipeline;
-		skyInfo.pBindings = &_skyData.bindings;
-
-		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0, &skyInfo))
+		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0))
 			return false;
 
 		//Apply toneMap correction
@@ -286,9 +281,6 @@ namespace SunEngine
 #endif
 		}
 
-		if (!CreateRenderPassData(DefaultShaders::TextureCopy, _skyData, true))
-			return false;
-
 		return OnResize(info);
 	}
 
@@ -351,14 +343,6 @@ namespace SunEngine
 			return false;
 
 		if (!_fxaaData.bindings.SetTexture(MaterialStrings::DiffuseMap, _toneMapTarget.GetColorTexture()))
-			return false;
-
-		//TODO: should sky be a smaller resolution than the view resolution?
-		rtInfo.floatingPointColorBuffer = true;
-		if (!_skyTarget.Create(rtInfo))
-			return false;
-
-		if (!_skyData.bindings.SetTexture(MaterialStrings::DiffuseMap, _skyTarget.GetColorTexture()))
 			return false;
 
 		_resizeOccured = true;
@@ -452,7 +436,7 @@ namespace SunEngine
 		if (!data.bindings.Create(bindingInfo))
 			return false;
 
-		data.bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE, SE_AM_OFF));
+		data.bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
 
 		if (data.bindings.SetUniformBuffer(ShaderStrings::MaterialBufferName, &_shaderBuffer))
 			data.bufferIndex = _shaderBufferUsageCount++;

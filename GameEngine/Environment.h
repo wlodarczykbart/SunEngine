@@ -26,6 +26,16 @@ namespace SunEngine
 	class Environment : public Component
 	{
 	public:
+		struct FogSettings
+		{
+			FogSettings();
+
+			bool enabled;
+			bool sampleSky;
+			float density;
+			glm::vec3 color;
+		};
+
 		ComponentType GetType() const { return COMPONENT_ENVIRONMENT; }
 		ComponentData* AllocData(SceneNode* pNode) override { return new EnvironmentComponentData(this, pNode); }
 
@@ -45,6 +55,9 @@ namespace SunEngine
 		SkyModel* GetActiveSkyModel() const;
 		SkyModel* GetSkyModel(const String& shaderName) const;
 		uint GetSkyModelNames(Vector<String>& names) const;
+
+		void SetFogSettings(const FogSettings& settings);
+		void GetFogSettings(FogSettings& settings) const;
 	private:
 		glm::vec3 _sunDirection;
 		Texture2D* _cloudtexture;
@@ -52,5 +65,7 @@ namespace SunEngine
 
 		String _activeSkyModel;
 		StrMap<UniquePtr<SkyModel>> _skyModels;
+
+		FogSettings _fogSettings;
 	};
 }

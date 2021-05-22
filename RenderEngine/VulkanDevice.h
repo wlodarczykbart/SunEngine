@@ -71,6 +71,7 @@ namespace SunEngine
 		bool MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData);
 		bool UnmapMemory(VkDeviceMemory memory);
 		bool TransferImageData(VkImage image, const ImageData& baseImg, uint mipCount, const ImageData* pMipData);
+		bool TransferImageData(VkImage image, const ImageData* baseImages, uint imageCount);
 		bool FreeMemory(VkDeviceMemory memory);
 		bool FreeCommandBuffer(VkCommandBuffer cmdBuffer);
 

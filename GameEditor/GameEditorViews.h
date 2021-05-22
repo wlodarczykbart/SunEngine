@@ -84,14 +84,12 @@ namespace SunEngine
 		RenderTarget _deferredTarget;
 		RenderTarget _deferredResolveTarget;
 		RenderTarget _toneMapTarget;
-		RenderTarget _skyTarget;
 
 		RenderPassData _toneMapData;
 		RenderPassData _fxaaData;
 		RenderPassData _outputData;
 		RenderPassData _deferredData;
 		RenderPassData _deferredCopyData;
-		RenderPassData _skyData;
 #ifdef SUPPORT_SSR
 		Pair<GraphicsPipeline, ShaderBindings> _ssrData;
 #endif

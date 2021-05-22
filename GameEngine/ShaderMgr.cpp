@@ -1,10 +1,14 @@
 #include <string>       // std::string
 #include <iostream>     // std::cout
 #include <sstream>      // std::stringstream
+#include <mutex>
 
 #include "StringUtil.h"
 #include "FilePathMgr.h"
 #include "ResourceMgr.h"
+#include "ThreadPool.h"
+#include "ShaderCompiler.h"
+#include "Timer.h"
 #include "ShaderMgr.h"
 
 namespace SunEngine
@@ -29,6 +33,8 @@ namespace SunEngine
 
 	DefineStaticStr(DefaultPipelines, ShadowDepth)
 
+//#define LOAD_SHADER_THREADED 
+
 	ShaderMgr& ShaderMgr::Get()
 	{
 		static ShaderMgr mgr;
@@ -49,12 +55,25 @@ namespace SunEngine
 			return false;
 		
 		String shaderDir = EngineInfo::GetPaths().ShaderSourceDir();
+		ShaderCompiler::SetAuxiliaryDir(shaderDir);
+
+#ifdef LOAD_SHADER_THREADED
+		ThreadPool& tp = ThreadPool::Get();
+#endif
+		struct ThreadData
+		{
+			std::mutex mtx;
+			Queue<Pair<String, Shader*>> queue;
+			Vector<String> defines;
+			String errorMessage;
+		} threadData;
 
 		//Make sure these line up with what is in the shaders...
-		Vector<String> defines;
-		defines.push_back(StrFormat("MAX_SKINNED_BONES %d", EngineInfo::GetRenderer().MaxSkinnedBoneMatrices()));
-		defines.push_back(StrFormat("MAX_TEXTURE_TRANSFORMS %d", EngineInfo::GetRenderer().MaxTextureTransforms()));
-		defines.push_back(StrFormat("MAX_SHADOW_CASCADE_SPLITS %d", EngineInfo::GetRenderer().MaxShadowCascadeSplits()));
+		threadData.defines.push_back(StrFormat("MAX_SKINNED_BONES %d", EngineInfo::GetRenderer().MaxSkinnedBoneMatrices()));
+		threadData.defines.push_back(StrFormat("MAX_TEXTURE_TRANSFORMS %d", EngineInfo::GetRenderer().MaxTextureTransforms()));
+		threadData.defines.push_back(StrFormat("MAX_SHADOW_CASCADE_SPLITS %d", EngineInfo::GetRenderer().MaxShadowCascadeSplits()));
+
+		Timer timer(true);
 
 		ConfigSection* pList = config.GetSection("Shaders");
 		for (auto iter = pList->Begin(); iter != pList->End(); ++iter)
@@ -63,16 +82,60 @@ namespace SunEngine
 			if (_shaders.find(shaderName) != _shaders.end())
 				continue;
 
-			String shaderConfig = shaderDir + (*iter).first;
 			Shader* pShader = new Shader();
-			_shaders[shaderName] = UniquePtr<Shader>(pShader);
+			_shaders[shaderName] = UniquePtr<Shader>(pShader);		
+			{
+				std::lock_guard<std::mutex> lock(threadData.mtx);
+				threadData.queue.push({ shaderDir + (*iter).first,  pShader });
+			}
 
-			if (!pShader->Compile(shaderConfig, &errMsg, &defines))
+#ifdef LOAD_SHADER_THREADED
+			tp.AddTask([](uint, void* pData) -> void {
+				ThreadData* pThreadData = static_cast<ThreadData*>(pData);
+				Pair<String, Shader*> compileInfo = {};
+				{
+					std::lock_guard<std::mutex> lock(pThreadData->mtx);
+					//once an error has been found, we no longer attempt to compile any shaders, allow the thread pool to complete these empty tasks
+					if (pThreadData->errorMessage.empty())
+					{
+						compileInfo = pThreadData->queue.front();
+						pThreadData->queue.pop();
+					}
+				}
+
+				if (compileInfo.second)
+				{
+					String errMsg;
+					if (!compileInfo.second->Compile(compileInfo.first, &errMsg, &pThreadData->defines))
+					{
+						errMsg = compileInfo.first + "\n" + errMsg;
+						std::lock_guard<std::mutex> lock(pThreadData->mtx);
+						pThreadData->errorMessage = errMsg;
+					}
+				}
+
+			}, &threadData);
+#else
+			String shaderConfig = shaderDir + (*iter).first;
+			if (!pShader->Compile(shaderConfig, &errMsg, &threadData.defines))
 			{
 				errMsg = shaderConfig + "\n" + errMsg;
 				return false;
 			}
+#endif
 		}
+
+#ifdef LOAD_SHADER_THREADED
+		tp.Wait();
+		if (!threadData.errorMessage.empty())
+		{	
+			errMsg = threadData.errorMessage;
+			return false;
+		}
+#endif
+
+		timer.Tick();
+		printf("ShaderLoad: %f\n", timer.ElapsedTime());
 
 		LoadPipelines();
 

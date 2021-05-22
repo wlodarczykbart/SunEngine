@@ -61,6 +61,8 @@ namespace SunEngine
 
 		const String& GetName() const { return _name; }
 
+		static void FillMatrices(const glm::mat4& view, const glm::mat4& proj, CameraBufferData& camData);
+
 	private:
 		void CollectConfigFiles(LinkedList<ConfigFile>& configList, HashSet<String>& configMap);
 		void SetDefaults();

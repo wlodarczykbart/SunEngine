@@ -40,6 +40,8 @@ namespace SunEngine
 	String ShaderStrings::DepthSamplerName = "DepthSampler";
 	String ShaderStrings::ShadowTextureName = "ShadowTexture";
 	String ShaderStrings::ShadowSamplerName = "ShadowSampler";
+	String ShaderStrings::SkyTextureName = "SkyTexture";
+	String ShaderStrings::SkySamplerName = "SkySampler";
 
 	BaseShader::BaseShader() : GraphicsObject(GraphicsObject::SHADER)
 	{

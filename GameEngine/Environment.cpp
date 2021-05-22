@@ -8,6 +8,14 @@
 
 namespace SunEngine
 {
+	Environment::FogSettings::FogSettings()
+	{
+		enabled = true;
+		sampleSky = true;
+		density = 0.00176f;
+		color = glm::vec3(0.25f);
+	}
+
 	EnvironmentComponentData::EnvironmentComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode)
 	{
 		_deltaTime = 0.0f;
@@ -118,5 +126,19 @@ namespace SunEngine
 			names.push_back(sky.first);
 
 		return _skyModels.size();
+	}
+
+	void Environment::SetFogSettings(const FogSettings& settings)
+	{
+		_fogSettings = settings;
+	}
+
+	void Environment::GetFogSettings(FogSettings& settings) const
+	{
+		settings = _fogSettings;
+
+		//textured skybox is likely to have things like clouds and other environmental elements that would not make sense to use as the fog
+		if(_activeSkyModel == DefaultShaders::Skybox)
+			settings.sampleSky = false;
 	}
 }

@@ -411,7 +411,6 @@ namespace SunEngine
 						glm::vec3 sunDir = pEnv->GetSunDirection();
 						if (ImGui::DragFloat3("SunDir", &sunDir.x, 0.01f, -1.0f, 1.0f))
 							pEnv->SetSunDirection(sunDir);
-
 						ImGui::TreePop();
 					}
 
@@ -452,7 +451,20 @@ namespace SunEngine
 
 							ImGui::TreePop();
 						}
+						ImGui::TreePop();
+					}
 
+					if (ImGui::TreeNode("Fog"))
+					{
+						Environment::FogSettings fog;
+						pEnv->GetFogSettings(fog);
+
+						ImGui::Checkbox("Enabled", &fog.enabled);
+						ImGui::Checkbox("SampleSky", &fog.sampleSky);
+						ImGui::DragFloat("Density", &fog.density, 0.00001f, 0.0f, 0.2f, "%.5f");
+						ImGui::ColorEdit3("Color", &fog.color.x);
+
+						pEnv->SetFogSettings(fog);
 						ImGui::TreePop();
 					}
 

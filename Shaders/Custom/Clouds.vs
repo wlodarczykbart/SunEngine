@@ -33,8 +33,7 @@ PS_In main(uint vIndex : SV_VERTEXID)
 	pos += InvViewMatrix[3].xyz;
 	pos.y += 160.0;
 	
-	float4 viewPos = mul(float4(pos, 1.0), ViewMatrix);
-	pIn.clipPos = mul(viewPos, ProjectionMatrix);
+	pIn.clipPos  = mul(float4(pos, 1.0), ViewProjectionMatrix);
 	
 	return pIn;
 }

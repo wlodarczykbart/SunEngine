@@ -47,7 +47,7 @@ PS_In main(VS_In vIn)
 	SkinnedWorldMatrix = mul(SkinnedWorldMatrix, WorldMatrix);
 #endif	
 	
-	pIn.clipPos = mul(mul(mul(vIn.position, WORLD_MATRIX), ViewMatrix), ProjectionMatrix);
+	pIn.clipPos = mul(mul(vIn.position, WORLD_MATRIX), ViewProjectionMatrix);
 	
 #if !defined(DEPTH) || (defined(DEPTH) && defined(ALPHA_TEST))	
 	pIn.texCoord = vIn.texCoord;

@@ -87,7 +87,6 @@ namespace SunEngine
 			bool isText = section->GetInt("isText", 0) == 1;
 
 			ShaderCompiler compiler;
-			compiler.SetAuxiliaryDir(sourceDir);
 
 			Vector<String> defines;
 			StrSplit(section->GetString("defines"), defines, ',');
@@ -299,6 +298,20 @@ namespace SunEngine
 		{
 			pData[i] = StrToFloat(parts[i]);
 		}
+	}
+
+	void Shader::FillMatrices(const glm::mat4& view, const glm::mat4& proj, CameraBufferData& camData)
+	{
+		glm::mat4 projCorrected = EngineInfo::GetRenderer().ProjectionCorrection() * proj;
+		glm::mat4 viewProj = projCorrected * view;
+		glm::mat4 invView = glm::inverse(view);
+		glm::mat4 invProj = glm::inverse(projCorrected);
+		glm::mat4 invViewProj = glm::inverse(viewProj);
+		camData.ViewMatrix.Set(&view);
+		camData.ProjectionMatrix.Set(&projCorrected);
+		camData.ViewProjectionMatrix.Set(&viewProj);
+		camData.InvViewMatrix.Set(&invView);
+		camData.InvProjectionMatrix.Set(&invProj);
 	}
 
 	void Shader::CollectConfigFiles(LinkedList<ConfigFile>& configList, HashSet<String>& configMap)
