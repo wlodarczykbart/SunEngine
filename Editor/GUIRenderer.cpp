@@ -576,6 +576,7 @@ namespace SunEngine
 					ImGuiItemStatusFlags viewFlags = ImGui::GetItemStatusFlags();
 					glm::vec2 viewPos = glm::vec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y);
 					glm::vec2 viewSize = glm::vec2(imageSpace.x, imageSpace.y);
+					viewSize = glm::max(viewSize, glm::vec2(4.0f, 4.0f));
 					
 					bool mouseInsideView = viewFlags & ImGuiItemStatusFlags_HoveredRect;
 					bool viewFocus = ImGui::IsWindowFocused() && mouseInsideView;

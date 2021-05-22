@@ -819,7 +819,7 @@ namespace SunEngine
 
 		tp.Wait();
 
-		for (auto pTexture : _textureLoadList)
+		for (auto& pTexture : _textureLoadList)
 		{
 			if (!pTexture.first->RegisterToGPU())
 				return false;

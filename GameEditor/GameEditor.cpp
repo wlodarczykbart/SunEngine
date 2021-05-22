@@ -26,6 +26,7 @@ namespace SunEngine
 
 	GameEditor::GameEditor()
 	{
+		_view = 0;
 	}
 
 	GameEditor::~GameEditor()
