@@ -607,7 +607,7 @@ namespace SunEngine
 							String currFile = fsiter.path().filename().u8string();
 							if (filename == StrToLower(GetFileName(currFile)))
 							{
-								strPath = currFile;
+								strPath = fsiter.path().u8string();
 								break;
 							}
 						}
@@ -642,6 +642,7 @@ namespace SunEngine
 			usedTextureTypes.find(aiTextureType_METALNESS) != usedTextureTypes.end();
 
 		bool alphaTest = usedTextureTypes.find(aiTextureType_OPACITY) != usedTextureTypes.end();
+		alphaTest = false; //TODO: enable this again? default to alpha blend
 
 		String strShader;
 		if (metallic)

@@ -269,7 +269,7 @@ namespace SunEngine
 		_environmentList.push_back(pEnvironment);
 	}
 
-	void Scene::TraverseRenderNodes(TraverseAABBFunc aabbFunc, void* pAABBData, TraverseRenderNodeFunc nodeFunc, void* pNodeData)
+	void Scene::TraverseRenderNodes(TraverseAABBFunc aabbFunc, void* pAABBData, TraverseRenderNodeFunc nodeFunc, void* pNodeData) const
 	{
 		struct OctTreeData
 		{
@@ -304,7 +304,76 @@ namespace SunEngine
 	bool Scene::Raycast(const glm::vec3& o, const glm::vec3& d, SceneRayHit& hit) const
 	{
 		hit.pHitNode = NULL;
-#if 1
+
+		//TODO can this be threaded somehow?
+		Ray ray;
+		ray.Origin = o;
+		ray.Direction = d;
+
+		Vector<Pair<RenderNode*, float>> possibleHits;
+		
+		Pair<Ray, Vector<Pair<RenderNode*, float>>*> renderNodeData = { ray, &possibleHits };
+		TraverseRenderNodes(
+			[](const AABB& box, void* pDataPtr) -> bool { return RayAABBIntersect(*static_cast<Ray*>(pDataPtr), box.Min, box.Max); }, &ray,
+			[](RenderNode* pRenderNode, void* pDataPtr) -> void { 
+				auto* pData = static_cast<Pair<Ray, Vector<Pair<RenderNode*, float>>*>*>(pDataPtr);
+				if (RayAABBIntersect(pData->first, pRenderNode->GetWorldAABB().Min, pRenderNode->GetWorldAABB().Max))
+				{
+					glm::vec3 v = pData->first.Origin - pRenderNode->GetWorldAABB().GetCenter();
+					pData->second->push_back({ pRenderNode, glm::dot(v,v) });
+				}
+		}, &renderNodeData);
+
+
+		//we sort by nodes closest to the ray so that many possible ray-tri intersections can be skipped by avoiding fully testing triangles that are farther than closest hit triangle
+		std::sort(possibleHits.begin(), possibleHits.end(), [](const Pair<RenderNode*, float>& left, const Pair<RenderNode*, float>& right) -> bool { return left.second < right.second; });
+
+		float tMin = FLT_MAX;
+		for (auto& rnPair : possibleHits)
+		{
+			auto pRenderNode = rnPair.first;
+
+			//for ray-tri intersects we move the ray to the object space to avoid transforming every triangle
+			ray.Origin = o;
+			ray.Direction = d;
+			ray.Transform(pRenderNode->GetInvWorldMatirx());
+
+			Mesh* pMesh = pRenderNode->GetMesh();
+			auto& vtxDef = pMesh->GetVertexDef();
+			uint nIndex = vtxDef.NormalIndex;
+
+			uint firstIndex = pRenderNode->GetFirstIndex();
+			uint vertexOffset = pRenderNode->GetVertexOffset();
+
+			for (uint i = 0; i < pRenderNode->GetIndexCount() / 3; i++)
+			{
+				uint t0, t1, t2;
+				pMesh->GetTri(i + firstIndex, t0, t1, t2);
+				t0 += vertexOffset;
+				t1 += vertexOffset;
+				t2 += vertexOffset;
+
+				glm::vec3 p0, p1, p2;
+				p0 = pMesh->GetVertexPos(t0);
+				p1 = pMesh->GetVertexPos(t1);
+				p2 = pMesh->GetVertexPos(t2);
+
+				float w[3];
+				if (RayTriangleIntersect(ray, p0, p1, p2, tMin, w))
+				{
+					hit.pHitNode = pRenderNode;
+					hit.position = p0 * w[0] + p1 * w[1] + p2 * w[2];
+					if (nIndex != VertexDef::DEFAULT_INVALID_INDEX)
+					{
+						hit.normal = pMesh->GetVertexVar(t0, nIndex) * w[0] + pMesh->GetVertexVar(t1, nIndex) * w[1] + pMesh->GetVertexVar(t2, nIndex) * w[2];
+					}
+					//break; //testing all render nodes, uncomment to only test for first hit
+				}
+			}
+		}
+
+		return hit.pHitNode != NULL;
+#if 0
 		//hit.numHits = 0;
 		hit.pHitNode = 0;
 		//for (auto& kv : _renderNodes)
@@ -380,6 +449,5 @@ namespace SunEngine
 		//}
 #endif
 
-		return hit.pHitNode != NULL;
 	}
 }

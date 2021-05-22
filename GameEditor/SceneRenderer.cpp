@@ -467,9 +467,7 @@ namespace SunEngine
 	void SceneRenderer::ProcessRenderNode(RenderNode* pNode)
 	{
 		Material* pMaterial = pNode->GetMaterial();
-		bool isValid = pMaterial && pMaterial->GetShader() && pNode->GetMesh();
-		
-
+		bool isValid = pMaterial && pMaterial->GetShader() && pNode->GetMesh() && pNode->GetNode()->GetTotalVisibility();
 		if (!isValid)
 			return;
 
@@ -637,7 +635,13 @@ namespace SunEngine
 			ShaderMgr::Get().BuildPipelineSettings((*variantPipeline).second, settings);
 
 		glm::vec4 diffuseColor;
+		Texture2D* pAlphaTex = pMaterial->GetTexture2D(MaterialStrings::AlphaMap);
 		if (pMaterial->GetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor) && diffuseColor.a < 1.0f)
+		{
+			settings.EnableAlphaBlend();
+			sorted = true;
+		}
+		else if (pAlphaTex && pAlphaTex->GetName() != DefaultResource::Texture::White)
 		{
 			settings.EnableAlphaBlend();
 			sorted = true;

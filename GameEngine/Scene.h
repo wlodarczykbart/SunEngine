@@ -54,8 +54,7 @@ namespace SunEngine
 		void RegisterEnvironment(EnvironmentComponentData* pEnvironment);
 		const LinkedList<EnvironmentComponentData*>& GetEnvironmentList() const { return _environmentList; }
 
-		void TraverseRenderNodes(TraverseAABBFunc aabbFunc, void* pAABBData, TraverseRenderNodeFunc nodeFunc, void* pNodeData);
-
+		void TraverseRenderNodes(TraverseAABBFunc aabbFunc, void* pAABBData, TraverseRenderNodeFunc nodeFunc, void* pNodeData) const;
 		bool Raycast(const glm::vec3& o, const glm::vec3& d, SceneRayHit& hit) const;
 	private:
 		//class SceneGrid;

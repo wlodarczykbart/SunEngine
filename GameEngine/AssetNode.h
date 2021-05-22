@@ -137,6 +137,10 @@ namespace SunEngine
 		glm::mat4 BuildLocalMatrix() const;
 		glm::mat4 BuildWorldMatrix() const;
 
+		void SetVisible(bool visible);
+		bool GetVisible() const { return _visible; }
+		bool GetTotalVisibility() const { return _visible && _parentVisible; }
+
 		template<typename T>
 		uint GetComponentsOfType(Vector<T*>& components) const
 		{
@@ -151,12 +155,15 @@ namespace SunEngine
 		Component* GetComponentOfType(ComponentType type) const;
 
 	protected:
+		void SetParentVisible(bool parentVisible);
 
 		void ReParent(AssetNode* pParent);
 		virtual void OnAddComponent(Component*) {};
 
 		friend class Asset;
 		String _name;
+		bool _visible;
+		bool _parentVisible;
 		AssetNode* _parent;
 		LinkedList<AssetNode*> _children;
 		Vector<Vector<UniquePtr<Component>>> _components;

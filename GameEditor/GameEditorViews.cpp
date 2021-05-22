@@ -36,37 +36,6 @@ namespace SunEngine
 		GetTransform(_camNode.Position, _camNode.Orientation.Quat);
 		_camNode.Orientation.Mode = ORIENT_QUAT;
 		_camNode.Update(dt, et);
-
-		if (IsFocused() && IsMouseInside())
-		{
-			for (uint i = 0; i < nEvents; i++)
-			{
-				if (pEvents[i].type == GWE_MOUSE_MOVE)
-				//if (pEvents[i].type == GWE_MOUSE_DOWN && pEvents[i].mouseButtonCode == MOUSE_MIDDLE)
-				{
-					glm::vec2 relPos = GetRelativeMousPos() / GetSize();
-					//spdlog::info("{} {}", relPos.x, relPos.y);
-					relPos.y = 1.0f - relPos.y;
-					relPos = relPos * 2.0f - 1.0f;
-					glm::vec4 rayDir = glm::vec4(relPos.x, relPos.y, 0.0f, 1.0f);
-					rayDir = glm::inverse(pCamera->GetProj()) * rayDir;
-					rayDir /= rayDir.w;
-
-					rayDir.w = 0.0f;
-					rayDir = _camNode.GetWorld() * rayDir;
-
-					Scene* pScene = SceneMgr::Get().GetActiveScene();
-
-					SceneRayHit hit = {};
-					if (pScene->Raycast(glm::vec3(_camNode.GetWorld()[3]), glm::normalize(glm::vec3(rayDir)), hit))
-					{
-						//spdlog::info("Hit: {}, pos: {},{},{}, norm: {},{},{}", hit.pHitNode->GetNode()->GetName(), hit.position.x, hit.position.y, hit.position.z, hit.normal.x, hit.normal.y, hit.normal.z);
-					}
-
-					break;
-				}
-			}
-		}
 	}
 
 	SceneView::SceneView(SceneRenderer* pRenderer) : ICameraView("SceneView")
@@ -245,6 +214,43 @@ namespace SunEngine
 		}
 #endif
 
+		if (IsMouseInside())
+		{
+			for (uint i = 0; i < nEvents; i++)
+			{
+				//if (pEvents[i].type == GWE_MOUSE_MOVE)
+				if (pEvents[i].type == GWE_MOUSE_DOWN && pEvents[i].mouseButtonCode == MOUSE_MIDDLE)
+				{
+					auto pCamData = GetCameraData();
+					
+					glm::mat4 invView = glm::inverse(pCamData->GetView());
+					glm::mat4 invProj = pCamData->C()->As<Camera>()->GetInvProj();
+
+					glm::vec2 relPos = GetRelativeMousPos() / GetSize();
+					//spdlog::info("{} {}", relPos.x, relPos.y);
+					relPos.y = 1.0f - relPos.y;
+					relPos = relPos * 2.0f - 1.0f;
+					glm::vec4 rayDir = glm::vec4(relPos.x, relPos.y, 0.0f, 1.0f);
+					rayDir = invProj * rayDir;
+					rayDir /= rayDir.w;
+
+					rayDir.w = 0.0f;
+					rayDir = invView * rayDir;
+
+					Scene* pScene = SceneMgr::Get().GetActiveScene();
+
+					SceneRayHit hit = {};
+					if (pScene->Raycast(pCamData->GetPosition(), glm::normalize(glm::vec3(rayDir)), hit))
+					{
+						_selNodeName = hit.pHitNode->GetNode()->GetName();
+						//spdlog::info("Hit: {}, pos: {},{},{}, norm: {},{},{}", hit.pHitNode->GetNode()->GetName(), hit.position.x, hit.position.y, hit.position.z, hit.normal.x, hit.normal.y, hit.normal.z);
+					}
+
+					break;
+				}
+			}
+		}
+
 	}
 
 	bool SceneView::OnCreate(const CreateInfo& info)
@@ -380,6 +386,10 @@ namespace SunEngine
 			{
 				removeNode = true;
 			}
+
+			bool visible = pNode->GetVisible();
+			if (ImGui::Checkbox("Visible", &visible)) pNode->SetVisible(visible);
+
 			ImGui::DragFloat3("Position", &pNode->Position[0]);
 			ImGui::DragFloat3("Scale", &pNode->Scale[0]);
 			ImGui::DragFloat3("Angles", &pNode->Orientation.Angles[0]);

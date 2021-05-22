@@ -28,6 +28,8 @@ namespace SunEngine
 	AssetNode::AssetNode()
 	{
 		_parent = 0;
+		_visible = true;
+		_parentVisible = true;
 		Position = glm::vec3(0.0f);
 		Scale = glm::vec3(1.0f);
 		Orientation.Reset();
@@ -69,6 +71,21 @@ namespace SunEngine
 			parent = parent->_parent;
 		}
 		return mtxWorld;
+	}
+
+	void AssetNode::SetVisible(bool visible)
+	{
+		_visible = visible;
+		SetParentVisible(_parentVisible);
+	}
+
+	void AssetNode::SetParentVisible(bool parentVisible)
+	{
+		_parentVisible = parentVisible;
+		for (auto iter = _children.begin(); iter != _children.end(); ++iter)
+		{
+			(*iter)->SetParentVisible(_visible && _parentVisible);
+		}
 	}
 
 	void AssetNode::ReParent(AssetNode* pParent)
