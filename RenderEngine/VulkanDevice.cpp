@@ -664,6 +664,7 @@ namespace SunEngine
 
 		FreeMemory(transferMem);
 		DestroyBuffer(transferSrc);
+		return true;
 	}
 
 	bool VulkanDevice::FreeMemory(VkDeviceMemory memory)

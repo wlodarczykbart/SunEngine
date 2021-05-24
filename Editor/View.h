@@ -13,6 +13,7 @@ namespace SunEngine
 	struct GWEventData;
 	class SceneRenderer;
 	class GraphicsWindow;
+	class GUIRenderer;
 
 	class View
 	{
@@ -59,7 +60,7 @@ namespace SunEngine
 
 		virtual bool Render(CommandBuffer* cmdBuffer);
 		virtual void Update(GraphicsWindow* pWindow, const GWEventData* pEvents, uint nEvents, float dt, float et);
-		virtual void RenderGUI() {};
+		virtual void RenderGUI(GUIRenderer* pRenderer) { (void)pRenderer; };
 		virtual uint GetGUIColumns() const { return 1; }
 
 		bool NeedsResize() const { return _needsResize; }

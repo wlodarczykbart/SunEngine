@@ -56,6 +56,14 @@ namespace SunEngine
 		SE_BO_SUBTRACT,
 	};
 
+	enum MSAAMode
+	{
+		SE_MSAA_OFF,
+		SE_MSAA_2,
+		SE_MSAA_4,
+		SE_MSAA_8
+	};
+
 	struct PipelineSettings
 	{
 		struct InputAssembly
@@ -138,6 +146,19 @@ namespace SunEngine
 			bool operator != (const BlendState rhs) const { return !(*this == rhs); }
 		} blendState;
 
+		struct MultiSampleState
+		{
+			bool enableAlphaToCoverage;
+
+			bool operator == (const MultiSampleState& rhs) const
+			{
+				return
+					enableAlphaToCoverage == rhs.enableAlphaToCoverage;
+			}
+
+			bool operator != (const MultiSampleState rhs) const { return !(*this == rhs); }
+		} mulitSampleState;
+
 		inline void EnableAlphaBlend()
 		{
 			blendState.enableBlending = true;
@@ -186,6 +207,8 @@ namespace SunEngine
 			blendState.srcColorBlendFactor = blendState.srcAlphaBlendFactor = SE_BF_ONE;
 			blendState.dstColorBlendFactor = blendState.dstAlphaBlendFactor = SE_BF_ZERO;
 			blendState.colorBlendOp = blendState.alphaBlendOp = SE_BO_ADD;
+
+			mulitSampleState.enableAlphaToCoverage = false;
 		}
 
 		bool operator == (const PipelineSettings& rhs) const
@@ -194,7 +217,8 @@ namespace SunEngine
 				inputAssembly == rhs.inputAssembly &&
 				rasterizer == rhs.rasterizer &&
 				depthStencil == rhs.depthStencil &&
-				blendState == rhs.blendState;
+				blendState == rhs.blendState &&
+				mulitSampleState == rhs.mulitSampleState;
 		}
 
 		bool operator != (const PipelineSettings rhs) const { return !(*this == rhs); }

@@ -333,10 +333,12 @@ namespace SunEngine
 		{
 			auto pRenderNode = rnPair.first;
 
-			//for ray-tri intersects we move the ray to the object space to avoid transforming every triangle
-			ray.Origin = o;
-			ray.Direction = d;
-			ray.Transform(pRenderNode->GetInvWorldMatirx());
+			//ray.Origin = o;
+			//ray.Direction = d;
+			//ray.Transform(pRenderNode->GetInvWorldMatirx());
+
+			//for ray-tri intersects we probably want to move the ray to the object space to avoid transforming every triangle, currently not doing this
+			//because the tMin value is messed up when the ray is in object space, need to figure out how to resolve this
 
 			Mesh* pMesh = pRenderNode->GetMesh();
 			auto& vtxDef = pMesh->GetVertexDef();
@@ -353,10 +355,14 @@ namespace SunEngine
 				t1 += vertexOffset;
 				t2 += vertexOffset;
 
-				glm::vec3 p0, p1, p2;
+				glm::vec4 p0, p1, p2;
 				p0 = pMesh->GetVertexPos(t0);
 				p1 = pMesh->GetVertexPos(t1);
 				p2 = pMesh->GetVertexPos(t2);
+
+				p0 = pRenderNode->GetWorld() * p0;
+				p1 = pRenderNode->GetWorld() * p1;
+				p2 = pRenderNode->GetWorld() * p2;
 
 				float w[3];
 				if (RayTriangleIntersect(ray, p0, p1, p2, tMin, w))

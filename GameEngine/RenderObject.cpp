@@ -5,6 +5,8 @@
 
 namespace SunEngine
 {
+	const ComponentType RenderObject::CType = COMPONENT_RENDER_OBJECT;
+
 	RenderObject::RenderObject()
 	{
 		

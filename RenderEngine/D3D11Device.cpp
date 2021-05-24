@@ -261,6 +261,24 @@ namespace SunEngine
 		return true;
 	}
 
+	bool D3D11Device::FillSampleDesc(DXGI_FORMAT format, uint samples, DXGI_SAMPLE_DESC& desc)
+	{
+		uint qualityLevels;
+		HRESULT result = _device->CheckMultisampleQualityLevels(format, samples, &qualityLevels);
+		if (result == S_OK)
+		{
+			desc.Count = samples;
+			desc.Quality = qualityLevels - 1;
+			return true;
+		}
+		else
+		{
+			desc.Count = 1;
+			desc.Quality = 0;
+			return false;
+		}
+	}
+
 	const String &D3D11Device::GetErrorMsg() const
 	{
 		return _errMsg;

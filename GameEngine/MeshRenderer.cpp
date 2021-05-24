@@ -6,7 +6,6 @@
 
 namespace SunEngine
 {
-	const ComponentType MeshRenderer::CType = COMPONENT_MESH_RENDERER;
 
 	MeshRenderer::MeshRenderer()
 	{

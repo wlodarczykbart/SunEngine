@@ -126,7 +126,7 @@ namespace SunEngine
 		info.renderArea.extent.height = _window->Height();
 		info.framebuffer = _frames[_frameIndex]._framebuffer;
 
-		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info, 1);
+		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info, 1, SE_MSAA_OFF);
 	}
 
 	void VulkanSurface::Unbind(ICommandBuffer * cmdBuffer)

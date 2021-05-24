@@ -9,7 +9,8 @@ namespace SunEngine
 		_currentPipeline = VK_NULL_HANDLE;
 		_cmdBuffer = VK_NULL_HANDLE;
 		_fence = VK_NULL_HANDLE;
-		_currentNumTargerts = 0;
+		_currentNumTargets = 0;
+		_currentMSAAMode = SE_MSAA_OFF;
 	}
 
 	VulkanCommandBuffer::~VulkanCommandBuffer()
@@ -54,12 +55,13 @@ namespace SunEngine
 		_device->ProcessFences(&_fence, 1, UINT64_MAX, true);
 	}
 
-	void VulkanCommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo & info, uint numTargets)
+	void VulkanCommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo & info, uint numTargets, MSAAMode msaaMode)
 	{
 		vkCmdBeginRenderPass(_cmdBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 		
 		_currentRenderPass = info;
-		_currentNumTargerts = numTargets;
+		_currentNumTargets = numTargets;
+		_currentMSAAMode = msaaMode;
 
 		VkViewport viewport = {};
 		viewport.width = (float)_currentRenderPass.renderArea.extent.width;
@@ -80,7 +82,8 @@ namespace SunEngine
 
 		_currentRenderPass = {};
 		_currentPipeline = VK_NULL_HANDLE;
-		_currentNumTargerts = 0;
+		_currentNumTargets = 0;
+		_currentMSAAMode = SE_MSAA_OFF;
 	}
 
 	void VulkanCommandBuffer::BindPipeline(VkPipelineBindPoint bindPoint, VkPipeline pipeline)
@@ -162,6 +165,11 @@ namespace SunEngine
 
 	uint VulkanCommandBuffer::GetCurrentNumTargets() const
 	{
-		return _currentNumTargerts;
+		return _currentNumTargets;
+	}
+
+	MSAAMode VulkanCommandBuffer::GetCurrentMSAAMode() const
+	{
+		return _currentMSAAMode;
 	}
 }

@@ -18,7 +18,7 @@ namespace SunEngine
 		void End() override;
 		void Submit() override;
 
-		void BeginRenderPass(const VkRenderPassBeginInfo &info, uint numTargets);
+		void BeginRenderPass(const VkRenderPassBeginInfo &info, uint numTargets, MSAAMode msaaMode);
 		void EndRenderPass();
 		void BindPipeline(VkPipelineBindPoint bindPoint, VkPipeline pipeline);
 		void BindDescriptorSets(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets);
@@ -38,6 +38,7 @@ namespace SunEngine
 		VkRenderPass GetCurrentRenderPass() const;
 		VkFramebuffer GetCurrentFramebuffer() const;
 		uint GetCurrentNumTargets() const;
+		MSAAMode GetCurrentMSAAMode() const;
 
 	private:
 		friend class VulkanSurface;
@@ -46,6 +47,7 @@ namespace SunEngine
 	
 		VkRenderPassBeginInfo _currentRenderPass;
 		VkPipeline _currentPipeline;
-		uint _currentNumTargerts;
+		uint _currentNumTargets;
+		MSAAMode _currentMSAAMode;
 	};
 }

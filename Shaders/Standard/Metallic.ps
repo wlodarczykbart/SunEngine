@@ -27,6 +27,9 @@ struct PS_In
 	float4 normal : NORMAL;
 	float4 tangent : TANGENT;
 #endif	
+#ifdef ALPHA_TEST
+	float4 objectCoord : OBJCOORD;
+#endif	
 };
 
 PS_Out main(PS_In pIn)

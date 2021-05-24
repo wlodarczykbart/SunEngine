@@ -37,6 +37,132 @@ namespace SunEngine
 		};
 	}
 
+	bool EditMaterialProperty(Material* mtl, const String& name, ShaderDataType dataType)
+	{
+		Shader* pShader = mtl->GetShader();
+		if (!pShader)
+			return false;
+
+		ConfigSection config;
+		if (!pShader->GetConfigSection("Editor", config))
+			return false;
+
+		StrMap<String> options;
+		if (!config.GetBlock(name, options))
+			return false;
+
+		auto type = options.find("ColorEdit");
+		if (type != options.end())
+		{
+			switch (dataType)
+			{
+			case SunEngine::SDT_FLOAT3:
+			{
+				glm::vec3 color;
+				mtl->GetMaterialVar(name, color);
+				if (ImGui::ColorEdit3(name.c_str(), &color.x, ImGuiColorEditFlags_Float))
+					mtl->SetMaterialVar(name.c_str(), color);
+			}
+			break;
+			case SunEngine::SDT_FLOAT4:
+			{
+				glm::vec4 color;
+				mtl->GetMaterialVar(name, color);
+				if (ImGui::ColorEdit4(name.c_str(), &color.x, ImGuiColorEditFlags_Float))
+					mtl->SetMaterialVar(name.c_str(), color);
+			}
+			break;
+			default:
+				return false;
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	void GameEditorGUI::RenderMaterial(Material* mtl)
+	{
+		const float floatDrag = 0.0005f;
+		const char* floatFmt = "%.4f";
+
+		if (ImGui::TreeNode(mtl->GetName().c_str()))
+		{
+			if (ImGui::TreeNode("Variables"))
+			{
+				for (auto varIter = mtl->BeginVars(); varIter != mtl->EndVars(); ++varIter)
+				{
+					auto& var = (*varIter).second;
+
+					if (!EditMaterialProperty(mtl, var.name, var.type))
+					{
+						switch (var.type)
+						{
+						case SDT_FLOAT:
+						{
+							float value;
+							mtl->GetMaterialVar(var.name, value);
+							if (ImGui::DragFloat(var.name, &value, floatDrag, 0.0f, 0.0f, floatFmt))
+								mtl->SetMaterialVar(var.name, value);
+						}
+						break;
+						case SDT_FLOAT2:
+						{
+							glm::vec2 value;
+							mtl->GetMaterialVar(var.name, value);
+							if (ImGui::DragFloat2(var.name, &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
+								mtl->SetMaterialVar(var.name, value);
+						}
+						break;
+						case SDT_FLOAT3:
+						{
+							glm::vec3 value;
+							mtl->GetMaterialVar(var.name, value);
+							if (ImGui::DragFloat3(var.name, &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
+								mtl->SetMaterialVar(var.name, value);
+						}
+						break;
+						case SDT_FLOAT4:
+						{
+							glm::vec4 value;
+							mtl->GetMaterialVar(var.name, value);
+							if (ImGui::DragFloat4(var.name, &value.x, floatDrag))
+								mtl->SetMaterialVar(var.name, value);
+						}
+						break;
+						default:
+							break;
+						}
+					}
+				}
+				ImGui::TreePop();
+			}
+
+			if (ImGui::TreeNode("Textures"))
+			{
+				for (auto texIter = mtl->BeginTextures2D(); texIter != mtl->EndTextures2D(); ++texIter)
+				{
+					auto& tex = (*texIter).second;
+					if (ImGui::Button(tex.Res.name))
+					{
+						_visibleWindows[WT_MATERIAL_TEXTURE_PICKER] = true;
+						_mtlTexturePicker.MaterialName = mtl->GetName();
+						_mtlTexturePicker.TextureName = tex.Res.name;
+						_mtlTexturePicker.FilterBuffer[0] = '\0';
+					}
+					if (tex.pTexture)
+					{
+						ImGui::SameLine();
+						ImGui::Text(tex.pTexture->GetName().c_str());
+					}
+				}
+				ImGui::TreePop();
+			}
+
+			ImGui::TreePop();
+		}
+	}
+
 	void GameEditorGUI::CustomRender()
 	{
 		GameEditor* pEditor = static_cast<GameEditor*>(GetEditor());
@@ -127,136 +253,15 @@ namespace SunEngine
 		}
 	}
 
-	bool EditMaterialProperty(Material* mtl, const String& name, ShaderDataType dataType)
-	{
-		Shader* pShader = mtl->GetShader();
-		if (!pShader)
-			return false;
-
-		ConfigSection config;
-		if (!pShader->GetConfigSection("Editor", config))
-			return false;
-
-		StrMap<String> options;
-		if (!config.GetBlock(name, options))
-			return false;
-
-		auto type = options.find("ColorEdit");
-		if (type != options.end())
-		{
-			switch (dataType)
-			{
-			case SunEngine::SDT_FLOAT3:
-			{
-				glm::vec3 color;
-				mtl->GetMaterialVar(name, color);
-				if (ImGui::ColorEdit3(name.c_str(), &color.x, ImGuiColorEditFlags_Float))
-					mtl->SetMaterialVar(name.c_str(), color);
-			}
-			break;
-			case SunEngine::SDT_FLOAT4:
-			{
-				glm::vec4 color;
-				mtl->GetMaterialVar(name, color);
-				if (ImGui::ColorEdit4(name.c_str(), &color.x, ImGuiColorEditFlags_Float))
-					mtl->SetMaterialVar(name.c_str(), color);
-			}
-			break;
-			default:
-				return false;
-			}
-			return true;
-		}
-
-		return false;
-	}
-
 	void GameEditorGUI::RenderMaterials(GameEditor* pEditor)
 	{
-		float floatDrag = 0.0005f;
-		const char* floatFmt = "%.4f";
-
 		bool& state = _visibleWindows[WT_MATERIAL];
 		if (state && ImGui::Begin("Materials", &state))
 		{
 			for(auto iter = ResourceMgr::Get().IterMaterials(); !iter.End(); ++iter)
 			{
 				Material* mtl = *iter;
-				if (ImGui::TreeNode(mtl->GetName().c_str()))
-				{
-					if (ImGui::TreeNode("Variables"))
-					{
-						for (auto varIter = mtl->BeginVars(); varIter != mtl->EndVars(); ++varIter)
-						{
-							auto& var = (*varIter).second;
-
-							if (!EditMaterialProperty(mtl, var.name, var.type))
-							{
-								switch (var.type)
-								{
-								case SDT_FLOAT:
-								{
-									float value;
-									mtl->GetMaterialVar(var.name, value);
-									if (ImGui::DragFloat(var.name, &value, floatDrag, 0.0f, 0.0f, floatFmt))
-										mtl->SetMaterialVar(var.name, value);
-								}
-								break;
-								case SDT_FLOAT2:
-								{
-									glm::vec2 value;
-									mtl->GetMaterialVar(var.name, value);
-									if (ImGui::DragFloat2(var.name, &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
-										mtl->SetMaterialVar(var.name, value);
-								}
-								break;
-								case SDT_FLOAT3:
-								{
-									glm::vec3 value;
-									mtl->GetMaterialVar(var.name, value);
-									if (ImGui::DragFloat3(var.name, &value.x, floatDrag, 0.0f, 0.0f, floatFmt))
-										mtl->SetMaterialVar(var.name, value);
-								}
-								break;
-								case SDT_FLOAT4:
-								{
-									glm::vec4 value;
-									mtl->GetMaterialVar(var.name, value);
-									if (ImGui::DragFloat4(var.name, &value.x, floatDrag))
-										mtl->SetMaterialVar(var.name, value);
-								}
-								break;
-								default:
-									break;
-								}
-							}
-						}
-						ImGui::TreePop();
-					}
-
-					if(ImGui::TreeNode("Textures"))
-					{
-						for (auto texIter = mtl->BeginTextures2D(); texIter != mtl->EndTextures2D(); ++texIter)
-						{
-							auto& tex = (*texIter).second;
-							if (ImGui::Button(tex.Res.name))
-							{
-								_visibleWindows[WT_MATERIAL_TEXTURE_PICKER] = true;
-								_mtlTexturePicker.MaterialName = mtl->GetName();
-								_mtlTexturePicker.TextureName = tex.Res.name;
-								_mtlTexturePicker.FilterBuffer[0] = '\0';
-							}
-							if (tex.pTexture) 
-							{
-								ImGui::SameLine();
-								ImGui::Text(tex.pTexture->GetName().c_str());
-							}
-						}
-						ImGui::TreePop();
-					}
-
-					ImGui::TreePop();
-				}
+				RenderMaterial(mtl);
 			}
 			ImGui::End();
 		}
@@ -375,7 +380,7 @@ namespace SunEngine
 	{
 		SceneView* pView = static_cast<SceneView*>(pBaseView);
 		auto& settings = pView->GetSettings();
-		if (ImGui::MenuItem("FXAA Settings")) settings.gui.showFXAA = true;
+		if (ImGui::MenuItem("Renderer Settings")) settings.gui.showRendererSettings = true;
 		if (ImGui::MenuItem("Environments")) settings.gui.showEnvironments = true;
 	}
 
@@ -386,13 +391,24 @@ namespace SunEngine
 
 		Scene* pScene = SceneMgr::Get().GetActiveScene();
 
-		bool& showFXAA = settings.gui.showFXAA;
-		if (showFXAA && ImGui::Begin("FXAA", &showFXAA))
+		bool& showRendererSettings = settings.gui.showRendererSettings;
+		if (showRendererSettings && ImGui::Begin("RendererSettings", &showRendererSettings))
 		{
-			ImGui::Checkbox("Enabled", &settings.fxaa.enabled);
-			ImGui::DragFloat("Subpixel", &settings.fxaa.subpixel, 0.005f, 0.0f, 1.0f);
-			ImGui::DragFloat("EdgeThreshold", &settings.fxaa.edgeThreshold, 0.0025f, 0.0f, 0.5f);
-			ImGui::DragFloat("EdgeThresholdMin", &settings.fxaa.edgeThresholdMin, 0.001f, 0.0f, 0.1f);
+			if (ImGui::TreeNode("FXAA"))
+			{
+				ImGui::Checkbox("Enabled", &settings.fxaa.enabled);
+				ImGui::DragFloat("Subpixel", &settings.fxaa.subpixel, 0.005f, 0.0f, 1.0f);
+				ImGui::DragFloat("EdgeThreshold", &settings.fxaa.edgeThreshold, 0.0025f, 0.0f, 0.5f);
+				ImGui::DragFloat("EdgeThresholdMin", &settings.fxaa.edgeThresholdMin, 0.001f, 0.0f, 0.1f);
+				ImGui::TreePop();
+			}
+
+			if (ImGui::TreeNode("MSAA"))
+			{
+				ImGui::Checkbox("Enabled", &settings.msaa.enabled);
+				ImGui::TreePop();
+			}
+
 			ImGui::End();
 		}
 

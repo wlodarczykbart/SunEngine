@@ -20,12 +20,12 @@ namespace SunEngine
 	class RenderTarget : public GraphicsObject
 	{
 	public:
-
 		struct CreateInfo
 		{
 			uint width;
 			uint height;
 			uint numTargets;
+			MSAAMode msaa;
 			bool hasDepthBuffer;
 			bool floatingPointColorBuffer;
 

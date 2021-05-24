@@ -20,6 +20,7 @@ namespace SunEngine
 		_clearOnBind = true;
 		_numTargets = 0;
 		_hasDepth = false;
+		_msaaMode = SE_MSAA_OFF;
 
 		_viewport = {};
 	}
@@ -36,6 +37,7 @@ namespace SunEngine
 
 		_numTargets = info.numTargets;
 		_hasDepth = info.depthBuffer != 0;
+		_msaaMode = info.msaa;
 
 		VulkanTexture* vkColorTextures[MAX_SUPPORTED_RENDER_TARGETS];
 		for (uint i = 0; i < info.numTargets; i++)
@@ -80,7 +82,7 @@ namespace SunEngine
 		info.clearValueCount = clearValueCount;
 		info.pClearValues = clearValues;
 
-		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info, _numTargets);
+		static_cast<VulkanCommandBuffer*>(cmdBuffer)->BeginRenderPass(info, _numTargets, _msaaMode);
 			
 	}
 
@@ -128,11 +130,13 @@ namespace SunEngine
 
 		for(uint i = 0; i < _numTargets; i++)
 		{
+			const VkImageCreateInfo& imgInfo = pColorTextures[i]->GetVulkanInfo();
+
 			VkAttachmentDescription desc = {};
 			desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			desc.finalLayout = GetColorFinalLayout();
-			desc.format = pColorTextures[i]->GetFormat();
-			desc.samples = VK_SAMPLE_COUNT_1_BIT;
+			desc.format = imgInfo.format;
+			desc.samples = imgInfo.samples;
 			desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 			desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -153,11 +157,13 @@ namespace SunEngine
 
 		if (pDepthTexture)
 		{
+			const VkImageCreateInfo& imgInfo = pDepthTexture->GetVulkanInfo();
+
 			VkAttachmentDescription desc = {};
 			desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			desc.finalLayout = GetDepthFinalLayout();
-			desc.format = pDepthTexture->GetFormat();
-			desc.samples = VK_SAMPLE_COUNT_1_BIT;
+			desc.format = imgInfo.format;
+			desc.samples = imgInfo.samples;
 			desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 			desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;

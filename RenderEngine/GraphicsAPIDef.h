@@ -66,6 +66,7 @@ namespace SunEngine
 		uint numTargets;
 		uint width;
 		uint height;
+		MSAAMode msaa;
 		ITexture* colorBuffers[MAX_SUPPORTED_RENDER_TARGETS];
 		ITexture* depthBuffer;
 	};

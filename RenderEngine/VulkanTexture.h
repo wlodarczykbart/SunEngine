@@ -17,8 +17,10 @@ namespace SunEngine
 		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
-		inline VkFormat GetFormat() const { return _format; }
+		inline VkFormat GetFormat() const { return _vkInfo.format; }
 		inline VkImageView GetView() const { return _view; }
+
+		const VkImageCreateInfo& GetVulkanInfo() const { return _vkInfo; }
 
 	private:
 		friend class VulkanShaderBindings;
@@ -27,10 +29,7 @@ namespace SunEngine
 		VkImageView _view;
 		VkDeviceMemory _memory;
 
-		VkExtent2D _extent;
-		uint _bitsPerPixel;
-
-		VkFormat _format;
+		VkImageCreateInfo _vkInfo;
 	};
 
 }

@@ -202,10 +202,12 @@ namespace SunEngine
 		outGLSL.clear();
 		outHLSL.clear();
 
+		//This must be in order of any names that might overlap, ie, Texture2DArray should be before Texture2D because Texture2D is contained in Texture2DArray, likely a better way of doing this...
 		Vector<Pair<String, String>> ResourceDefintions = 
 		{
 			{"b", "cbuffer"},
 			{"t", "Texture2DArray"},
+			{"t", "Texture2DMS<float4>"},
 			{"t", "Texture2D"},
 			{"t", "TextureCube"},
 			{"s", "SamplerState"},
@@ -369,6 +371,8 @@ namespace SunEngine
 
 	bool ShaderCompiler::CompileShader(ShaderStage type)
 	{
+
+
 		String targetHLSL, targetGLSL;
 		if (type == SS_VERTEX)
 		{
@@ -584,6 +588,8 @@ namespace SunEngine
 							{
 								resource.type = SRT_TEXTURE;
 								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2D)
+									resource.dimension = SRD_TEXTURE_2D;
+								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2DMS)
 									resource.dimension = SRD_TEXTURE_2D;
 								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2DARRAY)
 									resource.dimension = SRD_TEXTURE_ARRAY;

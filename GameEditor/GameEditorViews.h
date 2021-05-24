@@ -18,7 +18,7 @@ namespace SunEngine
 
 		virtual bool Render(CommandBuffer* cmdBuffer) = 0;
 		virtual void Update(GraphicsWindow* pWindow, const GWEventData* pEvents, uint nEvents, float dt, float et);
-		virtual void RenderGUI() = 0;
+		virtual void RenderGUI(GUIRenderer*) = 0;
 		virtual uint GetGUIColumns() const = 0;
 
 	protected:
@@ -46,7 +46,12 @@ namespace SunEngine
 
 			struct
 			{
-				bool showFXAA;
+				bool enabled;
+			} msaa;
+
+			struct
+			{
+				bool showRendererSettings;
 				bool showEnvironments;
 			} gui;
 		};
@@ -55,7 +60,7 @@ namespace SunEngine
 		~SceneView();
 
 		bool Render(CommandBuffer* cmdBuffer) override;
-		void RenderGUI() override;
+		void RenderGUI(GUIRenderer* pRenderer) override;
 		uint GetGUIColumns() const override { return 3; }
 
 		Settings& GetSettings() { return _settings; }
@@ -74,7 +79,7 @@ namespace SunEngine
 		bool OnResize(const CreateInfo& info) override;
 
 		void BuildSceneTree(SceneNode* pNode);
-		void BuildSelectedNodeGUI(Scene* pScene);
+		void BuildSelectedNodeGUI(Scene* pScene, GUIRenderer* pRenderer);
 		bool CreateRenderPassData(const String& shader, RenderPassData& data, bool useOneZ = false);
 
 		SceneRenderer* _renderer;
@@ -84,12 +89,14 @@ namespace SunEngine
 		RenderTarget _deferredTarget;
 		RenderTarget _deferredResolveTarget;
 		RenderTarget _toneMapTarget;
+		RenderTarget _msaaTarget;
 
 		RenderPassData _toneMapData;
 		RenderPassData _fxaaData;
 		RenderPassData _outputData;
 		RenderPassData _deferredData;
 		RenderPassData _deferredCopyData;
+		RenderPassData _msaaResolveData;
 #ifdef SUPPORT_SSR
 		Pair<GraphicsPipeline, ShaderBindings> _ssrData;
 #endif

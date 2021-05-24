@@ -70,18 +70,18 @@ namespace SunEngine
 	{
 		D3D11Shader *pShader = (D3D11Shader*)info.pShader;
 
-		PipelineSettings settings = info.settings;
+		const PipelineSettings& settings = info.settings;
 
 		_primitiveTopology = PrimTopologyMap[settings.inputAssembly.topology];
 
 		D3D11_RASTERIZER_DESC rasterizerDesc = {};
-		rasterizerDesc.CullMode = CullModeMap[info.settings.rasterizer.cullMode];
-		rasterizerDesc.FillMode = PolygonModeMap[info.settings.rasterizer.polygonMode];
-		rasterizerDesc.FrontCounterClockwise = info.settings.rasterizer.frontFace == SE_FF_COUNTER_CLOCKWISE;
-		rasterizerDesc.DepthBias = info.settings.rasterizer.depthBias;
-		rasterizerDesc.DepthBiasClamp = info.settings.rasterizer.depthBiasClamp;
-		rasterizerDesc.SlopeScaledDepthBias = info.settings.rasterizer.slopeScaledDepthBias;
-		rasterizerDesc.ScissorEnable = info.settings.rasterizer.enableScissor;
+		rasterizerDesc.CullMode = CullModeMap[settings.rasterizer.cullMode];
+		rasterizerDesc.FillMode = PolygonModeMap[settings.rasterizer.polygonMode];
+		rasterizerDesc.FrontCounterClockwise = settings.rasterizer.frontFace == SE_FF_COUNTER_CLOCKWISE;
+		rasterizerDesc.DepthBias = settings.rasterizer.depthBias;
+		rasterizerDesc.DepthBiasClamp = settings.rasterizer.depthBiasClamp;
+		rasterizerDesc.SlopeScaledDepthBias = settings.rasterizer.slopeScaledDepthBias;
+		rasterizerDesc.ScissorEnable = settings.rasterizer.enableScissor;
 		if (!_device->CreateRasterizerState(rasterizerDesc, &_rasterizerState)) return false;
 
 		D3D11_DEPTH_STENCIL_DESC depthDesc = {};
@@ -99,6 +99,7 @@ namespace SunEngine
 		if (!_device->CreateDepthStencilState(depthDesc, &_depthStencilState)) return false;
 
 		D3D11_BLEND_DESC blendDesc = {};
+		blendDesc.AlphaToCoverageEnable = settings.mulitSampleState.enableAlphaToCoverage;
 		for (uint i = 0; i < ARRAYSIZE(blendDesc.RenderTarget); i++)
 		{
 			D3D11_RENDER_TARGET_BLEND_DESC blend = {};

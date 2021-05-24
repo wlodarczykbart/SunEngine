@@ -23,7 +23,7 @@ namespace SunEngine
 		VulkanShader* GetShader() const;
 
 	private:
-		VkPipeline createPipeline(VkRenderPass renderPass, uint numTargets);
+		VkPipeline createPipeline(VkRenderPass renderPass, uint numTargets, MSAAMode msaa);
 
 		void TryAddShaderStage(VkShaderModule shader, Vector<VkPipelineShaderStageCreateInfo> &stages, VkShaderStageFlagBits type);
 		Map<VkRenderPass, Map<IShader*, VkPipeline>> _renderPassPipelines;

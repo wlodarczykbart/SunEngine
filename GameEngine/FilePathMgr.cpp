@@ -100,5 +100,11 @@ namespace SunEngine
 		_maxShadowCascadeSplits = configSection->GetInt("MaxShadowCascadeSplits", 1);
 
 		_shadowsEnabled = configSection->GetBool("Shadows", true);
+
+		int msaaSamples = configSection->GetInt("MSAA", 4);
+		if (msaaSamples == 2) _msaaMode = SE_MSAA_2;
+		else if (msaaSamples == 4)  _msaaMode = SE_MSAA_4;
+		else if (msaaSamples == 8)  _msaaMode = SE_MSAA_8;
+		else  _msaaMode = SE_MSAA_OFF;
 	}
 }

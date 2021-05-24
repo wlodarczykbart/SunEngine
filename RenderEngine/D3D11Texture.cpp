@@ -24,10 +24,8 @@ namespace SunEngine
 		texDesc.Width = info.image.Width;
 		texDesc.Height = info.image.Height;
 		texDesc.MipLevels = 1 + info.mipLevels;
-		texDesc.SampleDesc.Count = 1;
 		
 		Vector<D3D11_SUBRESOURCE_DATA> subData;
-
 		D3D11_SUBRESOURCE_DATA imgData = {};
 		imgData.pSysMem = info.image.Pixels;
 		imgData.SysMemPitch = sizeof(Pixel) * info.image.Width;
@@ -97,13 +95,18 @@ namespace SunEngine
 			else if (texDesc.Format == DXGI_FORMAT_BC3_UNORM) texDesc.Format = DXGI_FORMAT_BC3_UNORM_SRGB;
 		}
 
+		if (info.image.Flags & ImageData::MULTI_SAMPLES_2) _device->FillSampleDesc(texDesc.Format, 2, texDesc.SampleDesc);
+		else if (info.image.Flags & ImageData::MULTI_SAMPLES_4) _device->FillSampleDesc(texDesc.Format, 4, texDesc.SampleDesc);
+		else if (info.image.Flags & ImageData::MULTI_SAMPLES_8) _device->FillSampleDesc(texDesc.Format, 8, texDesc.SampleDesc);
+		else texDesc.SampleDesc.Count = 1;
+
 		D3D11_SUBRESOURCE_DATA* pData = subData.size() ? subData.data() : 0;
 		if (!_device->CreateTexture2D(texDesc, pData, &_texture)) return false;
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Texture2D.MipLevels = (UINT)-1;
 		srvDesc.Format = texDesc.Format;
-		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.ViewDimension = texDesc.SampleDesc.Count == 1 ? D3D11_SRV_DIMENSION_TEXTURE2D : D3D11_SRV_DIMENSION_TEXTURE2DMS;
 
 		if (info.image.Flags & ImageData::DEPTH_BUFFER)
 		{
@@ -111,8 +114,6 @@ namespace SunEngine
 		}
 
 		if (!_device->CreateShaderResourceView(_texture, srvDesc, &_srv)) return false;
-
-		_format = srvDesc.Format;
 		return true;
 	}
 

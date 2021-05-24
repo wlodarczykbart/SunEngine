@@ -22,6 +22,7 @@ namespace SunEngine
 		static const String Skybox;
 		static const String Clouds;
 		static const String SkyArHosek;
+		static const String MSAAResolve;
 
 	private:
 		DefaultShaders() = delete;

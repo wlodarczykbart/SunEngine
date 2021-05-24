@@ -68,7 +68,9 @@ namespace SunEngine
 
 	class RenderObject : public Component
 	{
-	public:
+	public:		
+		static const ComponentType CType;
+
 		RenderObject();
 		virtual ~RenderObject();
 
@@ -78,6 +80,8 @@ namespace SunEngine
 		virtual void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override;
 
 		virtual void Initialize(SceneNode* pNode, ComponentData* pData) override;
+
+		ComponentType GetType() const override { return CType; }
 	protected:
 		virtual RenderComponentData* AllocRenderData(SceneNode* pNode) = 0;
 		virtual bool RequestData(RenderNode* pNode, RenderComponentData* pData, Mesh*& pMesh, Material*& pMaterial, const glm::mat4*& worldMtx, const AABB*& aabb, uint& idxCount, uint& instanceCount, uint& firstIdx, uint& vtxOffset) const = 0;

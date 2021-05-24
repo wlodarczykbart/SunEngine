@@ -1,0 +1,34 @@
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+Texture2DMS<float4> DiffuseMap;
+Texture2DMS<float4> DepthMap;
+
+struct PS_Out
+{
+	float4 color : SV_TARGET;
+	float depth : SV_DEPTH;
+};
+
+PS_Out main(PS_In pIn)
+{
+	PS_Out pOut;
+	pOut.color = float4(0, 0, 0, 0);
+	pOut.depth = 1.0;
+	
+	int2 texCoord = int2(pIn.clipPos.xy);
+	
+	[unroll]
+	for(uint i = 0; i < MSAA_SAMPLES; i++)
+	{
+		pOut.color += DiffuseMap.Load(texCoord, i);
+		pOut.depth = min(pOut.depth, DepthMap.Load(texCoord, i).r);
+	}	
+	
+	pOut.color /= MSAA_SAMPLES;
+	
+	return pOut;
+}

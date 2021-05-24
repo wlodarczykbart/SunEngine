@@ -514,7 +514,7 @@ namespace SunEngine
 			CollectNodes(pNode->mChildren[i], nodes);
 	}
 
-	bool ParseMesh(aiMesh* pSrc, Mesh* pDst)
+	bool ParseMesh(aiMesh* pSrc, Mesh* pDst, Material* pMtl)
 	{
 		pDst->AllocIndices(pSrc->mNumFaces * 3);
 		pDst->AllocVertices(pSrc->mNumVertices, VertexDef::POS_TEXCOORD_NORMAL_TANGENT);
@@ -541,6 +541,10 @@ namespace SunEngine
 		}
 
 		pDst->UpdateBoundingVolume();
+
+		//auto* alpha = pMtl->GetTexture2D(MaterialStrings::AlphaMap);
+		//if(alpha && alpha->GetName() != DefaultResource::Texture::White)
+		//	pDst->
 
 		if (!pDst->RegisterToGPU())
 			return false;
@@ -642,7 +646,7 @@ namespace SunEngine
 			usedTextureTypes.find(aiTextureType_METALNESS) != usedTextureTypes.end();
 
 		bool alphaTest = usedTextureTypes.find(aiTextureType_OPACITY) != usedTextureTypes.end();
-		alphaTest = false; //TODO: enable this again? default to alpha blend
+		//alphaTest = false; //TODO: enable this again? default to alpha blend
 
 		String strShader;
 		if (metallic)
@@ -707,9 +711,18 @@ namespace SunEngine
 	{
 		_options = options;
 
-		auto pScene = aiImportFile(filename.c_str(), aiProcessPreset_TargetRealtime_MaxQuality);
+		auto pScene = aiImportFile(filename.c_str(), aiProcessPreset_TargetRealtime_MaxQuality/* | aiProcess_ConvertToLeftHanded*/);
 		if (!pScene)
 			return false;
+
+		//auto pScene = (aiScene*)aiImportFile(filename.c_str(),
+		//	37690883 | /* configurable pp steps */
+		//	aiProcess_GenSmoothNormals | // generate smooth normal vectors if not existing
+		//	aiProcess_SplitLargeMeshes | // split large, unrenderable meshes into submeshes
+		//	aiProcess_Triangulate | // triangulate polygons with more than 3 edges
+		//	//aiProcess_ConvertToLeftHanded | // convert everything to D3D left handed space
+		//	aiProcess_SortByPType | // make 'clean' meshes which consist of a single typ of primitives
+		//	0);
 
 		bool lights = pScene->HasLights();
 		bool cameras = pScene->HasCameras();
@@ -717,8 +730,6 @@ namespace SunEngine
 		auto& resMgr = ResourceMgr::Get();
 
 		_asset = resMgr.AddAsset(GetFileNameNoExt(filename));
-		if (!_asset)
-			return false;
 
 		Vector<aiNode*> nodes;
 		CollectNodes(pScene->mRootNode, nodes);
@@ -736,42 +747,33 @@ namespace SunEngine
 			memcpy(&mtxLocal, &aNode->mTransformation, sizeof(glm::mat4));
 			mtxLocal = glm::transpose(mtxLocal);
 
-			glm::vec3 skew;
-			glm::vec4 perspective;
-			if (glm::decompose(mtxLocal, pNode->Scale, pNode->Orientation.Quat, pNode->Position, skew, perspective))
+			pNode->Position = mtxLocal[3];
+			pNode->Scale.x = glm::length(mtxLocal[0]);
+			pNode->Scale.y = glm::length(mtxLocal[1]);
+			pNode->Scale.z = glm::length(mtxLocal[2]);
+
+			mtxLocal[0]	/= pNode->Scale.x;
+			mtxLocal[1]	/= pNode->Scale.y;
+			mtxLocal[2]	/= pNode->Scale.z;
+			mtxLocal[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+			pNode->Orientation.Quat = glm::quat_cast(mtxLocal);
+			pNode->Orientation.Mode = ORIENT_QUAT;
+
+			//glm::mat4 rebuilt = glm::transpose(pNode->BuildLocalMatrix());
+			//bool equal =  reinterpret_cast<aiMatrix4x4*>(&rebuilt)->Equal(aNode->mTransformation);
+			//assert(equal);
+
+			if (aNode == pScene->mRootNode)
 			{
-				if (aNode != pScene->mRootNode)
-				{
-					pNode->Orientation.Quat = glm::conjugate(pNode->Orientation.Quat);
-					pNode->Orientation.Mode = ORIENT_QUAT;
-				}
-				else
-				{
-					//Allow root node to be rotated from eular angles
-					glm::mat4 rotMtx = glm::toMat4(pNode->Orientation.Quat);
-					glm::extractEulerAngleXYZ(rotMtx, pNode->Orientation.Angles.x, pNode->Orientation.Angles.y, pNode->Orientation.Angles.z);
-					pNode->Orientation.Angles = glm::degrees(pNode->Orientation.Angles);
-					pNode->Orientation.Mode = ORIENT_XYZ;
-				}
+				glm::extractEulerAngleXYZ(mtxLocal, pNode->Orientation.Angles.x, pNode->Orientation.Angles.y, pNode->Orientation.Angles.z);
+				pNode->Orientation.Mode = ORIENT_XYZ;
 			}
 
 			for (uint m = 0; m < aNode->mNumMeshes; m++)
 			{
 				auto aMesh = pScene->mMeshes[aNode->mMeshes[m]];
 				MeshRenderer* pRenderer = pNode->AddComponent(new MeshRenderer())->As<MeshRenderer>();
-
-				auto foundMesh = _meshFixup.find(aMesh);
-				if (foundMesh == _meshFixup.end())
-				{
-					Mesh* pMesh = resMgr.AddMesh(aMesh->mName.C_Str());
-					ParseMesh(aMesh, pMesh);
-					_meshFixup[aMesh] = pMesh;
-					pRenderer->SetMesh(pMesh);
-				}
-				else
-				{
-					pRenderer->SetMesh((*foundMesh).second);
-				}
 
 				auto aMaterial = pScene->mMaterials[aMesh->mMaterialIndex];
 				auto foundMaterial = _materialFixup.find(aMaterial);
@@ -815,6 +817,21 @@ namespace SunEngine
 				{
 					pRenderer->SetMaterial((*foundMaterial).second.first);
 				}
+
+
+				auto foundMesh = _meshFixup.find(aMesh);
+				if (foundMesh == _meshFixup.end())
+				{
+					Material* pMaterial = pRenderer->GetMaterial();
+					Mesh* pMesh = resMgr.AddMesh(aMesh->mName.C_Str());
+					ParseMesh(aMesh, pMesh, pMaterial);
+					_meshFixup[aMesh] = pMesh;
+					pRenderer->SetMesh(pMesh);
+				}
+				else
+				{
+					pRenderer->SetMesh((*foundMesh).second);
+				}
 			}
 		}
 
@@ -823,7 +840,10 @@ namespace SunEngine
 		for (auto& pTexture : _textureLoadList)
 		{
 			if (!pTexture.first->RegisterToGPU())
+			{
+				aiReleaseImport(pScene);
 				return false;
+			}
 		}
 
 		for (auto& mtl : _materialFixup)
@@ -841,6 +861,8 @@ namespace SunEngine
 			if (aNode->mParent)
 				_asset->SetParent(node.second->GetName(), _nodeFixup[aNode->mParent]->GetName());
 		}
+
+		aiReleaseImport(pScene);
 
 		return true;
 	}

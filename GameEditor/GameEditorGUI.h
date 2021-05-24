@@ -15,7 +15,7 @@ namespace SunEngine
 		~GameEditorGUI();
 
 		void RegisterSceneView(View* pView);
-
+		void RenderMaterial(Material* mtl);
 	private:
 		enum SecondaryWindowType
 		{

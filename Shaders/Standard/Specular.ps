@@ -27,7 +27,63 @@ struct PS_In
 	float4 normal : NORMAL;
 	float4 tangent : TANGENT;
 #endif	
+#ifdef ALPHA_TEST
+	float4 objectCoord : OBJCOORD;
+#endif	
 };
+
+#ifdef ALPHA_TEST
+float hash( float2 inCoord ) {
+return frac( 1.0e4 * sin( 17.0*inCoord.x + 0.1*inCoord.y ) *
+( 0.1 + abs( sin( 13.0*inCoord.y + inCoord.x )))
+);
+}
+
+float hash3D( float3 inCoord ) {
+return hash( float2( hash( inCoord.xy ), inCoord.z ) );
+}
+
+float CalcAlphaThreshold(float3 objCoord)
+{
+	float g_HashScale = 1.0;
+	
+	// Find the discretized derivatives of our coordinates
+	float maxDeriv = max( length(ddy(objCoord.xyz)),
+	length(ddy(objCoord.xyz)) );
+	float pixScale = 1.0/(g_HashScale*maxDeriv);
+	// Find two nearest log-discretized noise scales
+	float2 pixScales = float2( exp2(floor(log2(pixScale))),
+	exp2(ceil(log2(pixScale))) );
+	// Compute alpha thresholds at our two noise scales
+	float2 alpha=float2(hash3D(floor(pixScales.x*objCoord.xyz)),
+	hash3D(floor(pixScales.y*objCoord.xyz)));
+	// Factor to interpolate lerp with
+	float lerpFactor = frac( log2(pixScale) );
+	// Interpolate alpha threshold from noise at two scales
+	float x = (1-lerpFactor)*alpha.x + lerpFactor*alpha.y;
+	// Pass into CDF to compute uniformly distrib threshold
+	float a = min( lerpFactor, 1-lerpFactor );
+	float3 cases = float3( x*x/(2*a*(1-a)),
+	(x-0.5*a)/(1-a),
+	1.0-((1-x)*(1-x)/(2*a*(1-a))) );
+	// Find our final, uniformly distributed alpha threshold
+	float t = (x < (1-a)) ?
+	((x < a) ? cases.x : cases.y) :
+	cases.z;
+	// Avoids t == 0. Could also do t =1-t
+	return clamp( t , 1.0e-6, 1.0 );
+}
+
+float CalcMipLevel(float2 texture_coord)
+{
+	float2 dx = ddx(texture_coord);
+	float2 dy = ddy(texture_coord);
+	float delta_max_sqr = max(dot(dx, dx), dot(dy, dy));
+	
+	return max(0.0, 0.5 * log2(delta_max_sqr));
+}
+#endif
+
 PS_Out main(PS_In pIn)
 {	
 	PS_Out pOut;
@@ -41,8 +97,15 @@ PS_Out main(PS_In pIn)
 	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * DiffuseColor;
 	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
 #ifdef ALPHA_TEST
-	if(diffuse.a < 0.5)
-		discard;
+	//float2 alphaTexSize;
+	//AlphaMap.GetDimensions(alphaTexSize.x, alphaTexSize.y);
+	//diffuse.a *= 1 + max(0, CalcMipLevel(texCoord * alphaTexSize)) * 0.25;
+	//diffuse.a = (diffuse.a - 0.5) / max(fwidth(diffuse.a), 0.0001) + 0.5;
+	
+	diffuse.a *= 2.0;
+	float threshold = CalcAlphaThreshold(pIn.objectCoord.xyz);	
+	//float threshold = 0.5;
+	clip(diffuse.a - threshold);
 #endif
 
 #if defined(DEPTH) && defined(ALPHA_TEST)	

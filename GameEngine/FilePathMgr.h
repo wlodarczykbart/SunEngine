@@ -34,6 +34,8 @@ namespace SunEngine
 
 			const glm::mat4& ProjectionCorrection() const { return _projectionCorrection; }
 
+			MSAAMode GetMSAAMode() const { return _msaaMode; }
+
 		private:
 			friend class EngineInfo;
 			Renderer() = default;
@@ -50,6 +52,7 @@ namespace SunEngine
 			uint _maxShadowCascadeSplits;
 			uint _cascadeShadowMapResolution;
 			bool _shadowsEnabled;
+			MSAAMode _msaaMode;
 		};
 
 		class Paths

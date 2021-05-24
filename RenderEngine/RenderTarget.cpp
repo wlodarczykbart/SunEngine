@@ -13,6 +13,7 @@ namespace SunEngine
 		hasDepthBuffer = true;
 		floatingPointColorBuffer = false;
 		pSharedDepthBuffer = 0;
+		msaa = SE_MSAA_OFF;
 	}
 
 	RenderTarget::RenderTarget() : GraphicsObject(GraphicsObject::RENDER_TARGET)
@@ -47,6 +48,11 @@ namespace SunEngine
 		if (!Destroy())
 			return false;
 
+		uint msaaFlags = 0;
+		if (info.msaa == SE_MSAA_2) msaaFlags |= ImageData::MULTI_SAMPLES_2;
+		else if (info.msaa == SE_MSAA_4) msaaFlags |= ImageData::MULTI_SAMPLES_4;
+		else if (info.msaa == SE_MSAA_8) msaaFlags |= ImageData::MULTI_SAMPLES_8;
+
 		for (uint i = 0; i < info.numTargets; i++)
 		{
 			BaseTexture* pTexture = new BaseTexture();
@@ -59,6 +65,7 @@ namespace SunEngine
 			else
 				texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
 
+			texInfo.image.Flags |= msaaFlags;
 			if (!pTexture->Create(texInfo))
 				_errStr = pTexture->GetErrStr();
 
@@ -74,6 +81,8 @@ namespace SunEngine
 				texInfo.image.Width = info.width;
 				texInfo.image.Height = info.height;
 				texInfo.image.Flags = ImageData::DEPTH_BUFFER;
+
+				texInfo.image.Flags |= msaaFlags;
 				if (!_depthTexture->Create(texInfo))
 					_errStr = _depthTexture->GetErrStr();
 			}
@@ -95,6 +104,7 @@ namespace SunEngine
 			apiInfo.colorBuffers[i] = (ITexture*)_colorTextures[i]->GetAPIHandle();
 		apiInfo.depthBuffer = _depthTexture ? (ITexture*)_depthTexture->GetAPIHandle() : 0;
 		apiInfo.numTargets = info.numTargets;
+		apiInfo.msaa = info.msaa;
 
 		if(!_iRenderTarget->Create(apiInfo)) return false;
 

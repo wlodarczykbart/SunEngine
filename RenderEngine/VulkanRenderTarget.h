@@ -41,6 +41,7 @@ namespace SunEngine
 		uint _numTargets;
 		bool _hasDepth;
 		bool _clearOnBind;
+		MSAAMode _msaaMode;
 		VkRenderPass _noClearRenderPass;
 	};
 

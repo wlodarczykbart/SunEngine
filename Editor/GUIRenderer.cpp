@@ -582,7 +582,7 @@ namespace SunEngine
 					bool viewFocus = ImGui::IsWindowFocused() && mouseInsideView;
 					pView->UpdateViewState(viewSize, viewPos, mouseInsideView, viewFocus);
 
-					pView->RenderGUI();
+					pView->RenderGUI(this);
 
 					ImGui::EndTable();
 					//float w = ImGui::table(ImGui::TableFindByID(ImGui::GetID(strTable.c_str())), 0);

@@ -30,6 +30,9 @@ struct PS_In
 	float4 position : POSITION;
 	float4 normal : NORMAL;
 	float4 tangent : TANGENT;
+#endif
+#ifdef ALPHA_TEST
+	float4 objectCoord : OBJCOORD;
 #endif	
 };
 
@@ -55,6 +58,9 @@ PS_In main(VS_In vIn)
 	
 #ifndef DEPTH	
 	pIn.position = mul(vIn.position, WORLD_MATRIX);
+#ifdef ALPHA_TEST
+	pIn.objectCoord = pIn.position;
+#endif		
 	pIn.normal = mul(float4(vIn.normal.xyz, 0.0), WORLD_MATRIX);
 	pIn.tangent = mul(float4(vIn.tangent.xyz, 0.0), WORLD_MATRIX);
 	

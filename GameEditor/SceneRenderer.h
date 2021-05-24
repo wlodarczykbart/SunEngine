@@ -43,7 +43,7 @@ namespace SunEngine
 
 		bool Init();
 		bool PrepareFrame(BaseTexture* pOutputTexture, bool updateTextures, CameraComponentData* pCamera = 0);
-		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo);
+		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo, RenderTargetPassInfo* pMSAAResolveInfo);
 
 	private:
 		struct UniformBufferData

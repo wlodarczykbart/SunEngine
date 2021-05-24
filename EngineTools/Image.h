@@ -18,6 +18,9 @@ namespace SunEngine
 			SAMPLED_TEXTURE_R32F = 1 << 5,
 			SAMPLED_TEXTURE_R32G32B32A32F = 1 << 6,
 			SRGB = 1 << 7,
+			MULTI_SAMPLES_2 = 1 << 8,
+			MULTI_SAMPLES_4 = 1 << 9,
+			MULTI_SAMPLES_8 = 1 << 10,
 		};
 
 		ImageData()

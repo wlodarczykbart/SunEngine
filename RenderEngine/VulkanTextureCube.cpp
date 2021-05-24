@@ -17,7 +17,6 @@ namespace SunEngine
 		VkExtent2D extent = {};
 		extent.width = info.images->Width;
 		extent.height = info.images->Height;
-		uint bitsPerPixel = sizeof(Pixel) * 8;
 
 		VkImageCreateInfo imgInfo = {};
 		imgInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -75,6 +74,7 @@ namespace SunEngine
 		viewInfo.subresourceRange.baseMipLevel = 0;// info.mipLevels ? 3 : 0;
 
 		if (!_device->CreateImageView(viewInfo, &_view)) return false;
+		return true;
 	}
 
 	void VulkanTextureCube::Bind(ICommandBuffer* cmdBuffer, IBindState*)

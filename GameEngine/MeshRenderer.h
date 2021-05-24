@@ -18,11 +18,8 @@ namespace SunEngine
 	class MeshRenderer : public RenderObject
 	{
 	public:
-		static const ComponentType CType;
-
 		MeshRenderer();
 		~MeshRenderer();
-		ComponentType GetType() const override { return CType; }
 
 		void SetMesh(Mesh* pMesh) { _mesh = pMesh; }
 		void SetMaterial(Material* pMaterial) { _material = pMaterial; }

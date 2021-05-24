@@ -25,7 +25,6 @@ namespace SunEngine
 
 		ID3D11Texture2D* _texture;
 		ID3D11ShaderResourceView* _srv;
-		DXGI_FORMAT _format;
 	};
 
 }

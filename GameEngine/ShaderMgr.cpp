@@ -30,6 +30,7 @@ namespace SunEngine
 	DefineStaticStr(DefaultShaders, Skybox)
 	DefineStaticStr(DefaultShaders, Clouds)
 	DefineStaticStr(DefaultShaders, SkyArHosek)
+	DefineStaticStr(DefaultShaders, MSAAResolve)
 
 	DefineStaticStr(DefaultPipelines, ShadowDepth)
 
@@ -72,6 +73,7 @@ namespace SunEngine
 		threadData.defines.push_back(StrFormat("MAX_SKINNED_BONES %d", EngineInfo::GetRenderer().MaxSkinnedBoneMatrices()));
 		threadData.defines.push_back(StrFormat("MAX_TEXTURE_TRANSFORMS %d", EngineInfo::GetRenderer().MaxTextureTransforms()));
 		threadData.defines.push_back(StrFormat("MAX_SHADOW_CASCADE_SPLITS %d", EngineInfo::GetRenderer().MaxShadowCascadeSplits()));
+		threadData.defines.push_back(StrFormat("MSAA_SAMPLES %d", 1 << EngineInfo::GetRenderer().GetMSAAMode()));
 
 		Timer timer(true);
 

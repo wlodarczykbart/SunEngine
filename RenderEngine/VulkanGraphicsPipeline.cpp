@@ -109,7 +109,7 @@ namespace SunEngine
 		Map<VkRenderPass, Map<IShader*, VkPipeline>>::iterator iter = _renderPassPipelines.find(vkCmd->GetCurrentRenderPass());
 		if (iter == _renderPassPipelines.end())
 		{
-			pipeline = createPipeline(vkCmd->GetCurrentRenderPass(), vkCmd->GetCurrentNumTargets());
+			pipeline = createPipeline(vkCmd->GetCurrentRenderPass(), vkCmd->GetCurrentNumTargets(), vkCmd->GetCurrentMSAAMode());
 			_renderPassPipelines[vkCmd->GetCurrentRenderPass()][_shader] = pipeline;
 		}
 		else
@@ -117,7 +117,7 @@ namespace SunEngine
 			Map<IShader*, VkPipeline>::iterator passIter = (*iter).second.find(_shader);
 			if (passIter == (*iter).second.end())
 			{
-				pipeline = createPipeline(vkCmd->GetCurrentRenderPass(), vkCmd->GetCurrentNumTargets());
+				pipeline = createPipeline(vkCmd->GetCurrentRenderPass(), vkCmd->GetCurrentNumTargets(), vkCmd->GetCurrentMSAAMode());
 				_renderPassPipelines[vkCmd->GetCurrentRenderPass()][_shader] = pipeline;
 			}
 			else
@@ -154,7 +154,7 @@ namespace SunEngine
 		}
 	}
 
-	VkPipeline VulkanGraphicsPipeline::createPipeline(VkRenderPass renderPass, uint numTargets)
+	VkPipeline VulkanGraphicsPipeline::createPipeline(VkRenderPass renderPass, uint numTargets, MSAAMode msaa)
 	{
 		Vector<VkPipelineShaderStageCreateInfo> shaderStages;
 
@@ -196,7 +196,8 @@ namespace SunEngine
 
 		VkPipelineMultisampleStateCreateInfo      multisamplerState = {};
 		multisamplerState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-		multisamplerState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		multisamplerState.rasterizationSamples = VkSampleCountFlagBits(VK_SAMPLE_COUNT_1_BIT << msaa); //TODO: is this shift safe
+		multisamplerState.alphaToCoverageEnable = _settings.mulitSampleState.enableAlphaToCoverage;
 
 		VkPipelineDepthStencilStateCreateInfo     depthStencilState = {};
 		depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -229,7 +230,6 @@ namespace SunEngine
 		dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		dynamicState.dynamicStateCount = states.size();
 		dynamicState.pDynamicStates = states.data();
-
 
 		VkGraphicsPipelineCreateInfo pipelineInfo = {};
 		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;

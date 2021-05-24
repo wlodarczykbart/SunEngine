@@ -12,6 +12,7 @@
 #include "Animation.h"
 #include "MeshRenderer.h"
 #include "ResourceMgr.h"
+#include "GameEditorGUI.h"
 #include "GameEditorViews.h"
 
 namespace SunEngine
@@ -95,7 +96,13 @@ namespace SunEngine
 #endif
 		}
 
-		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0))
+		RenderTargetPassInfo msaaResolvInfo = {};
+		msaaResolvInfo.pTarget = &_msaaTarget;
+		msaaResolvInfo.pPipeline = &_msaaResolveData.pipeline;
+		msaaResolvInfo.pBindings = &_msaaResolveData.bindings;
+		bool bMSAA = _settings.msaa.enabled && EngineInfo::GetRenderer().GetMSAAMode() != SE_MSAA_OFF;
+
+		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0, bMSAA ? &msaaResolvInfo : 0))
 			return false;
 
 		//Apply toneMap correction
@@ -127,7 +134,7 @@ namespace SunEngine
 		return true;
 	}
 
-	void SceneView::RenderGUI()
+	void SceneView::RenderGUI(GUIRenderer* pRenderer)
 	{
 		Scene* pScene = SceneMgr::Get().GetActiveScene();
 
@@ -135,7 +142,7 @@ namespace SunEngine
 		BuildSceneTree(pScene->GetRoot());
 
 		ImGui::TableNextColumn();
-		BuildSelectedNodeGUI(pScene);
+		BuildSelectedNodeGUI(pScene, pRenderer);
 	}
 
 #define LOG_CORNER(c) spdlog::info("{} {} {} {}", #c, corners[c].x, corners[c].y, corners[c].z)
@@ -271,6 +278,9 @@ namespace SunEngine
 		if (!CreateRenderPassData(DefaultShaders::FXAA, _fxaaData))
 			return false;
 
+		if (!CreateRenderPassData(DefaultShaders::MSAAResolve, _msaaResolveData))
+			return false;
+
 		//TODO lots of duplicate code basically
 		bool bDeferred = EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred;
 		if (bDeferred)
@@ -307,12 +317,22 @@ namespace SunEngine
 
 		if (!_opaqueTarget.Create(rtInfo))
 			return false;
-
 		if (!_outputData.bindings.SetTexture(MaterialStrings::DiffuseMap, _opaqueTarget.GetColorTexture()))
 			return false;
-
 		if (!_outputData.bindings.SetTexture(MaterialStrings::DepthMap, _opaqueTarget.GetDepthTexture()))
 			return false;
+
+		rtInfo.msaa = EngineInfo::GetRenderer().GetMSAAMode();
+		if (rtInfo.msaa != SE_MSAA_OFF)
+		{
+			if (!_msaaTarget.Create(rtInfo))
+				return false;
+			if (!_msaaResolveData.bindings.SetTexture(MaterialStrings::DiffuseMap, _msaaTarget.GetColorTexture()))
+				return false;
+			if (!_msaaResolveData.bindings.SetTexture(MaterialStrings::DepthMap, _msaaTarget.GetDepthTexture()))
+				return false;
+		}
+		rtInfo.msaa = SE_MSAA_OFF;
 
 		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
 		{
@@ -373,15 +393,18 @@ namespace SunEngine
 		}
 	}
 
-	void SceneView::BuildSelectedNodeGUI(Scene* pScene)
+	void SceneView::BuildSelectedNodeGUI(Scene* pScene, GUIRenderer* pRenderer)
 	{
 		bool removeNode = false;
+
+		GameEditorGUI* gui = static_cast<GameEditorGUI*>(pRenderer);
+
 
 		ImGui::BeginChild("SelNodeEditor");
 		SceneNode* pNode = pScene->GetNode(_selNodeName);
 		if (pNode)
 		{
-			ImGui::Text(pNode->GetName().c_str());
+			ImGui::InputText("##Name", const_cast<char*>(pNode->GetName().c_str()), pNode->GetName().size(), ImGuiInputTextFlags_ReadOnly);
 			if (ImGui::Button("Remove"))
 			{
 				removeNode = true;
@@ -414,6 +437,17 @@ namespace SunEngine
 						if (ImGui::DragFloat("Speed", &speed, 0.05f, 0.0f, 10.0f)) animData->SetSpeed(speed);
 
 						ImGui::TreePop();
+					}
+				}
+				else if (c->GetType() == COMPONENT_RENDER_OBJECT)
+				{
+					RenderComponentData* renderData = pNode->GetComponentData<RenderComponentData>(c);
+					for (auto riter = renderData->BeginNode(); riter != renderData->EndNode(); ++riter)
+					{
+						auto& node = *riter;
+						Material* pMaterial = node.GetMaterial();
+						if (pMaterial)
+							gui->RenderMaterial(pMaterial);
 					}
 				}
 			}
@@ -474,6 +508,11 @@ namespace SunEngine
 			//this pipeline writes to depth buffer in pixel shader
 			pipelineInfo.settings.depthStencil.enableDepthWrite = true;
 		}
+		else if (shader == DefaultShaders::MSAAResolve)
+		{
+			//this pipeline writes to depth buffer in pixel shader
+			pipelineInfo.settings.depthStencil.enableDepthWrite = true;
+		}
 
 		pipelineInfo.pShader = pShader;
 		if (!data.pipeline.Create(pipelineInfo))
@@ -488,6 +527,8 @@ namespace SunEngine
 		fxaa.subpixel = 0.75f;
 		fxaa.edgeThreshold = 0.166f;
 		fxaa.edgeThresholdMin = 0.0833f;
+
+		msaa.enabled = true;
 
 		memset(&gui, 0x0, sizeof(gui));
 	}

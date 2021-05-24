@@ -65,6 +65,8 @@ namespace SunEngine
 		bool GenerateMips(ID3D11ShaderResourceView *pResource);
 		bool CopyResource(ID3D11Resource* pDst, ID3D11Resource* pSrc);
 
+		bool FillSampleDesc(DXGI_FORMAT format, uint samples, DXGI_SAMPLE_DESC& desc);
+
 	private:
 
 		ID3D11Device1* _device;
