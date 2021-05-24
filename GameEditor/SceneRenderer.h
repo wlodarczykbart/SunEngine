@@ -103,6 +103,7 @@ namespace SunEngine
 		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
 		void RenderSky(CommandBuffer* cmdBuffer);
 		void RenderEnvironment(CommandBuffer* cmdBuffer);
+		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6);
 
 		bool _bInit;
 		UniformBufferGroup _cameraGroup;
