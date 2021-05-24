@@ -7,10 +7,16 @@
 
 namespace SunEngine
 {
-	const String Shader::Default = "DefaultPass";
-	const String Shader::GBuffer = "GBufferPass";
-	const String Shader::Depth = "DepthPass";
-	const String Shader::OneZ = "OneZPass";
+#define VARIANT_ENTRY(e) { #e, ShaderVariant::e } 
+
+	static const Map<String, uint> VariantStringToBitMap =
+	{
+		VARIANT_ENTRY(GBUFFER),
+		VARIANT_ENTRY(DEPTH),
+		VARIANT_ENTRY(ALPHA_TEST),
+		VARIANT_ENTRY(SKINNED),
+		VARIANT_ENTRY(ONE_Z),
+	};
 
 	Shader::Shader()
 	{
@@ -24,7 +30,7 @@ namespace SunEngine
 	bool Shader::Compile(const String& vertexSource, const String& pixelSource, String* pErrStr, Vector<String>* pDefines)
 	{
 		ConfigFile config;
-		ConfigSection* section = config.AddSection(Default);
+		ConfigSection* section = config.AddSection("Shader");
 		section->SetString("vs", vertexSource.c_str());
 		section->SetString("ps", pixelSource.c_str());
 		section->SetInt("isText", 1);
@@ -44,104 +50,134 @@ namespace SunEngine
 
 	bool Shader::Compile(const ConfigFile& config, String* pErrStr, Vector<String>* pDefines)
 	{
-		LinkedList<ConfigFile> configList;
-		HashSet<String> configMap;
-
-		configList.push_back(config);
-		configMap.insert(config.GetFilename());
-		CollectConfigFiles(configList, configMap);
-
 		_name = GetFileNameNoExt(config.GetFilename());
 
-		_config.Clear();
-		while (configList.size())
-		{
-			ConfigFile& src = configList.back();
-			for (auto iter = src.Begin(); iter != src.End(); ++iter)
-			{
-				auto& srcSection = (*iter).second;
-				auto dstSection = _config.AddSection((*iter).first);
-				for (auto subIter = srcSection.Begin(); subIter != srcSection.End(); ++subIter)
-				{
-					dstSection->SetString((*subIter).first, (*subIter).second.c_str());
-				}
-			}
-			configList.pop_back();
-		}
+		const ConfigSection* pShaderSection = config.GetSection("Shader");
+		if (pShaderSection == 0)
+			return false;
 
-		Vector<ConfigSection*> variantSections;
-		variantSections.push_back(_config.GetSection(Default));
-		variantSections.push_back(_config.GetSection(GBuffer));
-		variantSections.push_back(_config.GetSection(Depth));
-		variantSections.push_back(_config.GetSection(OneZ));
-
-		String shaderName = GetFileNameNoExt(config.GetFilename());
+		//shaders require a vertex shader at minimum
+		String vs = pShaderSection->GetString("vs");
+		if (vs.empty())
+			return false;
+		String ps = pShaderSection->GetString("ps");
+		String gs = pShaderSection->GetString("gs");
 
 		String sourceDir = EngineInfo::GetPaths().ShaderSourceDir();
-
-		for (ConfigSection* section : variantSections)
+		bool isText = pShaderSection->GetInt("isText", 0) == 1;
+		if (!isText)
 		{
-			if (!section)
-				continue;
-			
-			bool isText = section->GetInt("isText", 0) == 1;
-
-			ShaderCompiler compiler;
-
-			Vector<String> defines;
-			StrSplit(section->GetString("defines"), defines, ',');
-			Vector<String> variantOnlyDefines = defines;
-
-			if (pDefines)
-				defines.insert(defines.end(), pDefines->begin(), pDefines->end());
-		
-			compiler.SetDefines(defines);
-
-			if (isText)
+			Vector<String*> inputFiles = { &vs, &ps, &gs };
+			for (auto pFilename : inputFiles)
 			{
-				compiler.SetVertexShaderSource(section->GetString("vs"));
-				compiler.SetPixelShaderSource(section->GetString("ps"));
-			}
-			else
-			{
-				FileStream fr;
-				String text;
-
-				if (fr.OpenForRead((sourceDir + section->GetString("vs")).c_str()))
+				if (!pFilename->empty())
 				{
-					if (fr.ReadText(text))
-						compiler.SetVertexShaderSource(text);
-					fr.Close();
-				}
-
-				if (fr.OpenForRead((sourceDir + section->GetString("ps")).c_str()))
-				{
-					if (fr.ReadText(text))
-						compiler.SetPixelShaderSource(text);
-					fr.Close();
+					FileStream fr;
+					String path = sourceDir + *pFilename;
+					if (fr.OpenForRead(path.c_str()))
+					{
+						fr.ReadText(*pFilename);
+						fr.Close();
+					}
+					else
+					{
+						*pErrStr = StrFormat("Failed to open %s", path.c_str());
+						return false;
+					}
 				}
 			}
-
-			String variantName = shaderName.size() ? shaderName + "_" + section->GetName() : "";
-			if (!compiler.Compile(variantName))
-			{
-				if(pErrStr) 
-					*pErrStr = compiler.GetLastError();
-				return false;
-			}
-
-			ShaderVariant* pVariant = new ShaderVariant();
-			_variants[section->GetName()] = UniquePtr<ShaderVariant>(pVariant);
-			if (!pVariant->shader.Create(compiler.GetCreateInfo()))
-			{
-				if (pErrStr)
-					*pErrStr = pVariant->shader.GetErrStr();
-				return false;
-			}
-
-			pVariant->defines = variantOnlyDefines;
 		}
 
+		ShaderCompiler baseCompiler;
+		if(pDefines)
+			baseCompiler.SetDefines(*pDefines);
+		baseCompiler.SetVertexShaderSource(vs);
+		baseCompiler.SetPixelShaderSource(ps);
+
+		if (!baseCompiler.Compile(_name))
+		{
+			if (pErrStr)
+				*pErrStr = baseCompiler.GetLastError();
+			return false;
+		}
+
+		ShaderVariant* pBase = new ShaderVariant();
+		_variants[0] = UniquePtr<ShaderVariant>(pBase);
+		if (!pBase->shader.Create(baseCompiler.GetCreateInfo()))
+		{
+			if (pErrStr)
+				*pErrStr = pBase->shader.GetErrStr();
+			return false;
+		}
+
+		const ConfigSection* pVariantSection = config.GetSection("Variants");
+		if (pVariantSection)
+		{
+			for (auto iter = pVariantSection->Begin(); iter != pVariantSection->End(); ++iter)
+			{
+				String variantString = (*iter).first;
+				String variantShaders = (*iter).second;
+
+				Vector<String> variantDefines;
+				StrSplit(variantString, variantDefines, ',');
+				Vector<String> variantOnlyDefines = variantDefines;
+
+				if (pDefines)
+					variantDefines.insert(variantDefines.end(), pDefines->begin(), pDefines->end());
+
+				ShaderCompiler variantCompiler;
+				variantCompiler.SetDefines(variantDefines);
+
+				if (variantShaders.empty())
+				{
+					variantCompiler.SetVertexShaderSource(vs);
+					variantCompiler.SetPixelShaderSource(ps);
+				}
+				else
+				{
+					if (StrContains(variantShaders, "vs")) variantCompiler.SetVertexShaderSource(vs);
+					if (StrContains(variantShaders, "ps")) variantCompiler.SetPixelShaderSource(ps);
+				}
+
+				String variantName = _name.size() ? _name + "_" + StrReplace(variantString, { ',' }, '_') : "";
+				if (!variantCompiler.Compile(variantName))
+				{
+					if (pErrStr)
+						*pErrStr = variantCompiler.GetLastError();
+					return false;
+				}
+
+
+				uint64 variantMask = 0;
+				for (uint i = 0; i < variantOnlyDefines.size(); i++)
+				{
+					auto found = VariantStringToBitMap.find(variantOnlyDefines[i]);
+					if (found != VariantStringToBitMap.end())
+					{
+						variantMask |= (*found).second;
+					}
+				}
+
+				if (variantMask == 0)
+				{
+					if (pErrStr)
+						*pErrStr = StrFormat("Shader variant mask %s consits of only unsupported variant defines", variantString.c_str());
+					return false;
+				}
+
+				ShaderVariant* pVariant = new ShaderVariant();
+				_variants[variantMask] = UniquePtr<ShaderVariant>(pVariant);
+				if (!pVariant->shader.Create(variantCompiler.GetCreateInfo()))
+				{
+					if (pErrStr)
+						*pErrStr = pVariant->shader.GetErrStr();
+					return false;
+				}
+				pVariant->defines = variantOnlyDefines;
+			}
+		}
+
+		_config = config;
 		SetDefaults();
 		return true;
 	}
@@ -151,11 +187,7 @@ namespace SunEngine
 		if (pMtl->GetShader() != this)
 			return;
 
-		auto found = _variants.find(pMtl->GetVariant());
-		if (found == _variants.end())
-			return;
-
-		auto& defaults = (*found).second.get()->defaults;
+		auto& defaults = _variants.at(0).get()->defaults;
 
 		for (auto iter = defaults.begin(); iter != defaults.end(); ++iter)
 		{
@@ -186,14 +218,14 @@ namespace SunEngine
 		}
 	}
 
-	BaseShader* Shader::GetDefault() const
+	BaseShader* Shader::GetBase() const
 	{
-		return GetVariant(Default); //TODO: store this as class variable?
+		return GetBaseVariant(0); //TODO: store this as class variable?
 	}
 
-	BaseShader* Shader::GetVariant(const String& variant) const
+	BaseShader* Shader::GetBaseVariant(uint64 variantMask) const
 	{
-		auto found = _variants.find(variant);
+		auto found = _variants.find(variantMask);
 		return found != _variants.end() ? &(*found).second.get()->shader : 0;
 	}
 
@@ -211,12 +243,12 @@ namespace SunEngine
 		}
 	}
 
-	bool Shader::GetVariantProps(const String& name, StrMap<ShaderProp>& props) const
+	bool Shader::GetVariantProps(uint64 variantMask, StrMap<ShaderProp>** props) const
 	{
-		auto found = _variants.find(name);
+		auto found = _variants.find(variantMask);
 		if (found != _variants.end())
 		{
-			props = (*found).second.get()->defaults;
+			*props = &(*found).second.get()->defaults;
 			return true;
 		}
 		else
@@ -225,19 +257,19 @@ namespace SunEngine
 		}
 	}
 
-	bool Shader::GetVariantDefines(const String& name, Vector<String>& defines) const
-	{
-		auto found = _variants.find(name);
-		if (found != _variants.end())
-		{
-			defines = (*found).second.get()->defines;
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
+	//bool Shader::GetVariantDefines(uint64 variantMask, Vector<String>& defines) const
+	//{
+	//	auto found = _variants.find(variantMask);
+	//	if (found != _variants.end())
+	//	{
+	//		defines = (*found).second.get()->defines;
+	//		return true;
+	//	}
+	//	else
+	//	{
+	//		return false;
+	//	}
+	//}
 
 	void Shader::ParseSamplerAnisotropy(const String& str, FilterMode& fm, WrapMode& wm, AnisotropicMode& am) const
 	{
@@ -312,24 +344,6 @@ namespace SunEngine
 		camData.ViewProjectionMatrix.Set(&viewProj);
 		camData.InvViewMatrix.Set(&invView);
 		camData.InvProjectionMatrix.Set(&invProj);
-	}
-
-	void Shader::CollectConfigFiles(LinkedList<ConfigFile>& configList, HashSet<String>& configMap)
-	{
-		ConfigFile& curr = configList.back();
-		ConfigSection* input = curr.GetSection("Input");
-		String strBase = input ? input->GetString("base") : "";
-		if (strBase.length() && configMap.count(strBase) == 0)
-		{
-			ConfigFile base;
-			String currDir = GetDirectory(curr.GetFilename()) + "/";
-			if (base.Load(currDir + strBase))
-			{
-				configList.push_back(base);
-				configMap.insert(base.GetFilename());
-				CollectConfigFiles(configList, configMap);
-			}
-		}
 	}
 
 	void Shader::SetDefaults()

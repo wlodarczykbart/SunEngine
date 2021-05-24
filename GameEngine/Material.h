@@ -47,11 +47,7 @@ namespace SunEngine
 
 		//Set shader and let the engine determine what variant to use depending on rendering mode, which should only var between application runs
 		void SetShader(Shader* pShader);
-		//Set shader with specified variant
-		void SetShader(Shader* pShader, const String& variant);
 		Shader* GetShader() const { return _shader; }
-		const String& GetVariant() const { return _variant; }
-		BaseShader* GetShaderVariant() const;
 
 		template<typename T>
 		bool SetMaterialVar(const String& name, const T value)
@@ -84,13 +80,7 @@ namespace SunEngine
 
 		bool Write(StreamBase& stream) override;
 		bool Read(StreamBase& stream) override;
-
-		usize GetDepthVariantHash() const { return _depthVariantHash; }
-		bool CreateDepthMaterial(Material* pEmptyMaterial) const;
-		
 	private:
-		void UpdateDepthVariant(const String& name, const ShaderProp& prop);
-		void UpdateDepthVariantHash();
 
 		struct MaterialSamplerData
 		{
@@ -98,16 +88,11 @@ namespace SunEngine
 		};
 
 		Shader* _shader;
-		String _variant;
 		MemBuffer _memBuffer;
 		StrMap<ShaderBufferVariable> _mtlVariables;
 		StrMap<MaterialTextureData> _mtlTextures2D;
 		StrMap<MaterialTextureData> _mtlTextureCubes;
 		StrMap<MaterialSamplerData> _mtlSamplers;
-
-		StrMap<ShaderProp> _depthVariantProps;
-		usize _depthVariantDefineHash;
-		usize _depthVariantHash;
 
 		UniformBuffer _mtlBuffer;
 	};

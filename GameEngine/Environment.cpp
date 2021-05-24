@@ -70,7 +70,7 @@ namespace SunEngine
 
 				ShaderBindings::CreateInfo info = {};
 				info.type = SBT_MATERIAL;
-				info.pShader = pShader->GetDefault();
+				info.pShader = pShader->GetBase();
 				if (!_cloudBindings->Create(info))
 					return false;
 				if (!_cloudBindings->SetTexture(MaterialStrings::DiffuseMap, pCloudTexture->GetGPUObject()))

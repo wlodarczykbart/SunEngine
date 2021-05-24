@@ -1,3 +1,11 @@
+#include <functional>
+
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLM_ENABLE_EXPERIMENTAL
+#include "glm/gtx/hash.hpp"
+#undef GLM_ENABLE_EXPERIMENTAL
+#endif
+
 #include "SceneMgr.h"
 #include "Camera.h"
 #include "Light.h"
@@ -95,23 +103,22 @@ namespace SunEngine
 		uboInfo.size = sizeof(glm::mat4) * EngineInfo::GetRenderer().MaxShadowCascadeSplits();
 		if (!_shadowMatrixBuffer->Buffer.Create(uboInfo))
 			return false;
-		_shaderVariantPipelineMap[Shader::Depth] = DefaultPipelines::ShadowDepth;
 
 		GraphicsPipeline::CreateInfo skyPipelineInfo = {};
 		skyPipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_LESS_EQUAL;
 		skyPipelineInfo.settings.rasterizer.frontFace = SE_FF_CLOCKWISE;
 
-		skyPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Skybox)->GetDefault();
+		skyPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Skybox)->GetBase();
 		if (!_helperPipelines[DefaultShaders::Skybox].Create(skyPipelineInfo))
 			return false;
 
-		skyPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::SkyArHosek)->GetDefault();
+		skyPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::SkyArHosek)->GetBase();
 		if (!_helperPipelines[DefaultShaders::SkyArHosek].Create(skyPipelineInfo))
 			return false;
 
 		GraphicsPipeline::CreateInfo cloudPipelineInfo = {};
 		cloudPipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_LESS_EQUAL;
-		cloudPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Clouds)->GetDefault();
+		cloudPipelineInfo.pShader = ShaderMgr::Get().GetShader(DefaultShaders::Clouds)->GetBase();
 		cloudPipelineInfo.settings.EnableAlphaBlend();
 		if (!_helperPipelines[DefaultShaders::Clouds].Create(cloudPipelineInfo))
 			return false;
@@ -127,7 +134,7 @@ namespace SunEngine
 			if (!_skyTarget.Create(skyTargetInfo))
 				return false;
 
-			BaseShader* pSkyCopyShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureCopy)->GetVariant(Shader::OneZ);
+			BaseShader* pSkyCopyShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureCopy)->GetBaseVariant(ShaderVariant::ONE_Z);
 			ShaderBindings::CreateInfo skyBindingInfo = {};
 			skyBindingInfo.pShader = pSkyCopyShader;
 			skyBindingInfo.type = SBT_MATERIAL;
@@ -218,7 +225,7 @@ namespace SunEngine
 		glm::mat4 proj = _currentCamera->C()->As<Camera>()->GetProj();
 		Shader::FillMatrices(view, proj, camData);
 		glm::mat4 invView = *reinterpret_cast<glm::mat4*>(camData.InvViewMatrix.data);
-		camData.Viewport.Set(0.0f, 0.0f, pOutputTexture->GetWidth(), pOutputTexture->GetHeight());
+		camData.Viewport.Set(0.0f, 0.0f, (float)pOutputTexture->GetWidth(), (float)pOutputTexture->GetHeight());
 
 		uint camUpdateIndex = 0;
 		_cameraGroup.Update(&camData, camUpdateIndex, &_cameraBuffer);
@@ -292,8 +299,8 @@ namespace SunEngine
 		//plug in deferred shader so it gets camera/light buffers
 		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
 		{
-			_currentShaders.insert(ShaderMgr::Get().GetShader(DefaultShaders::Deferred)->GetDefault());
-			_currentShaders.insert(ShaderMgr::Get().GetShader(DefaultShaders::ScreenSpaceReflection)->GetDefault());
+			_currentShaders.insert(ShaderMgr::Get().GetShader(DefaultShaders::Deferred)->GetBase());
+			_currentShaders.insert(ShaderMgr::Get().GetShader(DefaultShaders::ScreenSpaceReflection)->GetBase());
 		}
 
 		for (auto iter = _currentShaders.begin(); iter != _currentShaders.end(); ++iter)
@@ -352,12 +359,10 @@ namespace SunEngine
 		if (!_currentEnvironment)
 			return false;
 
-		BaseShader* pShader = 0;
-
 		_depthTarget.Bind(cmdBuffer);
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
-			ProcessRenderList(cmdBuffer, _depthPasses[i]->RenderList, i+1);
+			ProcessRenderList(cmdBuffer, _depthPasses[i]->RenderList, i+1, true);
 		}
 		_depthTarget.Unbind(cmdBuffer);
 
@@ -371,7 +376,7 @@ namespace SunEngine
 		{
 			pMSAAResolveInfo->pTarget->Bind(cmdBuffer);
 			ProcessRenderList(cmdBuffer, _opaqueRenderList, mainCamUpdateIndex);
-			RenderEnvironment(cmdBuffer);
+			RenderEnvironment(cmdBuffer); //would prefer to not render this in msaa, but for some reason not doing so results in 'white line' artifacts around edges between geometry and the sky
 			pMSAAResolveInfo->pTarget->Unbind(cmdBuffer);
 		}
 
@@ -475,11 +480,11 @@ namespace SunEngine
 
 		bool sorted = false;
 		RenderNodeData data = {};
-		data.SceneNode = pSceneNode;
 		data.RenderNode = pNode;
+		data.ComputeVariants();
 		GetPipeline(data, sorted);
 
-		BaseShader* pShader = pMaterial->GetShaderVariant();
+		BaseShader* pShader = pMaterial->GetShader()->GetBaseVariant(data.BaseVariantMask);
 
 		ObjectBufferData objBuffer = {};
 		glm::mat4 itp = glm::transpose(glm::inverse(pNode->GetWorld()));
@@ -495,10 +500,10 @@ namespace SunEngine
 
 		if (!sorted)
 		{
-			if (pMaterial->GetVariant() == Shader::Default)
-				_opaqueRenderList.push_back(data);
-			else if (pMaterial->GetVariant() == Shader::GBuffer)
+			if(data.BaseVariantMask & ShaderVariant::GBUFFER)
 				_gbufferRenderList.push_back(data);
+			else
+				_opaqueRenderList.push_back(data);
 		}
 		else
 		{
@@ -509,15 +514,16 @@ namespace SunEngine
 
 		if (EngineInfo::GetRenderer().ShadowsEnabled())
 		{
-			BaseShader* pDepthShader = pMaterial->GetShader()->GetVariant(Shader::Depth);
+			uint64 depthVariantMask = (data.BaseVariantMask & ~ShaderVariant::GBUFFER) | ShaderVariant::DEPTH;
+			BaseShader* pDepthShader = pMaterial->GetShader()->GetBaseVariant(depthVariantMask);
 			if (pDepthShader)
 			{
-				usize depthHash = data.RenderNode->GetMaterial()->GetDepthVariantHash();
+				uint64 depthHash = CalculateDepthVariantHash(data.RenderNode->GetMaterial(), depthVariantMask);
 				auto pDepthMaterial = _depthMaterials[depthHash].get();
 				if (pDepthMaterial == 0)
 				{
 					pDepthMaterial = new Material();
-					pMaterial->CreateDepthMaterial(pDepthMaterial);
+					CreateDepthMaterial(data.RenderNode->GetMaterial(), depthVariantMask, pDepthMaterial);
 					_depthMaterials[depthHash] = UniquePtr<Material>(pDepthMaterial);
 				}
 
@@ -525,7 +531,7 @@ namespace SunEngine
 				{
 					RenderNodeData depthData = data;
 					depthData.MaterialOverride = pDepthMaterial;
-					GetPipeline(depthData, sorted);
+					GetPipeline(depthData, sorted, true, true);
 					_depthPasses[i]->ObjectBufferGroup.Update(&objBuffer, depthData.ObjectBufferIndex, &depthData.ObjectBindings, pDepthShader);
 
 					if (pSkinnedMesh)
@@ -539,7 +545,7 @@ namespace SunEngine
 		}
 	}
 
-	void SceneRenderer::ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex)
+	void SceneRenderer::ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex, bool isDepth)
 	{
 		IShaderBindingsBindState objectBindData = {};
 		objectBindData.DynamicIndices[0].first = ShaderStrings::ObjectBufferName;
@@ -554,7 +560,14 @@ namespace SunEngine
 		{
 			Material* pMaterial = renderData.MaterialOverride ? renderData.MaterialOverride : renderData.RenderNode->GetMaterial();
 
-			BaseShader* pShader = pMaterial->GetShaderVariant();
+			uint64 variantMask = renderData.BaseVariantMask;
+			if (isDepth)
+			{
+				variantMask &= ~ShaderVariant::GBUFFER;
+				variantMask |= ShaderVariant::DEPTH;
+			}
+
+			BaseShader* pShader = pMaterial->GetShader()->GetBaseVariant(variantMask);
 			GraphicsPipeline& pipeline = *renderData.Pipeline;
 
 			//pipeline.GetShader()->getgpu
@@ -589,40 +602,35 @@ namespace SunEngine
 		renderList.clear();
 	}
 
-	bool SceneRenderer::GetPipeline(RenderNodeData& data, bool& sorted)
+	bool SceneRenderer::GetPipeline(RenderNodeData& data, bool& sorted, bool isDepth, bool isShadow)
 	{
 		sorted = false;
 		PipelineSettings settings = {};
 		data.RenderNode->BuildPipelineSettings(settings);
 
-		Material* pMaterial = data.MaterialOverride ? data.MaterialOverride : data.RenderNode->GetMaterial();
-		BaseShader* pShader = pMaterial->GetShaderVariant();
+		uint64 variantMask = data.BaseVariantMask;
+		if (isDepth)
+		{
+			variantMask &= ~ShaderVariant::GBUFFER;
+			variantMask |= ShaderVariant::DEPTH;
+		}
 
-		auto variantPipeline = _shaderVariantPipelineMap.find(pMaterial->GetVariant());
-		if (variantPipeline != _shaderVariantPipelineMap.end())
-			ShaderMgr::Get().BuildPipelineSettings((*variantPipeline).second, settings);
+		BaseShader* pShader = data.RenderNode->GetMaterial()->GetShader()->GetBaseVariant(variantMask);
 
 		glm::vec4 diffuseColor;
-		Texture2D* pAlphaTex = pMaterial->GetTexture2D(MaterialStrings::AlphaMap);
-		if (pMaterial->GetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor) && diffuseColor.a < 1.0f)
+		if (!isDepth && data.RenderNode->GetMaterial()->GetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor) && diffuseColor.a < 1.0f)
 		{
 			settings.EnableAlphaBlend();
 			sorted = true;
 		}
-		else if (pAlphaTex && pAlphaTex->GetName() != DefaultResource::Texture::White)
+		else if (variantMask & ShaderVariant::ALPHA_TEST)
 		{
 			settings.rasterizer.cullMode = SE_CM_NONE; //TODO: should this be set somehow else
-			if (!StrContains(pMaterial->GetShader()->GetName(), "AlphaTest"))
-			{
-				sorted = true;
-				settings.EnableAlphaBlend();
-			}
-			else
-			{
-				//TODO: only do this if multi sampling is occuring in the renderer this frame?
-				settings.mulitSampleState.enableAlphaToCoverage = true;
-			}
+			settings.mulitSampleState.enableAlphaToCoverage = true; //TODO: only do this if multi sampling is occuring in the renderer this frame?
 		}
+
+		if (isShadow)
+			ShaderMgr::Get().BuildPipelineSettings(DefaultPipelines::ShadowDepth, settings);
 
 		for (uint i = 0; i < _graphicsPipelines.size(); i++)
 		{
@@ -658,8 +666,8 @@ namespace SunEngine
 	{
 		SkyModel* pSkyModel = _currentEnvironment->GetActiveSkyModel();
 		Material* pMaterial = pSkyModel->GetMaterial();
-		BaseShader* pShader = pMaterial->GetShaderVariant();
 		auto& pipeline = _helperPipelines.at(pMaterial->GetShader()->GetName());
+		BaseShader* pShader = pipeline.GetShader();
 		SkyModel::MeshType meshType = pSkyModel->GetMeshType();
 
 		Mesh* pMesh = 0;
@@ -700,9 +708,6 @@ namespace SunEngine
 
 	void SceneRenderer::RenderEnvironment(CommandBuffer* cmdBuffer)
 	{
-		BaseShader* pShader = 0;
-		ShaderBindings* pBindings = 0;
-
 		//Copy the texture containing the sky background to main framebuffer
 		RenderCommand(cmdBuffer, &_helperPipelines.at(HelperPipelines::SkyCopy), &_skyBindings);
 
@@ -725,6 +730,108 @@ namespace SunEngine
 		pShader->Unbind(cmdBuffer);
 	}
 
+	bool SceneRenderer::CreateDepthMaterial(Material* pMaterial, uint64 variantMask, Material* pEmptyMaterial) const
+	{
+		pEmptyMaterial->SetShader(pMaterial->GetShader());
+		if (!pEmptyMaterial->RegisterToGPU())
+			return false;
+
+		StrMap<ShaderProp>* depthVariantProps;
+		pMaterial->GetShader()->GetVariantProps(variantMask, &depthVariantProps);
+		for (auto& prop : *depthVariantProps)
+		{
+			switch (prop.second.Type)
+			{
+			case SPT_TEXTURE2D:
+				pEmptyMaterial->SetTexture2D(prop.first, pMaterial->GetTexture2D(prop.first));
+				break;
+			case SPT_SAMPLER:
+				pEmptyMaterial->SetSampler(prop.first, prop.second.pSampler);
+				break;
+			case SPT_FLOAT:
+			{
+				float val;
+				pMaterial->GetMaterialVar(prop.first, val);
+				pEmptyMaterial->SetMaterialVar(prop.first, val);
+			} break;
+			case SPT_FLOAT2:
+			{
+				glm::vec2 val;
+				pMaterial->GetMaterialVar(prop.first, val);
+				pEmptyMaterial->SetMaterialVar(prop.first, val);
+			} break;
+			case SPT_FLOAT3:
+			{
+				glm::vec3 val;
+				pMaterial->GetMaterialVar(prop.first, val);
+				pEmptyMaterial->SetMaterialVar(prop.first, val);
+			} break;
+			case SPT_FLOAT4:
+			{
+				glm::vec4 val;
+				pMaterial->GetMaterialVar(prop.first, val);
+				pEmptyMaterial->SetMaterialVar(prop.first, val);
+			} break;
+			default:
+				break;
+			}
+		}
+
+		return true;
+	}
+
+	uint64 SceneRenderer::CalculateDepthVariantHash(Material* pMaterial, uint64 variantMask) const
+	{
+		uint64 hash = variantMask;
+
+		StrMap<ShaderProp>* depthVariantProps;
+		pMaterial->GetShader()->GetVariantProps(variantMask, &depthVariantProps);
+		for (auto& prop : *depthVariantProps)
+		{
+			uint64 keyHash = std::hash<String>()(prop.first);
+			uint64 valHash = 0;
+			switch (prop.second.Type)
+			{
+			case SPT_TEXTURE2D:
+				valHash = (uint64)pMaterial->GetTexture2D(prop.first);
+				break;
+			case SPT_SAMPLER:
+				valHash = (uint64)prop.second.pSampler;
+				break;
+			case SPT_FLOAT:
+			{
+				float val;
+				pMaterial->GetMaterialVar(prop.first, val);
+				valHash = std::hash<float>()(val);
+			} break;
+			case SPT_FLOAT2:
+			{
+				glm::vec2 val;
+				pMaterial->GetMaterialVar(prop.first, val);
+				valHash = std::hash<glm::vec2>()(val);
+			} break;
+			case SPT_FLOAT3:
+			{
+				glm::vec3 val;
+				pMaterial->GetMaterialVar(prop.first, val);
+				valHash = std::hash<glm::vec3>()(val);
+			} break;
+			case SPT_FLOAT4:
+			{
+				glm::vec4 val;
+				pMaterial->GetMaterialVar(prop.first, val);
+				valHash = std::hash<glm::vec4>()(val);
+			} break;
+			default:
+				break;
+			}
+
+			hash += keyHash << 2;
+			hash += valHash >> 2;
+		}
+
+		return hash;
+	}
 
 	SceneRenderer::UniformBufferGroup::UniformBufferGroup()
 	{
@@ -810,4 +917,24 @@ namespace SunEngine
 			_current->ShaderBindings[pShader].SetUniformBuffer(_name, &_current->Buffer);
 		}
 	}
+
+	void SceneRenderer::RenderNodeData::ComputeVariants()
+	{
+		uint64 variantMask = 0;
+		if (RenderNode->GetNode()->GetComponentOfType(COMPONENT_SKINNED_MESH))
+			variantMask |= ShaderVariant::SKINNED;
+
+		Material* pMaterial = RenderNode->GetMaterial();
+		
+		Texture2D* pAlphaTex = pMaterial->GetTexture2D(MaterialStrings::AlphaMap);
+		if (pAlphaTex && !ResourceMgr::Get().IsDefaultTexture2D(pAlphaTex))
+			variantMask |= ShaderVariant::ALPHA_TEST;
+
+		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
+			BaseVariantMask = pMaterial->GetShader()->GetBaseVariant(variantMask | ShaderVariant::GBUFFER) ? (variantMask | ShaderVariant::GBUFFER) : variantMask;
+		else
+			BaseVariantMask = variantMask;
+	}
+
+
 }

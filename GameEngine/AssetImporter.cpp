@@ -648,16 +648,7 @@ namespace SunEngine
 		bool alphaTest = usedTextureTypes.find(aiTextureType_OPACITY) != usedTextureTypes.end();
 		//alphaTest = false; //TODO: enable this again? default to alpha blend
 
-		String strShader;
-		if (metallic)
-		{
-			strShader = alphaTest ? DefaultShaders::MetallicAlphaTest : DefaultShaders::Metallic;
-		}
-		else
-		{
-			strShader = alphaTest ? DefaultShaders::SpecularAlphaTest : DefaultShaders::Specular;
-		}
-
+		String strShader = metallic ? DefaultShaders::Metallic : DefaultShaders::Specular;
 		pDst->SetShader(ShaderMgr::Get().GetShader(strShader));
 		if (!pDst->RegisterToGPU())
 			return false;

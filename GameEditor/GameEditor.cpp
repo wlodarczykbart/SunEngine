@@ -73,7 +73,7 @@ namespace SunEngine
 		}
 
 		_view = new SceneView(&_sceneRenderer);
-		//_view->SetRenderToGraphicsWindow(true);
+		_view->SetRenderToGraphicsWindow(true);
 		if (!_view->Create(viewInfo))
 		{
 			spdlog::error("Failed to create {} RenderTarget: {}", _view->GetName().c_str(), _view->GetRenderTarget()->GetErrStr().c_str());
@@ -325,9 +325,9 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
-			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
-			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
+			//SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
+			//pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
+			//pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
 		int Slices = 0;
@@ -374,10 +374,10 @@ namespace SunEngine
 		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
 		//strAsset = "F:/Models/FBX/_PHONG_/Wooden_barrels__OBJ/Wooden_barrels.FBX";
 
-		//auto options = SunEngine::AssetImporter::Options::Default;
-		//options.MaxTextureSize = 1024;
-		//Asset* pAsset = ImportAsset(strAsset, options);
-		//pAsset->CreateSceneNode(pScene, 200.0f);
+		auto options = SunEngine::AssetImporter::Options::Default;
+		options.MaxTextureSize = 1024;
+		Asset* pAsset = ImportAsset(strAsset, options);
+		pAsset->CreateSceneNode(pScene, 600.0f);
 
 		return true;
 	}

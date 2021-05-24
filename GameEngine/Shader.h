@@ -35,13 +35,21 @@ namespace SunEngine
 		};
 	};
 
+	namespace ShaderVariant
+	{
+		enum
+		{
+			GBUFFER = 1 << 0,
+			DEPTH = 1 << 1,
+			ALPHA_TEST = 1 << 2,
+			SKINNED = 1 << 3,
+			ONE_Z = 1 << 4,
+		};
+	}
+
 	class Shader
 	{
 	public:
-		static const String Default;
-		static const String GBuffer;
-		static const String Depth;
-		static const String OneZ; //post processing shaders that want clip pos z set to 1 insted of 0(default)
 
 		Shader();
 		~Shader();
@@ -52,19 +60,18 @@ namespace SunEngine
 
 		void SetDefaults(Material* pMtl) const;
 
-		BaseShader* GetDefault() const;
-		BaseShader* GetVariant(const String& variant) const;
+		BaseShader* GetBase() const;
+		BaseShader* GetBaseVariant(uint64 variantMask) const;
 
 		bool GetConfigSection(const String& name, ConfigSection& section) const;
-		bool GetVariantProps(const String& name, StrMap<ShaderProp>& props) const;
-		bool GetVariantDefines(const String& name, Vector<String>& defines) const;
+		bool GetVariantProps(uint64 variantMask, StrMap<ShaderProp>** props) const;
+		//bool GetVariantDefines(uint64 variantMask, Vector<String>& defines) const;
 
 		const String& GetName() const { return _name; }
 
 		static void FillMatrices(const glm::mat4& view, const glm::mat4& proj, CameraBufferData& camData);
 
 	private:
-		void CollectConfigFiles(LinkedList<ConfigFile>& configList, HashSet<String>& configMap);
 		void SetDefaults();
 		void ParseSamplerAnisotropy(const String& str, FilterMode& fm, WrapMode& wm, AnisotropicMode& am) const;
 		void ParseFloats(const String& str, uint maxComponents, float* pData) const;
@@ -78,6 +85,6 @@ namespace SunEngine
 
 		String _name;
 		ConfigFile _config;
-		StrMap<UniquePtr<ShaderVariant>> _variants;
+		Map<uint64, UniquePtr<ShaderVariant>> _variants;
 	};
 }

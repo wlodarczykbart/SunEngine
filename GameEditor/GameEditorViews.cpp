@@ -467,7 +467,7 @@ namespace SunEngine
 
 	bool SceneView::CreateRenderPassData(const String& shader, RenderPassData& data, bool useOneZ)
 	{
-		BaseShader* pShader = ShaderMgr::Get().GetShader(shader)->GetVariant(useOneZ ? Shader::OneZ : Shader::Default);
+		BaseShader* pShader = !useOneZ ? ShaderMgr::Get().GetShader(shader)->GetBase() : ShaderMgr::Get().GetShader(shader)->GetBaseVariant(ShaderVariant::ONE_Z);
 		assert(pShader);
 
 		if (!pShader)

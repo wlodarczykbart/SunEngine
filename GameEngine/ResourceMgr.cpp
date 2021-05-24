@@ -102,6 +102,7 @@ namespace SunEngine
 		{
 			return false;
 		}
+		_defaultTextures2D.push_back(pDefaultTexture);
 
 		StrMap<glm::vec4> SolidColorDefaults =
 		{
@@ -121,9 +122,17 @@ namespace SunEngine
 			{
 				return false;
 			}
+			_defaultTextures2D.push_back(pTexture);
 		}
 
 		return true;
+	}
+
+	bool ResourceMgr::IsDefaultTexture2D(Texture2D* pTexture) const
+	{
+		for (auto tex : _defaultTextures2D)
+			if (pTexture == tex) return true;
+		return false;
 	}
 
 	Asset* ResourceMgr::AddAsset(const String& name)

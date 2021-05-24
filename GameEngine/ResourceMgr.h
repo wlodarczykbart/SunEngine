@@ -91,6 +91,7 @@ namespace SunEngine
 		Sampler* GetSampler(FilterMode filter, WrapMode wrap, BorderColor border);
 		Sampler* GetSampler(FilterMode filter, WrapMode wrap, AnisotropicMode anisotropy, BorderColor border);
 
+		bool IsDefaultTexture2D(Texture2D* pTexture) const;
 	private:
 		template<typename T>
 		T* AddResourceToMap(StrMap<UniquePtr<T>>& map, const String& name);
@@ -110,6 +111,8 @@ namespace SunEngine
 		StrMap<UniquePtr<TextureCube>> _textureCubes;
 
 		StrMap<UniquePtr<Sampler>> _samplers;
+
+		Vector<Texture2D*> _defaultTextures2D;
 
 	};
 }

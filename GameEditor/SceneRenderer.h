@@ -76,7 +76,8 @@ namespace SunEngine
 
 		struct RenderNodeData
 		{
-			SceneNode* SceneNode;
+			void ComputeVariants();
+
 			const RenderNode* RenderNode;
 			GraphicsPipeline* Pipeline;
 			UniformBufferData* ObjectBindings;
@@ -86,6 +87,7 @@ namespace SunEngine
 			UniformBufferData* SkinnedBoneBindings;
 			uint SkinnedBoneBufferIndex;
 
+			uint64 BaseVariantMask;
 			float SortingDistance;
 		};
 
@@ -98,12 +100,14 @@ namespace SunEngine
 		};
 
 		void ProcessRenderNode(RenderNode* pNode);
-		void ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex);
-		bool GetPipeline(RenderNodeData& node, bool& sorted);
+		void ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex, bool isDepth = false);
+		bool GetPipeline(RenderNodeData& node, bool& sorted, bool isDepth = false, bool isShadow = false);
 		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
 		void RenderSky(CommandBuffer* cmdBuffer);
 		void RenderEnvironment(CommandBuffer* cmdBuffer);
 		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6);
+		bool CreateDepthMaterial(Material* pMaterial, uint64 variantMask, Material* pEmptyMaterial) const;
+		uint64 CalculateDepthVariantHash(Material* pMaterial, uint64 variantMask) const;
 
 		bool _bInit;
 		UniformBufferGroup _cameraGroup;
@@ -124,7 +128,6 @@ namespace SunEngine
 		RenderTarget _depthTarget;
 		Vector<UniquePtr<DepthRenderData>> _depthPasses;
 
-		StrMap<String> _shaderVariantPipelineMap;
 		Vector<ShaderMat4> _skinnedBoneMatrixBlock;
 
 		StrMap<GraphicsPipeline> _helperPipelines;

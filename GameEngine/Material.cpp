@@ -1,11 +1,3 @@
-#include <functional>
-
-#ifndef GLM_ENABLE_EXPERIMENTAL
-#define GLM_ENABLE_EXPERIMENTAL
-#include "glm/gtx/hash.hpp"
-#undef GLM_ENABLE_EXPERIMENTAL
-#endif
-
 #include "Shader.h"
 #include "Texture2D.h"
 #include "ResourceMgr.h"
@@ -31,8 +23,8 @@ namespace SunEngine
 	Material::Material()
 	{
 		_shader = 0;
-		_depthVariantHash = 0;
-		_depthVariantDefineHash = 0;
+		//_depthVariantHash = 0;
+		//_depthVariantDefineHash = 0;
 	}
 
 	Material::~Material()
@@ -42,45 +34,19 @@ namespace SunEngine
 
 	void Material::SetShader(Shader* pShader)
 	{
-		String strVariant;
-
-		switch (EngineInfo::GetRenderer().RenderMode())
-		{
-		case EngineInfo::Renderer::Forward:
-			strVariant = Shader::Default;
-			break;
-		case EngineInfo::Renderer::Deferred:
-			strVariant = Shader::GBuffer;
-			break;
-		default:
-			strVariant = Shader::Default;
-			break;
-		}
-
-		if(!pShader->GetVariant(strVariant))
-			strVariant = Shader::Default;
-
-		SetShader(pShader, strVariant);
-	}
-
-	void Material::SetShader(Shader* pShader, const String& variant)
-	{
 		_shader = pShader;
-		_variant = variant;
+		//if (variant != Shader::Depth)
+		//{
+		//	pShader->GetVariantProps(Shader::Depth, _depthVariantProps);
 
-		_depthVariantProps.clear();
-		if (variant != Shader::Depth)
-		{
-			pShader->GetVariantProps(Shader::Depth, _depthVariantProps);
-
-			String strHash;
-			Vector<String> defines;
-			pShader->GetVariantDefines(Shader::Depth, defines);
-			for (const String& def : defines)
-				strHash += def;
-			_depthVariantDefineHash = std::hash<String>()(strHash);
-			UpdateDepthVariantHash();
-		}
+		//	String strHash;
+		//	Vector<String> defines;
+		//	pShader->GetVariantDefines(Shader::Depth, defines);
+		//	for (const String& def : defines)
+		//		strHash += def;
+		//	_depthVariantDefineHash = std::hash<String>()(strHash);
+		//	UpdateDepthVariantHash();
+		//}
 	}
 
 	bool Material::SetMaterialVar(const String& name, const void* pData, uint size)
@@ -172,7 +138,7 @@ namespace SunEngine
 		if (!_gpuObject.Destroy())
 			return false;
 
-		BaseShader* pVariant = _shader->GetVariant(_variant);
+		BaseShader* pVariant = _shader->GetBase();
 
 		ShaderBindings::CreateInfo info = {};
 		info.pShader = pVariant;
@@ -254,18 +220,12 @@ namespace SunEngine
 		return true;
 	}
 
-	BaseShader* Material::GetShaderVariant() const
-	{
-		return _shader ? _shader->GetVariant(_variant) : 0;
-	}
-
 	bool Material::Write(StreamBase& stream)
 	{
 		if (!GPUResource::Write(stream))
 			return false;
 
 		if (!stream.Write(_shader)) return false;
-		if (!stream.Write(_variant)) return false;
 		if (!_memBuffer.Write(stream)) return false;
 		if (!stream.WriteSimple(_mtlVariables)) return false;
 		if (!stream.WriteSimple(_mtlTextures2D)) return false;
@@ -281,7 +241,6 @@ namespace SunEngine
 			return false;
 
 		if (!stream.Read(_shader)) return false;
-		if (!stream.Read(_variant)) return false;
 		if (!_memBuffer.Read(stream)) return false;
 		if (!stream.ReadSimple(_mtlVariables)) return false;
 		if (!stream.ReadSimple(_mtlTextures2D)) return false;
@@ -289,87 +248,5 @@ namespace SunEngine
 		if (!stream.ReadSimple(_mtlSamplers)) return false;
 
 		return true;
-	}
-
-	bool Material::CreateDepthMaterial(Material* pEmptyMaterial) const
-	{
-		pEmptyMaterial->SetShader(_shader, Shader::Depth);
-		if (!pEmptyMaterial->RegisterToGPU())
-			return false;
-
-		for (auto& prop : _depthVariantProps)
-		{
-			switch (prop.second.Type)
-			{
-			case SPT_TEXTURE2D:
-				pEmptyMaterial->SetTexture2D(prop.first, prop.second.pTexture2D);
-				break;
-			case SPT_SAMPLER:
-				pEmptyMaterial->SetSampler(prop.first, prop.second.pSampler);
-				break;
-			case SPT_FLOAT:
-				pEmptyMaterial->SetMaterialVar(prop.first, prop.second.float1);
-				break;
-			case SPT_FLOAT2:
-				pEmptyMaterial->SetMaterialVar(prop.first, prop.second.float2);
-				break;
-			case SPT_FLOAT3:
-				pEmptyMaterial->SetMaterialVar(prop.first, prop.second.float3);
-				break;
-			case SPT_FLOAT4:
-				pEmptyMaterial->SetMaterialVar(prop.first, prop.second.float4);
-				break;
-			default:
-				break;
-			}
-		}
-
-		return true;
-	}
-
-	void Material::UpdateDepthVariant(const String& name, const ShaderProp& prop)
-	{
-		auto found = _depthVariantProps.find(name);
-		if (found != _depthVariantProps.end())
-		{
-			(*found).second = prop;
-			UpdateDepthVariantHash();
-		}
-	}
-
-	void Material::UpdateDepthVariantHash()
-	{
-		_depthVariantHash = _depthVariantDefineHash;
-		for (auto& prop : _depthVariantProps)
-		{
-			usize keyHash = std::hash<String>()(prop.first);
-			usize valHash = 0;
-			switch (prop.second.Type)
-			{
-			case SPT_TEXTURE2D:
-				valHash = (usize)prop.second.pTexture2D;
-				break;
-			case SPT_SAMPLER:
-				valHash = (usize)prop.second.pSampler;
-				break;
-			case SPT_FLOAT:
-				valHash = std::hash<float>()(prop.second.float1);
-				break;
-			case SPT_FLOAT2:
-				valHash = std::hash<glm::vec2>()(prop.second.float2);
-				break;
-			case SPT_FLOAT3:
-				valHash = std::hash<glm::vec3>()(prop.second.float3);
-				break;
-			case SPT_FLOAT4:
-				valHash = std::hash<glm::vec4>()(prop.second.float4);
-				break;
-			default:
-				break;
-			}
-
-			_depthVariantHash += keyHash << 2;
-			_depthVariantHash += valHash >> 2;
-		}
 	}
 }
