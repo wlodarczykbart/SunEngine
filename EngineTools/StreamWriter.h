@@ -26,6 +26,7 @@ namespace SunEngine
 		bool Write(const unsigned long buffer);
 		bool Write(const String& buffer);
 		bool Write(const void* pBuffer);
+		bool Write(const uint64 buffer);
 		
 		template<typename K, typename V>
 		bool WriteSimple(const Map<K, V>& map)

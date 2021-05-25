@@ -17,8 +17,10 @@ namespace SunEngine
 		_dsv = 0;
 		_width = 0;
 		_height = 0;
+		_viewport = {};
 
-
+		for (uint i = 0; i < MAX_SUPPORTED_RENDER_TARGETS; i++)
+			_rtv[i] = 0;
 	}
 
 

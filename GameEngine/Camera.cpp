@@ -1,5 +1,6 @@
 #include "SceneNode.h"
 #include "Scene.h"
+#include "FilePathMgr.h"
 #include "Camera.h"
 
 namespace SunEngine

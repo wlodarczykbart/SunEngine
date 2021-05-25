@@ -82,7 +82,7 @@ namespace SunEngine
 		_viewMtx = glm::mat4(1.0f);
 
 		_nearZ = 0.1f;
-		_farZ = 500.0f;
+		_farZ = 1000.0f;
 		_aspectRatio = 1.0f;
 		_fovAngle = 45.0f;
 		_projMtx = glm::mat4(1.0f);
@@ -146,7 +146,7 @@ namespace SunEngine
 		}
 
 		_nearZ = 0.1f;
-		_farZ = 500.0f;
+		_farZ = 1000.0f;
 		_aspectRatio = (float)_target.Width() / _target.Height();
 		_fovAngle = 45.0f;
 		_projMtx = glm::perspective(glm::radians(_fovAngle), _aspectRatio, _nearZ, _farZ);

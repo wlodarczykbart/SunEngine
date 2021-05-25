@@ -75,6 +75,11 @@ namespace SunEngine
 		return Read(&buffer, sizeof(unsigned long));
 	}
 
+	bool StreamReader::Read(uint64& buffer)
+	{
+		return Read(&buffer, sizeof(uint64));
+	}
+
 	bool StreamReader::Read(String & buffer)
 	{
 		uint len;

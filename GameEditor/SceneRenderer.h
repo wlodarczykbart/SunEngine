@@ -100,9 +100,9 @@ namespace SunEngine
 		};
 
 		void ProcessRenderNode(RenderNode* pNode);
-		void ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex, bool isDepth = false);
+		void ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex = 0, bool isDepth = false);
 		bool GetPipeline(RenderNodeData& node, bool& sorted, bool isDepth = false, bool isShadow = false);
-		void TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
+		bool TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
 		void RenderSky(CommandBuffer* cmdBuffer);
 		void RenderEnvironment(CommandBuffer* cmdBuffer);
 		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6);
@@ -110,8 +110,7 @@ namespace SunEngine
 		uint64 CalculateDepthVariantHash(Material* pMaterial, uint64 variantMask) const;
 
 		bool _bInit;
-		UniformBufferGroup _cameraGroup;
-		UniformBufferData* _cameraBuffer;
+		UniquePtr<UniformBufferData> _cameraBuffer;
 		UniquePtr<UniformBufferData> _environmentBuffer;
 		UniquePtr<UniformBufferData> _shadowMatrixBuffer;
 		Vector<UniquePtr<GraphicsPipeline>> _graphicsPipelines;

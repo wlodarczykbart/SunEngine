@@ -119,7 +119,7 @@ namespace SunEngine
 
 	uint D3D11UniformBuffer::GetAlignedSize() const
 	{
-		return _size <= CONST_BUFFER_MIN_ALIGNMENT ? CONST_BUFFER_MIN_ALIGNMENT : (_size / CONST_BUFFER_MIN_ALIGNMENT) * CONST_BUFFER_MIN_ALIGNMENT;
+		return _size <= CONST_BUFFER_MIN_ALIGNMENT ? CONST_BUFFER_MIN_ALIGNMENT : (uint)ceilf((float)(_size) / CONST_BUFFER_MIN_ALIGNMENT) * CONST_BUFFER_MIN_ALIGNMENT;
 	}
 
 	uint D3D11UniformBuffer::GetMaxSharedUpdates() const

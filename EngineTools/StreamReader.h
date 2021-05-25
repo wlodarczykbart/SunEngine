@@ -26,6 +26,7 @@ namespace SunEngine
 		bool Read(long &buffer);
 		bool Read(unsigned long &buffer);
 		bool Read(String& buffer);
+		bool Read(uint64& buffer);
 
 		template<typename T>
 		bool Read(T*& buffer)

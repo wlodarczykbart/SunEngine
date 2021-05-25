@@ -377,7 +377,7 @@ namespace SunEngine
 		auto options = SunEngine::AssetImporter::Options::Default;
 		options.MaxTextureSize = 1024;
 		Asset* pAsset = ImportAsset(strAsset, options);
-		pAsset->CreateSceneNode(pScene, 600.0f);
+		pAsset->CreateSceneNode(pScene, 0.0f);
 
 		return true;
 	}

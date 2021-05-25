@@ -90,4 +90,9 @@ namespace SunEngine
 	{
 		return Write(&pBuffer, sizeof(void*));
 	}
+
+	bool StreamWriter::Write(const uint64 buffer)
+	{
+		return Write(&buffer, sizeof(uint64));
+	}
 }

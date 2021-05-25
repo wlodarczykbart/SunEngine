@@ -46,7 +46,7 @@ namespace SunEngine
 		~Material();
 
 		//Set shader and let the engine determine what variant to use depending on rendering mode, which should only var between application runs
-		void SetShader(Shader* pShader);
+		void SetShader(Shader* pShader, uint64 variantMask = 0);
 		Shader* GetShader() const { return _shader; }
 
 		template<typename T>
@@ -88,6 +88,7 @@ namespace SunEngine
 		};
 
 		Shader* _shader;
+		uint64 _variantMask;
 		MemBuffer _memBuffer;
 		StrMap<ShaderBufferVariable> _mtlVariables;
 		StrMap<MaterialTextureData> _mtlTextures2D;

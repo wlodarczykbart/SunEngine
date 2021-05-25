@@ -31,9 +31,6 @@ namespace SunEngine
 			uint MaxShadowCascadeSplits() const { return _maxShadowCascadeSplits; }
 
 			bool ShadowsEnabled() const { return _shadowsEnabled; }
-
-			const glm::mat4& ProjectionCorrection() const { return _projectionCorrection; }
-
 			MSAAMode GetMSAAMode() const { return _msaaMode; }
 
 		private:
@@ -45,7 +42,6 @@ namespace SunEngine
 			void Init(ConfigFile* pConfig);
 
 			GraphicsAPI _api;
-			glm::mat4 _projectionCorrection;
 			ERenderMode _renderMode;
 			uint _maxSkinnedBoneMatrices;
 			uint _maxTextureTransforms;

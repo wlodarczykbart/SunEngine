@@ -23,8 +23,7 @@ namespace SunEngine
 	Material::Material()
 	{
 		_shader = 0;
-		//_depthVariantHash = 0;
-		//_depthVariantDefineHash = 0;
+		_variantMask = 0;
 	}
 
 	Material::~Material()
@@ -32,21 +31,10 @@ namespace SunEngine
 
 	}
 
-	void Material::SetShader(Shader* pShader)
+	void Material::SetShader(Shader* pShader, uint64 variantMask)
 	{
 		_shader = pShader;
-		//if (variant != Shader::Depth)
-		//{
-		//	pShader->GetVariantProps(Shader::Depth, _depthVariantProps);
-
-		//	String strHash;
-		//	Vector<String> defines;
-		//	pShader->GetVariantDefines(Shader::Depth, defines);
-		//	for (const String& def : defines)
-		//		strHash += def;
-		//	_depthVariantDefineHash = std::hash<String>()(strHash);
-		//	UpdateDepthVariantHash();
-		//}
+		_variantMask = variantMask;
 	}
 
 	bool Material::SetMaterialVar(const String& name, const void* pData, uint size)
@@ -138,7 +126,7 @@ namespace SunEngine
 		if (!_gpuObject.Destroy())
 			return false;
 
-		BaseShader* pVariant = _shader->GetBase();
+		BaseShader* pVariant = _shader->GetBaseVariant(_variantMask);
 
 		ShaderBindings::CreateInfo info = {};
 		info.pShader = pVariant;
@@ -226,6 +214,7 @@ namespace SunEngine
 			return false;
 
 		if (!stream.Write(_shader)) return false;
+		if (!stream.Write(_variantMask)) return false;
 		if (!_memBuffer.Write(stream)) return false;
 		if (!stream.WriteSimple(_mtlVariables)) return false;
 		if (!stream.WriteSimple(_mtlTextures2D)) return false;
@@ -241,6 +230,7 @@ namespace SunEngine
 			return false;
 
 		if (!stream.Read(_shader)) return false;
+		if (!stream.Read(_variantMask)) return false;
 		if (!_memBuffer.Read(stream)) return false;
 		if (!stream.ReadSimple(_mtlVariables)) return false;
 		if (!stream.ReadSimple(_mtlTextures2D)) return false;
