@@ -36,7 +36,7 @@ namespace SunEngine
 		GUIRenderer& operator = (const GUIRenderer&) = delete;
 		virtual ~GUIRenderer();
 
-		bool Init(Editor* pEditor, GraphicsWindow* pWindow);
+		bool Init(Editor* pEditor);
 		void Update(const GWEventData* pEvents, uint numEvents);
 		void Render(CommandBuffer* cmdBuffer);
 
@@ -65,11 +65,10 @@ namespace SunEngine
 		void RenderViews();
 
 		Editor* _pEditor;
-		GraphicsWindow* _pWindow;
 		bool _bIsFocused;
 
 		BaseShader _shader;
-		BaseMesh _mesh;
+		Vector<UniquePtr<BaseMesh>> _meshes;
 		Vector<GUIVertex> _vertices;
 		Vector<uint> _indices;
 		GraphicsPipeline _pipeline;

@@ -51,7 +51,7 @@ namespace SunEngine
 
 			struct
 			{
-				bool showRendererSettings;
+				bool showRendererInfo;
 				bool showEnvironments;
 			} gui;
 		};

@@ -59,7 +59,6 @@ namespace SunEngine
 	GUIRenderer::GUIRenderer()
 	{
 		_pEditor = 0;
-		_pWindow = 0;
 		_bIsFocused = false;
 	}
 
@@ -67,14 +66,12 @@ namespace SunEngine
 	{
 	}
 
-	bool GUIRenderer::Init(Editor* pEditor, GraphicsWindow* pWindow)
+	bool GUIRenderer::Init(Editor* pEditor)
 	{
-
-		if (!pWindow || !pEditor)
+		if (pEditor == 0)
 			return false;
 
 		_pEditor = pEditor;
-		_pWindow = pWindow;
 
 		// Setup Dear ImGui context
 		IMGUI_CHECKVERSION();
@@ -158,7 +155,7 @@ namespace SunEngine
 		io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
 		io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
 		io.BackendPlatformName = "GraphicsWindow";
-		io.ImeWindowHandle = _pWindow->Handle();
+		io.ImeWindowHandle = _pEditor->GetGraphicsWindow()->Handle();
 
 		// Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array that we will update during the application lifetime.
 		io.KeyMap[ImGuiKey_Tab] = VK_TAB;
@@ -197,8 +194,9 @@ namespace SunEngine
 		_vertices.resize(10000);
 		_indices.resize(30000);
 
-		float ww = (float)_pWindow->Width();
-		float wh = (float)_pWindow->Height();
+		auto pWindow = _pEditor->GetGraphicsWindow();
+		float ww = (float)pWindow->Width();
+		float wh = (float)pWindow->Height();
 
 		_vertices[0].Set(ww * 0.25f, wh * 0.75f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 		_vertices[1].Set(ww * 0.75f, wh * 0.75f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
@@ -221,8 +219,14 @@ namespace SunEngine
 		meshInfo.numIndices = _indices.size();
 		meshInfo.pIndices = _indices.data();
 		meshInfo.vertexStride = sizeof(GUIVertex);
-		if (!_mesh.Create(meshInfo))
-			return false;
+
+		for(uint i = 0; i < _pEditor->GetSurface()->GetBackBufferCount(); i++)
+		{
+			auto pMesh = new BaseMesh();
+			if (!pMesh->Create(meshInfo))
+				return false;
+			_meshes.push_back(UniquePtr<BaseMesh>(pMesh));
+		}
 
 		unsigned char* pixels;
 		int width, height;
@@ -354,9 +358,11 @@ namespace SunEngine
 
 		IM_ASSERT(io.Fonts->IsBuilt() && "Font atlas not built! It is generally built by the renderer backend. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame().");
 
+		auto pWindow = _pEditor->GetGraphicsWindow();
+
 		// Setup display size (every frame to accommodate for window resizing) 
 		//BART: window w/h members not updating after window resize currently
-		io.DisplaySize = { (float)_pWindow->Width(), (float)_pWindow->Height() };
+		io.DisplaySize = { (float)pWindow->Width(), (float)pWindow->Height() };
 
 		// Setup time step
 		io.DeltaTime = 1.0f / 60.0f;//BART: hardcoded 60fps /*(float)(current_time - g_Time) / g_TicksPerSecond;*/
@@ -382,7 +388,7 @@ namespace SunEngine
 		if (_bIsFocused)
 		{
 			int x, y;
-			_pWindow->GetMousePosition(x, y);
+			pWindow->GetMousePosition(x, y);
 			io.MousePos = ImVec2((float)x, (float)y);
 		}
 
@@ -461,8 +467,9 @@ namespace SunEngine
 			}
 		}
 
-		_mesh.UpdateVertices(_vertices.data(), draw_data->TotalVtxCount * sizeof(GUIVertex));
-		_mesh.UpdateIndices(_indices.data(), draw_data->TotalIdxCount);
+		auto mesh = _meshes[_pEditor->GetSurface()->GetFrameIndex()].get();
+		mesh->UpdateVertices(_vertices.data(), draw_data->TotalVtxCount * sizeof(GUIVertex));
+		mesh->UpdateIndices(_indices.data(), draw_data->TotalIdxCount);
 #endif
 
 		// Setup orthographic projection matrix into our constant buffer
@@ -492,7 +499,7 @@ namespace SunEngine
 
 		// Setup desired Graphics State
 		_shader.Bind(cmdBuffer);
-		_mesh.Bind(cmdBuffer);
+		mesh->Bind(cmdBuffer);
 		_pipeline.Bind(cmdBuffer);
 		_matrixBinding.Bind(cmdBuffer);
 
@@ -547,10 +554,11 @@ namespace SunEngine
 		_textureBindings.at(nullptr)->Bind(cmdBuffer);
 		_matrixBinding.Unbind(cmdBuffer);
 		_pipeline.Unbind(cmdBuffer);
-		_mesh.Unbind(cmdBuffer);
+		mesh->Unbind(cmdBuffer);
 		_shader.Unbind(cmdBuffer);
 
-		cmdBuffer->SetScissor(0.0f, 0.0f, (float)_pWindow->Width(), (float)_pWindow->Height());
+		auto pWindow = _pEditor->GetGraphicsWindow();
+		cmdBuffer->SetScissor(0.0f, 0.0f, (float)pWindow->Width(), (float)pWindow->Height());
 	}
 
 	void GUIRenderer::RenderViews()

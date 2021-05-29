@@ -387,7 +387,7 @@ namespace SunEngine
 	{
 		SceneView* pView = static_cast<SceneView*>(pBaseView);
 		auto& settings = pView->GetSettings();
-		if (ImGui::MenuItem("Renderer Settings")) settings.gui.showRendererSettings = true;
+		if (ImGui::MenuItem("RendererInfo")) settings.gui.showRendererInfo = true;
 		if (ImGui::MenuItem("Environments")) settings.gui.showEnvironments = true;
 	}
 
@@ -398,8 +398,8 @@ namespace SunEngine
 
 		Scene* pScene = SceneMgr::Get().GetActiveScene();
 
-		bool& showRendererSettings = settings.gui.showRendererSettings;
-		if (showRendererSettings && ImGui::Begin("RendererSettings", &showRendererSettings))
+		bool& showRendererInfo = settings.gui.showRendererInfo;
+		if (showRendererInfo && ImGui::Begin("RendererInfo", &showRendererInfo))
 		{
 			if (ImGui::TreeNode("FXAA"))
 			{
@@ -414,6 +414,13 @@ namespace SunEngine
 			{
 				ImGui::Checkbox("Enabled", &settings.msaa.enabled);
 				ImGui::TreePop();
+			}
+
+			if (ImGui::TreeNode("Timing"))
+			{
+				ImGui::Text("FrameTick: %fms", pEditor->GetFrameTick() * 1000.0);
+				ImGui::Text("UpdateTick: %fms", pEditor->GetUpdateTick() * 1000.0);
+				ImGui::Text("RenderTick: %fms", pEditor->GetRenderTick() * 1000.0);
 			}
 
 			ImGui::End();

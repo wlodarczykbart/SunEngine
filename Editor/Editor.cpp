@@ -2,6 +2,7 @@
 #include "FileBase.h"
 #include "ShaderCompiler.h"
 #include "CommandBuffer.h"
+#include "Timer.h"
 #include "IDevice.h"
 
 #include "spdlog/spdlog.h"
@@ -60,6 +61,8 @@ namespace SunEngine
 	{
 		_bInitialized = false;
 		_bHasFocus = false;
+		_updateTick = 0.0;
+		_renderTick = 0.0;
 	}
 
 	Editor::~Editor()
@@ -144,7 +147,7 @@ namespace SunEngine
 		}
 
 		_guiRenderer = UniquePtr<GUIRenderer>(pGUI);
-		if (!_guiRenderer->Init(this, &_graphicsWindow))
+		if (!_guiRenderer->Init(this))
 		{
 			spdlog::error("Failed to init GUIRenderer");
 			return false;
@@ -169,7 +172,7 @@ namespace SunEngine
 			}
 		}
 
-		spdlog::info("Editor initialization succesfull");
+		spdlog::info("Editor initialization succesful");
 		_bInitialized = true;
 		return true;
 	}
@@ -182,11 +185,15 @@ namespace SunEngine
 		_graphicsWindow.Open();
 
 		uint frameNumber = 0;
+
+		Timer timer(true);
 		while (_graphicsWindow.IsAlive())
 		{
 			Update();
+			_updateTick = timer.Tick();
 			Render();
 			GraphicsContext::GetDevice()->SetFrameNumber(++frameNumber);
+			_renderTick= timer.Tick();
 		}
 
 		GraphicsContext::GetDevice()->WaitIdle();

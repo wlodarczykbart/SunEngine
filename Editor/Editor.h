@@ -24,6 +24,13 @@ namespace SunEngine
 		uint GetViews(Vector<View*>& views) const;
 		String GetPathFromConfig(const String& key) const;
 		bool SelectFile(String& file, const String& fileTypeDescription, const String& fileTypeFilter) const;
+
+		double GetUpdateTick() const { return _updateTick; }
+		double GetRenderTick() const { return _renderTick; }
+		double GetFrameTick() const { return _updateTick + _renderTick; }
+
+		const Surface* GetSurface() const { return &_graphicsSurface; }
+		const GraphicsWindow* GetGraphicsWindow() const { return &_graphicsWindow; }
 	protected:
 
 		virtual bool CustomParseConfig(ConfigFile* pConfig) = 0;
@@ -53,5 +60,8 @@ namespace SunEngine
 		BaseShader _shader;
 		GraphicsPipeline _pipeline;
 		ShaderBindings _bindings;
+
+		double _updateTick;
+		double _renderTick;
 	};
 }

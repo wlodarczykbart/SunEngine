@@ -108,7 +108,7 @@ namespace SunEngine
 		GameEditorGUI* gui = new GameEditorGUI();
 		gui->RegisterSceneView(_view);
 		*ppOutGUI = gui;
-		spdlog::info("GameEditor initialization succesfull");
+		spdlog::info("GameEditor initialization succesful");
 		return true;
 	}
 

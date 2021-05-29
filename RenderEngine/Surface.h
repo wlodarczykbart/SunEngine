@@ -22,6 +22,8 @@ namespace SunEngine
 		bool EndFrame();
 
 		CommandBuffer* GetCommandBuffer() const;
+		uint GetBackBufferCount() const;
+		uint GetFrameIndex() const;
 
 	protected:
 		virtual bool DerivedCreate() { return true; }

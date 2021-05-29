@@ -91,4 +91,14 @@ namespace SunEngine
 		return _cmdBuffers[_frameIndex];
 	}
 
+	uint Surface::GetBackBufferCount() const
+	{
+		return _iSurface->GetBackBufferCount();
+	}
+
+	uint Surface::GetFrameIndex() const
+	{
+		return _frameIndex;
+	}
+
 }
