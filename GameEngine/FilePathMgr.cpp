@@ -68,6 +68,15 @@ namespace SunEngine
 		String strAPI = configSection->GetString("API", "vulkan");
 		String strRenderMode = configSection->GetString("RenderMode", "forward");
 
+		if (strAPI == "vulkan")
+		{
+			_api = SE_GFX_VULKAN;
+		}
+		else if (strAPI == "d3d11")
+		{
+			_api = SE_GFX_D3D11;
+		}
+
 		if (strRenderMode == "forward")
 			_renderMode = Forward;
 		else if (strRenderMode == "deferred")
@@ -79,7 +88,7 @@ namespace SunEngine
 		
 		_maxSkinnedBoneMatrices = configSection->GetInt("MaxSkinnedBoneMatrices", 128);
 		_maxTextureTransforms = configSection->GetInt("MaxTextureTransforms", 32);
-		_maxShadowCascadeSplits = configSection->GetInt("MaxShadowCascadeSplits", 1);
+		_maxShadowCascadeSplits = configSection->GetInt("MaxShadowCascadeSplits", 4);
 
 		_shadowsEnabled = configSection->GetBool("Shadows", true);
 

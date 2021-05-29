@@ -1,6 +1,4 @@
 #include <spdlog/spdlog.h>
-#include "glm/gtc/random.hpp"
-
 #include "FileReader.h"
 #include "Light.h"
 #include "MeshRenderer.h"
@@ -68,12 +66,12 @@ namespace SunEngine
 		{
 			viewInfo.width = pWindow->Width() / 2;
 			viewInfo.height = pWindow->Height() / 2;
-			viewInfo.visibile = true;
+			viewInfo.visible = true;
 			viewInfo.floatingPointColorBuffer = false;
 		}
 
 		_view = new SceneView(&_sceneRenderer);
-		_view->SetRenderToGraphicsWindow(true);
+		//_view->SetRenderToGraphicsWindow(true);
 		if (!_view->Create(viewInfo))
 		{
 			spdlog::error("Failed to create {} RenderTarget: {}", _view->GetName().c_str(), _view->GetRenderTarget()->GetErrStr().c_str());
@@ -97,6 +95,15 @@ namespace SunEngine
 			spdlog::error("Failed to init SceneRenderer");
 			return false;
 		}
+
+		auto pShadowView = new ShadowMapView(&_sceneRenderer);
+		View::CreateInfo shadowViewInfo = {};
+		shadowViewInfo.floatingPointColorBuffer = false;
+		shadowViewInfo.visible = true;
+		shadowViewInfo.height = 256;
+		shadowViewInfo.width = 256;
+		pShadowView->Create(shadowViewInfo);
+		AddView(pShadowView);
 
 		GameEditorGUI* gui = new GameEditorGUI();
 		gui->RegisterSceneView(_view);
@@ -122,10 +129,7 @@ namespace SunEngine
 	{
 		Scene* pScene = SceneMgr::Get().GetActiveScene();
 		for (SceneNode* node : TEST_NODES)
-		{
 			node->Orientation.Angles.y += 5.0f;
-
-		}
 
 		static Timer timer(true);
 
@@ -297,9 +301,9 @@ namespace SunEngine
 			pRenderer->SetMaterial(resMgr.Clone(pMetalMaterial));
 			pRenderer->GetMaterial()->RegisterToGPU();
 			
-			SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(2.0f, 0.5f, 1.0f);
-			pSceneNode->Orientation.Angles = glm::vec3(65, 55, -125);
+			//SceneNode* pSceneNode = pAssetStandard->CreateSceneNode(pScene);
+			//pSceneNode->Position = glm::vec3(3.0f, 1.0f, 3.0f);
+			//pSceneNode->Orientation.Angles = glm::vec3(144, 223, 298);
 		}
 
 		Asset* pAssetBlinnPhong = resMgr.AddAsset("AssetBlinnPhong");
@@ -310,8 +314,8 @@ namespace SunEngine
 			pRenderer->SetMaterial(resMgr.Clone(pSpecularMaterial));
 			pRenderer->GetMaterial()->RegisterToGPU();
 
-			SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
+			//SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
+			//pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
 			//pSceneNode->Scale = glm::vec3(30, 0.01f, 30.0f);
 		}
 
@@ -325,12 +329,12 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
-			//SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			//pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
-			//pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
+			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
+			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
+			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
-		int Slices = 0;
+		int Slices = 4*1;
 		float Offset = 3.0f;
 		float ZStart = -(Slices * Slices * 2.0f);
 		float XStart = -(Slices * Slices * 0.5f);
@@ -341,16 +345,13 @@ namespace SunEngine
 		{
 			for (int j = 0; j < Slices; j++)
 			{
-				for (int k = 0; k < Slices; k++)
-				{
-					SceneNode* pCubeSceneNode = pAssetStandard->CreateSceneNode(pScene);
-					pCubeSceneNode->Position = glm::vec3(i * Offset - halfOffset, j * Offset - halfOffset, k * Offset - halfOffset);
-					//pCubeSceneNode->Position.z += ZStart;
-					//pCubeSceneNode->Position.x += XStart;
-					pCubeSceneNode->Scale = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
-					pCubeSceneNode->Orientation.Angles = glm::linearRand(glm::vec3(0.0f), glm::vec3(360.0f));
-					TEST_NODES.push_back(pCubeSceneNode);
-				}
+				SceneNode* pCubeSceneNode = pAssetStandard->CreateSceneNode(pScene);
+				pCubeSceneNode->Position = glm::vec3(i * Offset - halfOffset, 1.0f, j * Offset - halfOffset);
+				//pCubeSceneNode->Position.z += ZStart;
+				//pCubeSceneNode->Position.x += XStart;
+				//pCubeSceneNode->Scale = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
+				pCubeSceneNode->Orientation.Angles = glm::linearRand(glm::vec3(0.0f), glm::vec3(360.0f));
+				TEST_NODES.push_back(pCubeSceneNode);
 			}
 		}
 
@@ -377,7 +378,7 @@ namespace SunEngine
 		auto options = SunEngine::AssetImporter::Options::Default;
 		options.MaxTextureSize = 1024;
 		Asset* pAsset = ImportAsset(strAsset, options);
-		pAsset->CreateSceneNode(pScene, 0.0f);
+		pAsset->CreateSceneNode(pScene, _view->GetFarZ() - _view->GetNearZ());
 
 		return true;
 	}

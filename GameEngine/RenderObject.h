@@ -2,7 +2,6 @@
 
 #include "AssetNode.h"
 #include "PipelineSettings.h"
-#include "BoundingVolumes.h"
 
 #define DRAW_INDEXED(pRenderNode) pNode->GetIndexCount(), pNode->GetInstanceCount(), pNode->GetFirstIndex(), pNode->GetVertexOffset(), 0
 

@@ -15,6 +15,8 @@ namespace SunEngine
 	class VulkanDevice : public IDevice
 	{
 	public:
+		static const uint BUFFERED_FRAME_COUNT = 2; //ideally this should be >= the number of swap chain images
+
 		VulkanDevice();
 		~VulkanDevice();
 
@@ -82,6 +84,8 @@ namespace SunEngine
 
 		bool ContainsInstanceExtension(const char* extensionName) const;
 		bool ContainsDeviceExtension(const char* extensionName) const;
+
+		uint GetBufferedFrameNumber() const;
 
 	private:
 		static VkBool32 VKAPI_PTR DebugCallback(

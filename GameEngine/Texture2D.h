@@ -3,7 +3,6 @@
 #include "BaseTexture.h"
 #include "GPUResource.h"
 #include "Image.h"
-#include "glm/glm.hpp"
 
 namespace SunEngine
 {

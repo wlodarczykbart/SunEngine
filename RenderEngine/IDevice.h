@@ -17,6 +17,11 @@ namespace SunEngine
 		virtual bool WaitIdle() = 0;
 
 		static IDevice * Allocate(GraphicsAPI api);
+
+		void SetFrameNumber(uint frameNumber);
+		uint GetFrameNumber() const;
+	private:
+		uint _frameNumber;
 	};
 
 }

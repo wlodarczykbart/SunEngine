@@ -1,7 +1,23 @@
 #pragma once
 
-#include "Types.h"
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/glm.hpp"
+#include "glm/matrix.hpp"
+#include "glm/gtx/quaternion.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtx/matrix_decompose.hpp"
+#include "glm/gtx/euler_angles.hpp"
+#include "glm/gtc/constants.hpp"
+#include "glm/gtc/random.hpp"
+
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLM_ENABLE_EXPERIMENTAL
+#include "glm/gtx/hash.hpp"
+#undef GLM_ENABLE_EXPERIMENTAL
+#endif
+
+#include "Types.h"
 
 #define RAY_TRI_TOL 0.0001f
 #define RAY_PLANE_TOL 0.0001f
@@ -107,6 +123,14 @@ namespace SunEngine
 				rhs.Min.x >= Min.x && rhs.Max.x <= Max.x &&
 				rhs.Min.y >= Min.y && rhs.Max.y <= Max.y &&
 				rhs.Min.z >= Min.z && rhs.Max.z <= Max.z;
+		}
+
+		bool Intersects(const AABB& rhs) const
+		{
+			return !(
+				rhs.Min.x > Max.x || rhs.Max.x < Min.x ||
+				rhs.Min.y > Max.y || rhs.Max.y < Min.y ||
+				rhs.Min.z > Max.z || rhs.Max.z < Min.z);
 		}
 
 		bool operator == (const AABB& rhs) const { return Min == rhs.Min && Max == rhs.Max; }
@@ -344,5 +368,28 @@ namespace SunEngine
 		glm::vec3 normal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
 		float D = -glm::dot(p0, normal);
 		return glm::vec4(normal, D);
+	}
+
+	inline bool FrustumAABBIntersect(const glm::vec4* planes, const AABB& aabb)
+	{
+		glm::vec4 corners[8];
+		aabb.GetCorners(corners);
+
+		for (uint i = 0; i < 6; i++)
+		{
+			//if any point is inside the plane, the plane test is passed for this plane against the cube
+			if (glm::dot(corners[0], planes[i]) < 0.0f) continue;
+			if (glm::dot(corners[1], planes[i]) < 0.0f) continue;
+			if (glm::dot(corners[2], planes[i]) < 0.0f) continue;
+			if (glm::dot(corners[3], planes[i]) < 0.0f) continue;
+			if (glm::dot(corners[4], planes[i]) < 0.0f) continue;
+			if (glm::dot(corners[5], planes[i]) < 0.0f) continue;
+			if (glm::dot(corners[6], planes[i]) < 0.0f) continue;
+			if (glm::dot(corners[7], planes[i]) < 0.0f) continue;
+
+			//all points of the cube are outside the plane, so the cube is outside the frustum
+			return false;
+		}
+		return true;
 	}
 }

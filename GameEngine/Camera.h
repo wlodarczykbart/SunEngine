@@ -29,6 +29,7 @@ namespace SunEngine
 			RTF,
 		};
 
+		CameraComponentData();
 		CameraComponentData(Component* pComponent, SceneNode* pNode);
 
 		bool FrustumIntersects(const AABB& aabb) const;
@@ -38,6 +39,8 @@ namespace SunEngine
 		const glm::vec3& GetRight() const { return _right; }
 		const glm::vec3& GetUp() const { return _up; }
 		const glm::vec3& GetForward() const { return _forward; }
+
+		const glm::vec3& GetFrustumCorner(uint index) const { return _frustumCorners[index]; }
 					  
 	private:
 		friend class Camera;
@@ -68,12 +71,13 @@ namespace SunEngine
 		const glm::mat4& GetProj() const { return _projMatrix; }
 		const glm::mat4& GetInvProj() const { return _invProjMatrix; }
 
-		void SetRenderToWindow(bool renderToWindow) { _renderToWindow = renderToWindow; }
-		bool GetRenderToWindow() const { return _renderToWindow; }
+		float GetNearZ() const { return _nearZ; }
+		float GetFarZ() const { return _farZ; }
 
 	private:
 		glm::mat4 _projMatrix;
 		glm::mat4 _invProjMatrix;
-		bool _renderToWindow;
+		float _nearZ;
+		float _farZ;
 	};
 }

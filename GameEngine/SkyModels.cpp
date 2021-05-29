@@ -1,5 +1,4 @@
 #include "ArHosekSkyModel.h"
-#include "glm/gtc/constants.hpp"
 #include "GraphicsWindow.h"
 
 #include "ShaderMgr.h"

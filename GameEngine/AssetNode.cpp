@@ -1,5 +1,3 @@
-#include "glm/gtx/quaternion.hpp"
-#include "glm/gtx/euler_angles.hpp"
 #include "AssetNode.h"
 
 namespace SunEngine

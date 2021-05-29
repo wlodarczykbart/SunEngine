@@ -28,10 +28,16 @@ namespace SunEngine
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 	private:
-		friend class VulkanShaderBindings;
+		struct BufferData
+		{
+			VkBuffer buffer;
+			VkDeviceMemory memory;
+		};
 
-		VkBuffer _buffer;
-		VkDeviceMemory _memory;
+		friend class VulkanShaderBindings;
+		const BufferData& GetCurrentBuffer() const;
+
+		Vector<BufferData> _buffers;
 		uint _size;
 		uint _allocSize;
 	};

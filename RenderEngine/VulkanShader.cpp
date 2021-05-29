@@ -318,7 +318,6 @@ namespace SunEngine
 
 	VulkanShaderBindings::VulkanShaderBindings()
 	{
-		_set = VK_NULL_HANDLE;
 		_setNumber = 0;
 	}
 
@@ -357,7 +356,6 @@ namespace SunEngine
 		info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
 		uint maxBufferBinding = 0;
-
 		for (uint i = 0; i < createInfo.bufferBindings.size(); i++)
 		{
 			VkDescriptorSetLayoutBinding binding = {};
@@ -413,19 +411,25 @@ namespace SunEngine
 
 		if (!_device->CreateDescriptorSetLayout(info, &_layout)) return false;
 
-		VkDescriptorSetAllocateInfo setllocInfo = {};
-		setllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		setllocInfo.descriptorSetCount = 1;
-		setllocInfo.pSetLayouts = &_layout;
-		if (!_device->AllocateDescriptorSets(setllocInfo, &_set)) return false;
+		_sets.resize(createInfo.bufferBindings.size() ? VulkanDevice::BUFFERED_FRAME_COUNT : 1);
+		Vector<VkDescriptorSetLayout> layouts(_sets.size());
+		for (uint i = 0; i < _sets.size(); i++)
+			layouts[i] = _layout;
+
+		VkDescriptorSetAllocateInfo setAllocInfo = {};
+		setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		setAllocInfo.descriptorSetCount = _sets.size();
+		setAllocInfo.pSetLayouts = layouts.data();
+		if (!_device->AllocateDescriptorSets(setAllocInfo, _sets.data())) return false;
 
 		return true;
 	}
 
 	void VulkanShaderBindings::Bind(ICommandBuffer * pCmdBuffer, IBindState* pBindState)
 	{
-		if (_set != VK_NULL_HANDLE)
+		if (_sets.size())
 		{
+			VkDescriptorSet set = GetCurrentSet();
 			if (pBindState && pBindState->GetType() == IOBT_SHADER_BINDINGS)
 			{
 				IShaderBindingsBindState* state = static_cast<IShaderBindingsBindState*>(pBindState);
@@ -440,7 +444,7 @@ namespace SunEngine
 			}
 
 			VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(pCmdBuffer);
-			vkCmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, _shader->GetPipelineLayout(), _setNumber, 1, &_set, _dynamicOffsets.size(), _dynamicOffsets.data());
+			vkCmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, _shader->GetPipelineLayout(), _setNumber, 1, &set, _dynamicOffsets.size(), _dynamicOffsets.data());
 
 			if (_dynamicOffsets.size())
 				memset(_dynamicOffsets.data(), 0x0, sizeof(uint) * _dynamicOffsets.size());
@@ -455,20 +459,23 @@ namespace SunEngine
 	void VulkanShaderBindings::SetUniformBuffer(IUniformBuffer* pBuffer, const String& name)
 	{
 		VulkanUniformBuffer* pVulkanBuffer = static_cast<VulkanUniformBuffer*>(pBuffer);
+		for (uint i = 0; i < _sets.size(); i++)
+		{
+			VkDescriptorBufferInfo info = {};
+			uint bufferIndex = i % pVulkanBuffer->_buffers.size();
+			info.buffer = pVulkanBuffer->_buffers[bufferIndex].buffer;
+			info.range = pVulkanBuffer->_size;
 
-		VkDescriptorBufferInfo info = {};
-		info.buffer = pVulkanBuffer->_buffer;
-		info.range = pVulkanBuffer->_size;
+			VkWriteDescriptorSet set = {};
+			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			set.dstSet = _sets[i];
+			set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+			set.dstBinding = _bindingMap.at(name).first;
+			set.pBufferInfo = &info;
+			set.descriptorCount = 1;
 
-		VkWriteDescriptorSet set = {};
-		set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		set.dstSet = _set;
-		set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-		set.dstBinding = _bindingMap.at(name).first;
-		set.pBufferInfo = &info;
-		set.descriptorCount = 1;
-
-		_device->UpdateDescriptorSets(&set, 1);
+			_device->UpdateDescriptorSets(&set, 1);
+		}
 		_bindingMap.at(name).second = pVulkanBuffer;
 	}
 
@@ -497,15 +504,18 @@ namespace SunEngine
 		VkDescriptorImageInfo info = {};
 		info.sampler = static_cast<VulkanSampler*>(pSampler)->_sampler;
 
-		VkWriteDescriptorSet set = {};
-		set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		set.dstSet = _set;
-		set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		set.dstBinding = _bindingMap.at(name).first;
-		set.pImageInfo = &info;
-		set.descriptorCount = 1;
+		for (uint i = 0; i < _sets.size(); i++)
+		{
+			VkWriteDescriptorSet set = {};
+			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			set.dstSet = _sets[i];
+			set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+			set.dstBinding = _bindingMap.at(name).first;
+			set.pImageInfo = &info;
+			set.descriptorCount = 1;
 
-		_device->UpdateDescriptorSets(&set, 1);
+			_device->UpdateDescriptorSets(&set, 1);
+		}
 		_bindingMap.at(name).second = static_cast<VulkanSampler*>(pSampler);
 	}
 
@@ -528,15 +538,23 @@ namespace SunEngine
 		info.imageView = view;
 		info.imageLayout = layout;
 
-		VkWriteDescriptorSet set = {};
-		set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		set.dstSet = _set;
-		set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		set.dstBinding = binding;
-		set.pImageInfo = &info;
-		set.descriptorCount = 1;
+		for (uint i = 0; i < _sets.size(); i++)
+		{
+			VkWriteDescriptorSet set = {};
+			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			set.dstSet = _sets[i];
+			set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			set.dstBinding = binding;
+			set.pImageInfo = &info;
+			set.descriptorCount = 1;
 
-		_device->UpdateDescriptorSets(&set, 1);
+			_device->UpdateDescriptorSets(&set, 1);
+		}
+	}
+
+	VkDescriptorSet VulkanShaderBindings::GetCurrentSet() const
+	{
+		return _sets.size() == 1 ? _sets.front() : _sets[_device->GetBufferedFrameNumber()];
 	}
 
 	//bool VulkanShader::ObjectIsCurrentlyBound(const uint set, const uint binding, uint64_t apiHandle)

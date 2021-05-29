@@ -1,11 +1,3 @@
-#include <functional>
-
-#ifndef GLM_ENABLE_EXPERIMENTAL
-#define GLM_ENABLE_EXPERIMENTAL
-#include "glm/gtx/hash.hpp"
-#undef GLM_ENABLE_EXPERIMENTAL
-#endif
-
 #include "SceneMgr.h"
 #include "Camera.h"
 #include "Light.h"
@@ -19,12 +11,11 @@
 #include "FilePathMgr.h"
 #include "ShaderMgr.h"
 #include "ResourceMgr.h"
-#include "SceneRenderer.h"
 #include "StringUtil.h"
 #include "Environment.h"
 #include "Animation.h"
 
-#include <DirectXMath.h>
+#include "SceneRenderer.h"
 
 namespace SunEngine
 {
@@ -40,7 +31,7 @@ namespace SunEngine
 		_currentEnvironment = 0;
 		_cameraBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
 		_environmentBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
-		_shadowMatrixBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
+		_shadowBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
 	}
 
 	SceneRenderer::~SceneRenderer()
@@ -50,17 +41,16 @@ namespace SunEngine
 	bool SceneRenderer::Init()
 	{
 		UniformBuffer::CreateInfo uboInfo = {};
-		uboInfo.isShared = false;
+		uboInfo.isShared = true;
 
 		uboInfo.size = sizeof(EnvBufferData);
 		if (!_environmentBuffer->Buffer.Create(uboInfo))
 			return false;
 
-		uboInfo.size = sizeof(glm::mat4) * EngineInfo::GetRenderer().MaxShadowCascadeSplits();
-		if (!_shadowMatrixBuffer->Buffer.Create(uboInfo))
+		uboInfo.size = sizeof(ShadowBufferData);
+		if (!_shadowBuffer->Buffer.Create(uboInfo))
 			return false;
 
-		uboInfo.isShared = true;
 		uboInfo.size = sizeof(CameraBufferData);
 		if (!_cameraBuffer->Buffer.Create(uboInfo))
 			return false;
@@ -101,7 +91,7 @@ namespace SunEngine
 				if (!_depthPasses[i]->SkinnedBonesBufferGroup.Init(ShaderStrings::SkinnedBoneBufferName, SBT_BONES, sizeof(glm::mat4) * MAX_SKINNED_BONES))
 					return false;
 
-				_depthPasses[i]->Viewport = { vpOffset, 0.0f, vpWidth, 1.0f };
+				_depthPasses[i]->Viewport = { vpOffset * (float)_depthTarget.Width(), 0.0f, vpWidth * (float)_depthTarget.Width(), (float)_depthTarget.Height() };
 				vpOffset += vpWidth;
 			}
 
@@ -197,26 +187,6 @@ namespace SunEngine
 			elapsedTime = env->GetElapsedTime();
 		}
 
-		pScene->TraverseRenderNodes(
-			[](const AABB& aabb, void* pAABBData) -> bool { return static_cast<CameraComponentData*>(pAABBData)->FrustumIntersects(aabb); }, _currentCamera, 
-			[](RenderNode* pNode, void* pNodeData) -> void { static_cast<SceneRenderer*>(pNodeData)->ProcessRenderNode(pNode); }, this);
-
-		//push current udpates to buffer
-		_objectBufferGroup.Flush();
-		_objectBufferGroup.Reset();
-
-		_skinnedBonesBufferGroup.Flush();
-		_skinnedBonesBufferGroup.Reset();
-
-		for (uint i = 0; i < _depthPasses.size(); i++)
-		{
-			_depthPasses[i]->ObjectBufferGroup.Flush();
-			_depthPasses[i]->ObjectBufferGroup.Reset();
-
-			_depthPasses[i]->SkinnedBonesBufferGroup.Flush();
-			_depthPasses[i]->SkinnedBonesBufferGroup.Reset();
-		}
-
 		if (!_currentCamera)
 			return false;
 
@@ -228,55 +198,97 @@ namespace SunEngine
 		CameraBufferData camData = {};
 		glm::mat4 view = _currentCamera->GetView();
 		glm::mat4 proj = _currentCamera->C()->As<Camera>()->GetProj();
+		//proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
 		Shader::FillMatrices(view, proj, camData);
-		glm::mat4 invView = *reinterpret_cast<glm::mat4*>(camData.InvViewMatrix.data);
-		camData.Viewport.Set(0.0f, 0.0f, (float)pOutputTexture->GetWidth(), (float)pOutputTexture->GetHeight());
+		camData.CameraData.row0.Set(0.0f, 0.0f, (float)pOutputTexture->GetWidth(), (float)pOutputTexture->GetHeight());
 		cameraDataList.push_back(camData);
 
-		glm::mat4 shadowMatrices[16];
-		for (uint i = 0; i < _depthPasses.size(); i++)
+		if (EngineInfo::GetRenderer().ShadowsEnabled())
 		{
-			float sceneRadius = 20.0f;
-			glm::vec3 lightDir = _currentEnvironment->GetSunDirection();
-			glm::vec3 lightPos = -2.0f * lightDir * sceneRadius;
-			glm::vec3 targetPos = glm::vec3(invView[3]);
-			targetPos = glm::vec3(0);
-			glm::vec3 lightUp = glm::vec3(0, 1, 0);
-			view = glm::lookAt(lightPos, targetPos, lightUp);
+			UpdateShadowCascades(cameraDataList);
 
-			glm::vec3 sphereCenterLS = view * glm::vec4(targetPos, 1.0f);
-			float l = sphereCenterLS.x - sceneRadius;
-			float r = sphereCenterLS.x + sceneRadius;
-			float b = sphereCenterLS.y - sceneRadius;
-			float t = sphereCenterLS.y + sceneRadius;
-			float n = sphereCenterLS.z - sceneRadius;
-			float f = sphereCenterLS.z + sceneRadius;
-			proj = /*EngineInfo::GetRenderer().ProjectionCorrection() **/ glm::orthoLH_ZO(l, r, b, t, n, f);
+			ThreadPool& tp = ThreadPool::Get();
+			struct ThreadData
+			{
+				SceneRenderer* pThis;
+				DepthRenderData* pDepthData;
+				Scene* pScene;
+			};
 
-			//glm::mat4 dxMtx = *(glm::mat4*)&DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+			Vector<ThreadData> threadDataList;
+			threadDataList.resize(EngineInfo::GetRenderer().MaxShadowCascadeSplits());
+			for(uint i = 0; i < _depthPasses.size(); i++)
+			{
+				threadDataList[i].pDepthData = _depthPasses[i].get();
+				threadDataList[i].pScene = pScene;
+				threadDataList[i].pThis = this;
 
-			//bool eq = true;
-			//for (int ii = 0; ii < 4; ii++)
-			//{
-			//	for (int jj = 0; jj < 4; jj++) {
-			//		if (fabsf(proj[ii][jj] - dxMtx[ii][jj]) > 0.0001)
-			//		{
-			//			eq = false;
-			//		}
-			//	}
-			//}
+				tp.AddTask([](uint, void* pDataPtr) -> void 
+				{
+					ThreadData* pData = static_cast<ThreadData*>(pDataPtr);
+					//ThreadData* pData = static_cast<ThreadData*>(&threadDataList[i]);
+					pData->pScene->TraverseRenderNodes(
+						[](const AABB& aabb, void* pAABBData) -> bool { 
+							//return FrustumAABBIntersect(static_cast<const glm::vec4*>(pAABBData), aabb);
+							return static_cast<DepthRenderData*>(pAABBData)->CameraData->FrustumIntersects(aabb);
+						}, pData->pDepthData,
+						[](RenderNode* pNode, void* pNodeData) -> void { 
+							ThreadData* pData = static_cast<ThreadData*>(pNodeData); 
+							pData->pThis->ProcessDepthRenderNode(pNode, pData->pDepthData); 
+						}, pData);
+				}
+				, & threadDataList[i]);
+			}
+			tp.Wait();
 
-			//lightPos = glm::vec3(-27.4350910, -35.4456558, 28.6385860);
-			//lightPos = lightDir* sceneRadius;
-			//proj = glm::perspective(glm::radians(45.0f), 1.0f, 1.0f, 96.0f);
-			//view = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0, 1, 0));
-			
-			Shader::FillMatrices(view, proj, camData);
-			camData.Viewport.Set(_depthPasses[i]->Viewport.x, _depthPasses[i]->Viewport.y, _depthPasses[i]->Viewport.width, _depthPasses[i]->Viewport.height);
-			cameraDataList.push_back(camData);
-			glm::mat4 viewProj = proj * view;
-			_shadowMatrixBuffer->Buffer.Update(&viewProj, i * sizeof(glm::mat4), sizeof(glm::mat4));
+			for (auto& pass : _depthPasses)
+			{
+				for (auto& data : pass->RenderList)
+				{
+					auto pDepthMaterial = _depthMaterials[data.DepthHash].get();
+					uint64 depthVariantMask = (data.BaseVariantMask & ~ShaderVariant::GBUFFER) | ShaderVariant::DEPTH;
+					if (pDepthMaterial == 0)
+					{
+						pDepthMaterial = new Material();
+						CreateDepthMaterial(data.RenderNode->GetMaterial(), depthVariantMask, pDepthMaterial);
+						_depthMaterials[data.DepthHash] = UniquePtr<Material>(pDepthMaterial);
+					}
+
+					data.MaterialOverride = pDepthMaterial;
+					bool sorted;
+					GetPipeline(data, sorted, true, true);
+
+					ObjectBufferData objBuffer = {};
+					glm::mat4 itp = glm::transpose(glm::inverse(data.RenderNode->GetWorld()));
+					objBuffer.WorldMatrix.Set(&data.RenderNode->GetWorld());
+					objBuffer.InverseTransposeMatrix.Set(&itp);
+					pass->ObjectBufferGroup.Update(&objBuffer, data.ObjectBufferIndex, &data.ObjectBindings, data.Pipeline->GetShader());
+
+					//TODO skinned shadow objects
+					//if (pSkinnedMesh)
+					//	_depthPasses[i]->SkinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), depthData.SkinnedBoneBufferIndex, &depthData.SkinnedBoneBindings, pDepthShader);
+
+					_currentShaders.insert(data.Pipeline->GetShader());
+				}
+
+				pass->ObjectBufferGroup.Flush();
+				pass->ObjectBufferGroup.Reset();
+
+				pass->SkinnedBonesBufferGroup.Flush();
+				pass->SkinnedBonesBufferGroup.Reset();
+			}
 		}
+
+		pScene->TraverseRenderNodes(
+			[](const AABB& aabb, void* pAABBData) -> bool { return static_cast<CameraComponentData*>(pAABBData)->FrustumIntersects(aabb); }, _currentCamera,
+			[](RenderNode* pNode, void* pNodeData) -> void { static_cast<SceneRenderer*>(pNodeData)->ProcessRenderNode(pNode); }, this);
+
+		//push current udpates to buffer
+		_objectBufferGroup.Flush();
+		_objectBufferGroup.Reset();
+
+		_skinnedBonesBufferGroup.Flush();
+		_skinnedBonesBufferGroup.Reset();
 
 		_cameraBuffer->Buffer.UpdateShared(cameraDataList.data(), cameraDataList.size());
 
@@ -335,18 +347,18 @@ namespace SunEngine
 				bool skySamplerSet = binding.SetSampler(ShaderStrings::SkySamplerName, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
 			}
 
-			if (pShader->ContainsBuffer(ShaderStrings::ShadowBufferName) && _shadowMatrixBuffer->ShaderBindings.find(pShader) == _shadowMatrixBuffer->ShaderBindings.end())
+			if (pShader->ContainsBuffer(ShaderStrings::ShadowBufferName) && _shadowBuffer->ShaderBindings.find(pShader) == _shadowBuffer->ShaderBindings.end())
 			{
 				ShaderBindings::CreateInfo bindInfo = {};
 				bindInfo.pShader = pShader;
 				bindInfo.type = SBT_SHADOW;
-				auto& binding = _shadowMatrixBuffer->ShaderBindings[pShader];
+				auto& binding = _shadowBuffer->ShaderBindings[pShader];
 				if (!binding.Create(bindInfo))
 					return false;
-				if (!binding.SetUniformBuffer(ShaderStrings::ShadowBufferName, &_shadowMatrixBuffer->Buffer))
+				if (!binding.SetUniformBuffer(ShaderStrings::ShadowBufferName, &_shadowBuffer->Buffer))
 					return false;
 				bool depthTextureSet = binding.SetTexture(ShaderStrings::ShadowTextureName, EngineInfo::GetRenderer().ShadowsEnabled() ? _depthTarget.GetDepthTexture() : ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::White)->GetGPUObject());
-				bool depthSamplerSet = binding.SetSampler(ShaderStrings::ShadowSamplerName, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_BORDER, SE_BC_WHITE));
+				bool depthSamplerSet = binding.SetSampler(ShaderStrings::ShadowSamplerName, ResourceMgr::Get().GetSampler(SE_FM_NEAREST, SE_WM_CLAMP_TO_EDGE, SE_BC_WHITE));
 			}
 		}
 
@@ -362,9 +374,14 @@ namespace SunEngine
 			return false;
 
 		_depthTarget.Bind(cmdBuffer);
+
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
+			auto& vp = _depthPasses[i]->Viewport;
+			cmdBuffer->SetViewport(vp.x, vp.y, vp.width, vp.height);
+			cmdBuffer->SetScissor(vp.x, vp.y, vp.width, vp.height);
 			ProcessRenderList(cmdBuffer, _depthPasses[i]->RenderList, i+1, true);
+			_depthPasses[i]->RenderList.clear();
 		}
 		_depthTarget.Unbind(cmdBuffer);
 
@@ -440,8 +457,7 @@ namespace SunEngine
 	void SceneRenderer::ProcessRenderNode(RenderNode* pNode)
 	{
 		Material* pMaterial = pNode->GetMaterial();
-		bool isValid = pMaterial && pMaterial->GetShader() && pNode->GetMesh() && pNode->GetNode()->GetTotalVisibility();
-		if (!isValid)
+		if (!ShouldRender(pNode))
 			return;
 
 		SceneNode* pSceneNode = pNode->GetNode();
@@ -481,7 +497,7 @@ namespace SunEngine
 		bool sorted = false;
 		RenderNodeData data = {};
 		data.RenderNode = pNode;
-		data.ComputeVariants();
+		data.BaseVariantMask = GetVariantMask(data.RenderNode);
 		GetPipeline(data, sorted);
 
 		BaseShader* pShader = pMaterial->GetShader()->GetBaseVariant(data.BaseVariantMask);
@@ -511,37 +527,37 @@ namespace SunEngine
 			data.SortingDistance = glm::dot(vDelta, vDelta);
 			_sortedRenderList.push_back(data);
 		}
+	}
 
-		if (EngineInfo::GetRenderer().ShadowsEnabled())
+	void SceneRenderer::ProcessDepthRenderNode(RenderNode* pNode, DepthRenderData* pDepthData)
+	{
+		if (!ShouldRender(pNode))
+			return;
+
+		const AABB& box = pNode->GetWorldAABB();
+
+		//cheap attempt to not have plane like surfaces cast shadows
+		if(glm::epsilonEqual(box.Min.y, box.Max.y, 0.001f))
+			return;
+
+		//if (!pDepthData->FrustumBox.Intersects(box))
+		//	return;
+
+		if (!pDepthData->CameraData->FrustumIntersects(pNode->GetWorldAABB()))
+			return;
+
+		Material* pMaterial = pNode->GetMaterial();
+		uint64 variantMask = GetVariantMask(pNode);
+		uint64 depthVariantMask = (variantMask & ~ShaderVariant::GBUFFER) | ShaderVariant::DEPTH;
+
+		BaseShader* pDepthShader = pMaterial->GetShader()->GetBaseVariant(depthVariantMask);
+		if (pDepthShader)
 		{
-			uint64 depthVariantMask = (data.BaseVariantMask & ~ShaderVariant::GBUFFER) | ShaderVariant::DEPTH;
-			BaseShader* pDepthShader = pMaterial->GetShader()->GetBaseVariant(depthVariantMask);
-			if (pDepthShader)
-			{
-				uint64 depthHash = CalculateDepthVariantHash(data.RenderNode->GetMaterial(), depthVariantMask);
-				auto pDepthMaterial = _depthMaterials[depthHash].get();
-				if (pDepthMaterial == 0)
-				{
-					pDepthMaterial = new Material();
-					CreateDepthMaterial(data.RenderNode->GetMaterial(), depthVariantMask, pDepthMaterial);
-					_depthMaterials[depthHash] = UniquePtr<Material>(pDepthMaterial);
-				}
-
-				for (uint i = 0; i < _depthPasses.size(); i++)
-				{
-					RenderNodeData depthData = data;
-					depthData.MaterialOverride = pDepthMaterial;
-					GetPipeline(depthData, sorted, true, true);
-					_depthPasses[i]->ObjectBufferGroup.Update(&objBuffer, depthData.ObjectBufferIndex, &depthData.ObjectBindings, pDepthShader);
-
-					if (pSkinnedMesh)
-						_depthPasses[i]->SkinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), depthData.SkinnedBoneBufferIndex, &depthData.SkinnedBoneBindings, pDepthShader);
-
-					_depthPasses[i]->RenderList.push_back(depthData);
-				}
-
-				_currentShaders.insert(pDepthShader);
-			}
+			RenderNodeData depthNode = {};
+			depthNode.DepthHash = CalculateDepthVariantHash(pMaterial, depthVariantMask);
+			depthNode.BaseVariantMask = variantMask;
+			depthNode.RenderNode = pNode;
+			pDepthData->RenderList.push_back(depthNode);
 		}
 	}
 
@@ -566,7 +582,7 @@ namespace SunEngine
 			pipeline.Bind(cmdBuffer);
 			TryBindBuffer(cmdBuffer, pShader, _cameraBuffer.get(), &cameraBindData);
 			TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
-			TryBindBuffer(cmdBuffer, pShader, _shadowMatrixBuffer.get());
+			TryBindBuffer(cmdBuffer, pShader, _shadowBuffer.get());
 
 			renderData.RenderNode->GetMesh()->GetGPUObject()->Bind(cmdBuffer);
 			pMaterial->GetGPUObject()->Bind(cmdBuffer);
@@ -620,8 +636,7 @@ namespace SunEngine
 			settings.mulitSampleState.enableAlphaToCoverage = true; //TODO: only do this if multi sampling is occuring in the renderer this frame?
 		}
 
-		if (isShadow)
-			ShaderMgr::Get().BuildPipelineSettings(DefaultPipelines::ShadowDepth, settings);
+		if (isShadow) ShaderMgr::Get().BuildPipelineSettings(DefaultPipelines::ShadowDepth, settings);
 
 		for (uint i = 0; i < _graphicsPipelines.size(); i++)
 		{
@@ -721,7 +736,7 @@ namespace SunEngine
 		pBindings->Bind(cmdBuffer);
 		TryBindBuffer(cmdBuffer, pShader, _cameraBuffer.get(), &cameraBindData);
 		TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
-		TryBindBuffer(cmdBuffer, pShader, _shadowMatrixBuffer.get());
+		TryBindBuffer(cmdBuffer, pShader, _shadowBuffer.get());
 		cmdBuffer->Draw(vertexCount, 1, 0, 0);
 		pBindings->Unbind(cmdBuffer);
 		pPipeline->Unbind(cmdBuffer);
@@ -831,6 +846,239 @@ namespace SunEngine
 		return hash;
 	}
 
+	/*
+		Calculate frustum split depths and matrices for the shadow map cascades
+		Based on https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+	*/
+	void SceneRenderer::UpdateShadowCascades(Vector<CameraBufferData>& cameraBuffersToFill)
+	{
+		if (!EngineInfo::GetRenderer().ShadowsEnabled())
+			return;
+
+		uint SHADOW_MAP_CASCADE_COUNT = EngineInfo::GetRenderer().MaxShadowCascadeSplits();
+		if (SHADOW_MAP_CASCADE_COUNT == 0)
+			return;
+
+		const Camera* pCamera = _currentCamera->C()->As<const Camera>();
+#if 0
+		{
+			glm::vec3 lightPos = glm::vec3(5, 20, 10);
+			lightPos = glm::vec3(-27.4350910, -35.4456558, 28.6385860);
+
+			lightPos = _currentEnvironment->GetSunDirection() * 10.0f;
+
+			glm::mat4 proj = glm::perspective(glm::radians(45.f), 1.0f, 0.1f, 100.0f);
+			glm::mat4 view = glm::lookAt(lightPos, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+
+			//proj = pCamera->GetProj();
+			//view = _currentCamera->GetView();
+
+			CameraBufferData data;
+			Shader::FillMatrices(view, proj, data);
+			data.Viewport.Set(0, 0, 1, 1);
+			cameraBuffersToFill.push_back(data);
+
+			ShadowBufferData shadowBufferData = {};
+			shadowBufferData.ShadowMatrices[0].Set(data.ViewProjectionMatrix.data);
+			_shadowBuffer->Buffer.Update(&shadowBufferData, 0, sizeof(ShadowBufferData));
+			return;
+		}
+
+#endif
+
+		ShadowBufferData shadowBufferData;
+		float cascadeSplits[SE_ARR_SIZE(shadowBufferData.ShadowMatrices)];
+
+		float cascadeSplitLambda = 0.95f;
+
+		float nearClip = pCamera->GetNearZ();
+		float farClip = pCamera->GetFarZ();
+		float clipRange = farClip - nearClip;
+
+		float minZ = nearClip;
+		float maxZ = nearClip + clipRange;
+
+		float range = maxZ - minZ;
+		float ratio = maxZ / minZ;
+
+		// Calculate split depths based on view camera frustum
+		// Based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
+		for (uint32_t i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+			float p = (i + 1) / static_cast<float>(SHADOW_MAP_CASCADE_COUNT);
+			float log = minZ * std::pow(ratio, p);
+			float uniform = minZ + range * p;
+			float d = cascadeSplitLambda * (log - uniform) + uniform;
+			cascadeSplits[i] = (d - nearClip) / clipRange;
+		}
+
+		glm::mat4 iden(1.0f);
+		glm::mat4 shadowBiasMtx = glm::translate(iden, glm::vec3(0.5f, 0.5f, 0.0f)) * glm::scale(iden, glm::vec3(0.5f, -0.5f, 1.0f));
+
+		// Calculate orthographic projection matrix for each cascade
+		float lastSplitDist = 0.0;
+		for (uint32_t s = 0; s < SHADOW_MAP_CASCADE_COUNT; s++) {
+			float splitDist = cascadeSplits[s];
+
+			glm::vec3 frustumCorners[8] = {
+				glm::vec3(-1.0f,  1.0f, -1.0f),
+				glm::vec3(1.0f,  1.0f, -1.0f),
+				glm::vec3(1.0f, -1.0f, -1.0f),
+				glm::vec3(-1.0f, -1.0f, -1.0f),
+				glm::vec3(-1.0f,  1.0f,  1.0f),
+				glm::vec3(1.0f,  1.0f,  1.0f),
+				glm::vec3(1.0f, -1.0f,  1.0f),
+				glm::vec3(-1.0f, -1.0f,  1.0f),
+			};
+
+			// Project frustum corners into world space
+			glm::mat4 invCam = glm::inverse(pCamera->GetProj() * _currentCamera->GetView());
+			for (uint32_t i = 0; i < 8; i++) {
+				glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[i], 1.0f);
+				frustumCorners[i] = invCorner / invCorner.w;
+			}
+
+			for (uint32_t i = 0; i < 4; i++) {
+				glm::vec3 dist = frustumCorners[i + 4] - frustumCorners[i];
+				frustumCorners[i + 4] = frustumCorners[i] + (dist * splitDist);
+				frustumCorners[i] = frustumCorners[i] + (dist * lastSplitDist);
+			}
+
+			// Get frustum center
+			glm::vec3 frustumCenter = glm::vec3(0.0f);
+			for (uint32_t i = 0; i < 8; i++) {
+				frustumCenter += frustumCorners[i];
+			}
+			frustumCenter /= 8.0f;
+
+			auto* pDepthPass = _depthPasses[s].get();
+
+			AABB test;
+			float radius = 0.0f;
+			for (uint32_t i = 0; i < 8; i++) {
+				float distance = glm::length(frustumCorners[i] - frustumCenter);
+				radius = glm::max(radius, distance);
+				test.Expand(frustumCorners[i]);
+			}
+			radius = std::ceil(radius * 16.0f) / 16.0f;
+
+			glm::vec3 maxExtents = glm::vec3(radius);
+			glm::vec3 minExtents = -maxExtents;
+
+			glm::vec3 lightDir = -glm::normalize(_currentEnvironment->GetSunDirection());
+			glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+
+			// Store split distance and matrix in cascade
+			float splitDepth = (pCamera->GetNearZ() + splitDist * clipRange) * -1.0f;
+			glm::mat4 viewProjMatrix = lightOrthoMatrix * lightViewMatrix;
+
+			CameraBufferData shadowCamData;
+			shadowCamData.CameraData.row0.Set(pDepthPass->Viewport.x, pDepthPass->Viewport.y, pDepthPass->Viewport.width, pDepthPass->Viewport.height);
+			Shader::FillMatrices(lightViewMatrix, lightOrthoMatrix, shadowCamData);
+			cameraBuffersToFill.push_back(shadowCamData);
+
+			viewProjMatrix = shadowBiasMtx * viewProjMatrix;
+			shadowBufferData.ShadowMatrices[s].Set(&viewProjMatrix);
+			shadowBufferData.ShadowSplitDepths.Set(s, splitDepth);
+			lastSplitDist = cascadeSplits[s];
+
+			//glm::vec3(-1.0f, 1.0f, -1.0f),
+			//glm::vec3(1.0f, 1.0f, -1.0f),
+			//glm::vec3(1.0f, -1.0f, -1.0f),
+			//glm::vec3(-1.0f, -1.0f, -1.0f),
+			//glm::vec3(-1.0f, 1.0f, 1.0f),
+			//glm::vec3(1.0f, 1.0f, 1.0f),
+			//glm::vec3(1.0f, -1.0f, 1.0f),
+			//glm::vec3(-1.0f, -1.0f, 1.0f),
+
+			Camera camera;
+			SceneNode node(0);
+
+			camera.SetOrthoProjection(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+			glm::mat4 invView = reinterpret_cast<glm::mat4&>(shadowCamData.InvViewMatrix);
+
+			node.Position = invView[3];
+			node.Orientation.Quat = glm::quat_cast(invView);
+			node.Orientation.Mode = ORIENT_QUAT;
+			node.UpdateTransform();
+
+			camera.Update(&node, pDepthPass->CameraData.get(), 0, 0);
+			pDepthPass->FrustumBox.Reset();
+			for (uint i = 0; i < 8; i++)
+				pDepthPass->FrustumBox.Expand(pDepthPass->CameraData->GetFrustumCorner(i));
+
+			pDepthPass->FrustumBox.Expand(glm::vec3(FLT_MAX));
+			pDepthPass->FrustumBox.Expand(glm::vec3(-FLT_MAX));
+		}
+
+#if 0
+		float sceneRadius = 20.0f;
+		glm::vec3 lightDir = _currentEnvironment->GetSunDirection();
+		glm::vec3 lightPos = -2.0f * lightDir * sceneRadius;
+		glm::vec3 targetPos = _currentCamera->GetPosition();
+		targetPos = glm::vec3(0);
+		glm::vec3 lightUp = glm::vec3(0, 1, 0);
+		glm::mat4 view = glm::lookAt(lightPos, targetPos, lightUp);
+
+		glm::vec3 sphereCenterLS = view * glm::vec4(targetPos, 1.0f);
+		float l = sphereCenterLS.x - sceneRadius;
+		float r = sphereCenterLS.x + sceneRadius;
+		float b = sphereCenterLS.y - sceneRadius;
+		float t = sphereCenterLS.y + sceneRadius;
+		float n = sphereCenterLS.z - sceneRadius;
+		float f = sphereCenterLS.z + sceneRadius;
+		glm::mat4 proj = glm::ortho(l, r, b, t, 0.0f, 100.0f);
+
+		//glm::mat4 dxMtx = *(glm::mat4*)&DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+		//bool eq = true;
+		//for (int ii = 0; ii < 4; ii++)
+		//{
+		//	for (int jj = 0; jj < 4; jj++) {
+		//		if (fabsf(proj[ii][jj] - dxMtx[ii][jj]) > 0.0001)
+		//		{
+		//			eq = false;
+		//		}
+		//	}
+		//}
+
+		//lightPos = glm::vec3(-27.4350910, -35.4456558, 28.6385860);
+		//lightPos = lightDir* sceneRadius;
+		//proj = glm::perspective(glm::radians(45.0f), 1.0f, 1.0f, 96.0f);
+		//view = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0, 1, 0));
+
+		Shader::FillMatrices(view, proj, cameraBuffersToFill[1]);
+		glm::mat4 viewProj = proj * view;
+		shadowBufferData.ShadowMatrices[0].Set(&viewProj);
+#endif
+
+		_shadowBuffer->Buffer.Update(&shadowBufferData);
+	}
+
+	bool SceneRenderer::ShouldRender(const RenderNode* pNode) const
+	{
+		Material* pMaterial = pNode->GetMaterial();
+		return pMaterial && pMaterial->GetShader() && pNode->GetMesh() && pNode->GetNode()->GetTotalVisibility();
+	}
+
+	uint64 SceneRenderer::GetVariantMask(const RenderNode* pNode) const
+	{
+		uint64 variantMask = 0;
+		if (pNode->GetNode()->GetComponentOfType(COMPONENT_SKINNED_MESH))
+			variantMask |= ShaderVariant::SKINNED;
+
+		Material* pMaterial = pNode->GetMaterial();
+
+		Texture2D* pAlphaTex = pMaterial->GetTexture2D(MaterialStrings::AlphaMap);
+		if (pAlphaTex && !ResourceMgr::Get().IsDefaultTexture2D(pAlphaTex))
+			variantMask |= ShaderVariant::ALPHA_TEST;
+
+		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
+			variantMask = pMaterial->GetShader()->GetBaseVariant(variantMask | ShaderVariant::GBUFFER) ? (variantMask | ShaderVariant::GBUFFER) : variantMask;
+
+		return variantMask;
+	}
+
 	SceneRenderer::UniformBufferGroup::UniformBufferGroup()
 	{
 		_current = 0;
@@ -916,23 +1164,9 @@ namespace SunEngine
 		}
 	}
 
-	void SceneRenderer::RenderNodeData::ComputeVariants()
+	SceneRenderer::DepthRenderData::DepthRenderData()
 	{
-		uint64 variantMask = 0;
-		if (RenderNode->GetNode()->GetComponentOfType(COMPONENT_SKINNED_MESH))
-			variantMask |= ShaderVariant::SKINNED;
-
-		Material* pMaterial = RenderNode->GetMaterial();
-		
-		Texture2D* pAlphaTex = pMaterial->GetTexture2D(MaterialStrings::AlphaMap);
-		if (pAlphaTex && !ResourceMgr::Get().IsDefaultTexture2D(pAlphaTex))
-			variantMask |= ShaderVariant::ALPHA_TEST;
-
-		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
-			BaseVariantMask = pMaterial->GetShader()->GetBaseVariant(variantMask | ShaderVariant::GBUFFER) ? (variantMask | ShaderVariant::GBUFFER) : variantMask;
-		else
-			BaseVariantMask = variantMask;
+		CameraData = UniquePtr<CameraComponentData>(new CameraComponentData());
 	}
-
 
 }

@@ -8,8 +8,6 @@
 #include "imgui_internal.h"
 #include "StringUtil.h"
 
-#include <glm/glm.hpp>
-
 #include "spdlog/spdlog.h"
 #include "ShaderCompiler.h"
 #include "GUIRenderer.h"
@@ -561,7 +559,11 @@ namespace SunEngine
 		for (uint i = 0; i < _pEditor->GetViews(views); i++)
 		{
 			View* pView = views[i];
-			if (pView->GetRenderToGraphicsWindow() == false && ImGui::Begin(pView->GetName().c_str()))
+			if (pView->GetRenderToGraphicsWindow())
+				continue;
+
+			bool visible = pView->GetVisible();
+			if (visible && ImGui::Begin(pView->GetName().c_str(), &visible))
 			{
 				ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV;
 				String strTable = StrFormat("%s_table", pView->GetName().c_str());
@@ -590,6 +592,7 @@ namespace SunEngine
 				}
 				ImGui::End();
 			}
+			pView->SetVisible(visible);
 		}
 	}
 }

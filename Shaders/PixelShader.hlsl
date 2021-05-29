@@ -17,48 +17,6 @@ struct PS_Out
 #endif	
 };
 
-#ifndef GBUFFER
-	float ComputeShadowFactor(float4 fragPos)
-	{
-		float4 shadowCoord = mul(fragPos, ShadowMatrices[0]);
-		shadowCoord /= shadowCoord.w;
-		
-		if(
-			shadowCoord.w < 0.0 ||
-			shadowCoord.z < 0.0 || 
-			shadowCoord.z > 1.0)
-		{
-			return 1.0;
-		}	
-		
-		shadowCoord.xy = shadowCoord.xy * 0.5 + 0.5;
-		shadowCoord.y = 1.0 - shadowCoord.y;
-		
-		float2 texSize;
-		ShadowTexture.GetDimensions(texSize.x, texSize.y);
-		texSize = 1.0 / texSize;
-		texSize *= 1.5;
-		
-		int range = 1;
-		float inShadow = 0.0;	
-		float count = 0.0;
-		
-		[unroll]
-		for(int i = -range; i <= range; i++)
-		{
-			for(int j = -range; j <= range; j++)
-			{
-				float depth = ShadowTexture.Sample(ShadowSampler, shadowCoord.xy + float2(i, j) * texSize).r;		
-				if(shadowCoord.z > depth) 
-					inShadow += 1.0;
-				count += 1.0;
-			}
-		}
-		
-		return 1.0 - (inShadow / count);
-	}
-#endif
-
 void ShadePixel(float3 albedo, float ambient, float3 specular, float smoothness, float3 normal, float3 position, float2 screenTexCoord, out PS_Out pOut)
 {
 #ifdef GBUFFER
@@ -79,9 +37,8 @@ void ShadePixel(float3 albedo, float ambient, float3 specular, float smoothness,
 	distToEye = length(v);
 	v /= distToEye;
 #endif	
-
-	float4 worldPos = mul(float4(position, 1.0), InvViewMatrix);
-	float shadowFactor = ComputeShadowFactor(worldPos);
+	float3 shadowFactor = ComputeShadowFactor(position);
+	
 	float3 litColor = BRDF_CookTorrance(l, normal, v, SunColor.rgb, albedo, specular, smoothness, 0.001) * shadowFactor;
 	
     float3 ambientColor = 0.03 * albedo * ambient;	

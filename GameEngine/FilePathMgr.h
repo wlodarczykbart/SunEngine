@@ -1,7 +1,6 @@
 #pragma once
 
 #include "GraphicsAPIDef.h"
-#include "glm/gtc/matrix_transform.hpp"
 
 namespace SunEngine
 {

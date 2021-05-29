@@ -1,6 +1,5 @@
 #pragma once
 
-#include "glm/glm.hpp"
 #include "BaseShader.h"
 #include "ConfigFile.h"
 #include "GPUResource.h"

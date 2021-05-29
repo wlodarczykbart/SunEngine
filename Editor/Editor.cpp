@@ -1,11 +1,8 @@
-
 #include "StringUtil.h"
 #include "FileBase.h"
 #include "ShaderCompiler.h"
 #include "CommandBuffer.h"
 #include "IDevice.h"
-
-#include "glm/gtc/random.hpp"
 
 #include "spdlog/spdlog.h"
 #include "Editor.h"
@@ -184,10 +181,12 @@ namespace SunEngine
 
 		_graphicsWindow.Open();
 
+		uint frameNumber = 0;
 		while (_graphicsWindow.IsAlive())
 		{
 			Update();
 			Render();
+			GraphicsContext::GetDevice()->SetFrameNumber(++frameNumber);
 		}
 
 		GraphicsContext::GetDevice()->WaitIdle();
@@ -217,7 +216,7 @@ namespace SunEngine
 		pipelineInfo.settings.EnableAlphaBlend();
 		pipelineInfo.settings.rasterizer.enableScissor = true;
 		pipelineInfo.settings.rasterizer.cullMode = SE_CM_NONE;
-		pipelineInfo.settings.rasterizer.frontFace = SE_FF_COUNTER_CLOCKWISE;
+		pipelineInfo.settings.rasterizer.frontFace = SE_FF_CLOCKWISE;
 		//pipelineInfo.settings.depthClipEnable = true;
 		//pipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_ALWAYS;
 		if (!_pipeline.Create(pipelineInfo))

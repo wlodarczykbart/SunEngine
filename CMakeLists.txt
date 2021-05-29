@@ -28,6 +28,7 @@ add_subdirectory(Editor)
 add_subdirectory(GameEditor)
 add_subdirectory(FBXEditor)
 add_subdirectory(External/zlib/${ZLIB_VER})
+add_subdirectory(TestApp)
 
 add_dependencies(RenderEngine EngineTools)
 add_dependencies(GameEngine RenderEngine)

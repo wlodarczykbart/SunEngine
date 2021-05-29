@@ -388,6 +388,11 @@ namespace SunEngine
 		memcpy(data, pData, sizeof(data));
 	}
 
+	void ShaderMat4::Set(uint index, float value)
+	{
+		data[index] = value;
+	}
+
 	ShaderVec4::ShaderVec4()
 	{
 		data[0] = 0.0f;

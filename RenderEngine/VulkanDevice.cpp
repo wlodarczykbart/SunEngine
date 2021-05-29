@@ -717,6 +717,11 @@ namespace SunEngine
 		return false;
 	}
 
+	uint VulkanDevice::GetBufferedFrameNumber() const
+	{
+		return GetFrameNumber() % BUFFERED_FRAME_COUNT;
+	}
+
 	String VulkanDevice::QueryAPIError()
 	{
 		String ret = _apiErrMsg;

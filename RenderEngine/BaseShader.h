@@ -8,15 +8,6 @@
 
 namespace SunEngine
 {
-	struct ShaderMat4
-	{
-		ShaderMat4();
-
-		void Set(const void* p16Floats);
-
-		float data[16];
-	};
-
 	struct ShaderVec4
 	{
 		ShaderVec4();
@@ -24,6 +15,26 @@ namespace SunEngine
 		void Set(const void* p4Floats);
 
 		float data[4];
+	};
+
+	struct ShaderMat4
+	{
+		ShaderMat4();
+
+		void Set(const void* p16Floats);
+		void Set(uint index, float value);
+
+		union
+		{
+			struct
+			{
+				ShaderVec4 row0;
+				ShaderVec4 row1;
+				ShaderVec4 row2;
+				ShaderVec4 row3;
+			};
+			float data[16];
+		};
 	};
 
 	class UniformBuffer;
@@ -41,7 +52,7 @@ namespace SunEngine
 		ShaderMat4 InvViewMatrix;
 		ShaderMat4 InvProjectionMatrix;
 		ShaderMat4 InvViewProjectionMatrix;
-		ShaderVec4 Viewport;
+		ShaderMat4 CameraData; //0 = viewport(x,y,width,height) 
 	};
 
 	struct ObjectBufferData
@@ -80,7 +91,8 @@ namespace SunEngine
 
 	struct ShadowBufferData
 	{
-		ShaderMat4* ShadowMatrices;
+		ShaderMat4 ShadowMatrices[8];
+		ShaderMat4 ShadowSplitDepths;
 	};
 
 	struct SampleSceneBufferData

@@ -32,12 +32,6 @@ namespace SunEngine
 
 	void SceneNode::UpdateTransform()
 	{
-		if (this->GetName() == "teddyzsphere_unfold3d")
-		{
-			int ww = 5;
-			ww++;
-		}
-
 		_localMatrix = BuildLocalMatrix();
 
 		if (_parent)

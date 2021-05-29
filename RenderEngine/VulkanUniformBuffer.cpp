@@ -25,10 +25,16 @@ namespace SunEngine
 		vkInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 		vkInfo.size = info.isShared ? _device->GetUniformBufferMaxSize() : info.size;
 		_size = info.size;
-		_allocSize = vkInfo.size;
+		_allocSize = (uint)vkInfo.size;
 
-		if (!_device->CreateBuffer(vkInfo, &_buffer)) return false;
-		if (!_device->AllocBufferMemory(_buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &_memory)) return false;
+		//any buffer that is shared is likely to be updated every frame and thus should be swapped between SHARED_BUFFER_FRAME_COUNT to make sure that subsequent frames don't override that data
+		_buffers.resize(info.isShared ? VulkanDevice::BUFFERED_FRAME_COUNT : 1);
+
+		for (uint i = 0; i < _buffers.size(); i++)
+		{
+			if (!_device->CreateBuffer(vkInfo, &_buffers[i].buffer)) return false;
+			if (!_device->AllocBufferMemory(_buffers[i].buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &_buffers[i].memory)) return false;
+		}
 
 		return true;
 	}
@@ -48,10 +54,12 @@ namespace SunEngine
 		if (size + offset > _allocSize)
 			return false;
 
+		const BufferData& currBuffer = GetCurrentBuffer();
+
 		void* deviceMem = 0;
-		if (!(_device->MapMemory(_memory, offset, _size, 0, &deviceMem))) return false;
+		if (!(_device->MapMemory(currBuffer.memory, offset, _size, 0, &deviceMem))) return false;
 		memcpy((void*)((usize)deviceMem), pData, size); //offset was taken into account in map function
-		if (!_device->UnmapMemory(_memory)) return false;
+		if (!_device->UnmapMemory(currBuffer.memory)) return false;
 
 		return true;
 	}
@@ -69,8 +77,10 @@ namespace SunEngine
 		if (alignedSize * numElements > _allocSize)
 			return false;
 
+		const BufferData& currBuffer = GetCurrentBuffer();
+
 		void* deviceMem = 0;
-		if (!(_device->MapMemory(_memory, 0, alignedSize * numElements, 0, &deviceMem))) return false;
+		if (!(_device->MapMemory(currBuffer.memory, 0, alignedSize * numElements, 0, &deviceMem))) return false;
 
 		usize dstMemAddr = (usize)deviceMem;
 		usize srcMemAddr = (usize)pData;
@@ -81,7 +91,7 @@ namespace SunEngine
 			srcMemAddr += _size;
 		}
 
-		if (!_device->UnmapMemory(_memory)) return false;
+		if (!_device->UnmapMemory(currBuffer.memory)) return false;
 
 		return true;
 	}
@@ -94,12 +104,17 @@ namespace SunEngine
 
 	void VulkanUniformBuffer::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
-
+		(void)cmdBuffer;
 	}
 
 	void VulkanUniformBuffer::Unbind(ICommandBuffer * cmdBuffer)
 	{
+		(void)cmdBuffer;
+	}
 
+	const VulkanUniformBuffer::BufferData& VulkanUniformBuffer::GetCurrentBuffer() const
+	{
+		return _buffers.size() == 1 ? _buffers.front() : _buffers[_device->GetBufferedFrameNumber()];
 	}
 
 	uint VulkanUniformBuffer::GetMaxSharedUpdates() const

@@ -110,4 +110,18 @@ namespace SunEngine
 		bool _resizeOccured;
 	};
 
+	class ShadowMapView : public View
+	{
+	public:
+		ShadowMapView(SceneRenderer* pSceneRenderer);
+
+	private:
+		bool OnCreate(const CreateInfo&) override;
+		bool Render(CommandBuffer* cmdBuffer) override;
+
+		ShaderBindings _bindings;
+		GraphicsPipeline _pipeline;
+		SceneRenderer* _renderer;
+	};
+
 }

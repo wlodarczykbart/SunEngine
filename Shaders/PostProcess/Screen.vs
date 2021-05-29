@@ -4,12 +4,11 @@ struct PS_In
 	float2 texCoord : TEXCOORD;
 };
 
-static const float2 VERTS[] = 
+static const float2 VERTS[6] =  
 {
 	float2(-1, -1),
 	float2(+1, -1),
 	float2(+1, +1),
-		
 	float2(-1, -1),
 	float2(+1, +1),
 	float2(-1, +1)

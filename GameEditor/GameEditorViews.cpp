@@ -150,6 +150,7 @@ namespace SunEngine
 	void SceneView::Update(GraphicsWindow* pWindow, const GWEventData* pEvents, uint nEvents, float dt, float et)
 	{
 		ICameraView::Update(pWindow, pEvents, nEvents, dt, et);
+		SetVisible(true);
 
 #if 0
 		if (_debugFrustum == 0)
@@ -531,6 +532,53 @@ namespace SunEngine
 		msaa.enabled = true;
 
 		memset(&gui, 0x0, sizeof(gui));
+	}
+
+	ShadowMapView::ShadowMapView(SceneRenderer* pRenderer) : View("ShadowMapView")
+	{
+		_renderer = pRenderer;
+		SetCameraMode(CM_STATIC);
+	}
+
+	bool ShadowMapView::OnCreate(const CreateInfo&)
+	{
+		Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureCopy);
+
+		GraphicsPipeline::CreateInfo pipelineInfo = {};
+		pipelineInfo.pShader = pShader->GetBase();
+		pipelineInfo.settings.rasterizer.cullMode = SE_CM_NONE;
+		if (!_pipeline.Create(pipelineInfo))
+			return false;
+
+		ShaderBindings::CreateInfo bindingInfo = {};
+		bindingInfo.pShader = pipelineInfo.pShader;
+		bindingInfo.type = SBT_MATERIAL;
+		if (!_bindings.Create(bindingInfo))
+			return false;
+
+		if (!_bindings.SetTexture(MaterialStrings::DiffuseMap, _renderer->GetShadowMapTexture()))
+			return false;
+		if (!_bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE)))
+			return false;
+
+		return true;
+	}
+
+	bool ShadowMapView::Render(CommandBuffer* cmdBuffer)
+	{
+		_target.SetClearColor(0, 1, 0, 1);
+		_target.Bind(cmdBuffer);
+		BaseShader* pShader = _pipeline.GetShader();
+		pShader->Bind(cmdBuffer);
+		_pipeline.Bind(cmdBuffer);
+		_bindings.Bind(cmdBuffer);
+		cmdBuffer->Draw(6, 1, 0, 0);
+		_bindings.Unbind(cmdBuffer);
+		_pipeline.Unbind(cmdBuffer);
+		pShader->Unbind(cmdBuffer);
+		_target.Unbind(cmdBuffer);
+
+		return true;
 	}
 
 }

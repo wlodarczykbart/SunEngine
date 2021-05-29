@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ThreadPool.h"
-#include "BoundingVolumes.h"
 
 namespace SunEngine
 {

@@ -1,12 +1,11 @@
 #pragma once
 
-#include "Types.h"
-#include <cmath>
-#include <glm/glm.hpp>
-
 #include "RenderTarget.h"
 #include "InputCodes.h"
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include "glm/glm.hpp"
 
 namespace SunEngine
 {
@@ -20,6 +19,7 @@ namespace SunEngine
 	public:
 		enum CameraMode
 		{
+			CM_STATIC,
 			CM_FIRST_PERSON,
 			CM_CUSTOM,
 		};
@@ -28,7 +28,7 @@ namespace SunEngine
 		{
 			uint width;
 			uint height;
-			bool visibile;
+			bool visible;
 			bool floatingPointColorBuffer;
 
 			bool ParseConfigString(const String& str);
@@ -67,6 +67,12 @@ namespace SunEngine
 
 		void SetRenderToGraphicsWindow(bool bRender) { _renderToGraphicsWindow = bRender; }
 		bool GetRenderToGraphicsWindow() const { return _renderToGraphicsWindow; }
+
+		bool GetVisible() const { return _info.visible; }
+		void SetVisible(bool visible) { _info.visible = visible; }
+
+		bool GeCameraMode() const { return _camMode; }
+		void SetCameraMode(CameraMode mode) { _camMode = mode; }
 
 	protected:
 		View(const String& uniqueName);

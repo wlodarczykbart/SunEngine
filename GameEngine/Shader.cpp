@@ -343,6 +343,7 @@ namespace SunEngine
 		camData.ViewProjectionMatrix.Set(&viewProj);
 		camData.InvViewMatrix.Set(&invView);
 		camData.InvProjectionMatrix.Set(&invProj);
+		camData.InvViewProjectionMatrix.Set(&invViewProj);
 	}
 
 	void Shader::SetDefaults()

@@ -1,5 +1,3 @@
-#include "glm/gtc/constants.hpp"
-
 #include "Mesh.h"
 
 #define SWIZZLE_YZX(v) glm::vec4(v.y, v.z, v.z, v.w)

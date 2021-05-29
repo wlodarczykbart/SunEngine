@@ -36,10 +36,11 @@ namespace SunEngine
 
 	private:
 		void BindImageView(VkImageView view, VkImageLayout layout, uint binding);
+		VkDescriptorSet GetCurrentSet() const;
 
 		uint _setNumber;
 		VulkanShader* _shader;
-		VkDescriptorSet _set;
+		Vector<VkDescriptorSet> _sets;
 		VkDescriptorSetLayout _layout;
 		StrMap<Pair<uint, VulkanObject*>> _bindingMap;
 		Vector<uint> _dynamicOffsets;

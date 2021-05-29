@@ -8,7 +8,6 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 
-#include "glm/matrix.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/matrix_decompose.hpp"
 
@@ -39,7 +38,7 @@ namespace SunEngine
 
 		width = 0;
 		height = 0;
-		visibile = true;
+		visible = true;
 
 		for (uint i = 0; i < parts.size(); i++)
 		{
@@ -56,7 +55,7 @@ namespace SunEngine
 			}
 			else if (ParseValue("visible", keyValue, value))
 			{
-				visibile = StrToInt(value) == 0 ? false : true;
+				visible = StrToInt(value) == 0 ? false : true;
 			}	
 		}
 
@@ -81,8 +80,8 @@ namespace SunEngine
 		_worldMtx = glm::mat4(1.0f);
 		_viewMtx = glm::mat4(1.0f);
 
-		_nearZ = 0.1f;
-		_farZ = 1000.0f;
+		_nearZ = 0.5f;
+		_farZ = 500.0f;
 		_aspectRatio = 1.0f;
 		_fovAngle = 45.0f;
 		_projMtx = glm::mat4(1.0f);
@@ -145,8 +144,8 @@ namespace SunEngine
 			_position -= glm::vec3(0,1,0) * speed;
 		}
 
-		_nearZ = 0.1f;
-		_farZ = 1000.0f;
+		_nearZ = 0.5f;
+		_farZ = 500.0f;
 		_aspectRatio = (float)_target.Width() / _target.Height();
 		_fovAngle = 45.0f;
 		_projMtx = glm::perspective(glm::radians(_fovAngle), _aspectRatio, _nearZ, _farZ);

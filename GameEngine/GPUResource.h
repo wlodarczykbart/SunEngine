@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MathHelper.h"
 #include "Resource.h"
 
 namespace SunEngine

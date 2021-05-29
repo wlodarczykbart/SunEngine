@@ -236,15 +236,22 @@ namespace SunEngine
 				for (uint i = 0; i < pEditor->GetViews(views); i++)
 				{
 					View* pView = views[i];
-					auto funcs = _viewRenderInfos.find(pView);
-					if (funcs != _viewRenderInfos.end() && (*funcs).second.MenuFunc)
+					if (ImGui::BeginMenu(pView->GetName().c_str()))
 					{
-						if (ImGui::BeginMenu(pView->GetName().c_str()))
+						auto funcs = _viewRenderInfos.find(pView);
+						if (funcs != _viewRenderInfos.end() && (*funcs).second.MenuFunc)
 						{
-							ViewRenderFunc func = (*funcs).second.MenuFunc;
-							(this->*func)(pView, pEditor);
-							ImGui::EndMenu();
+							if (ImGui::BeginMenu("Menu"))
+							{
+								ViewRenderFunc func = (*funcs).second.MenuFunc;
+								(this->*func)(pView, pEditor);
+								ImGui::EndMenu();
+							}
 						}
+						bool visible = pView->GetVisible();
+						if (ImGui::MenuItem("Visible", NULL, &visible)) 
+							pView->SetVisible(visible);
+						ImGui::EndMenu();
 					}
 				}
 				ImGui::EndMenu();

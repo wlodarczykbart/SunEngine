@@ -2,7 +2,6 @@
 
 #include "Resource.h"
 #include "AssetNode.h"
-#include "BoundingVolumes.h"
 
 namespace SunEngine
 {

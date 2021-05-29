@@ -7,6 +7,7 @@ namespace SunEngine
 
 	IDevice::IDevice()
 	{
+		_frameNumber = 0;
 	}
 
 
@@ -25,6 +26,16 @@ namespace SunEngine
 		default:
 			return 0;
 		}
+	}
+
+	void IDevice::SetFrameNumber(uint frameNumber)
+	{
+		_frameNumber = frameNumber;
+	}
+
+	uint IDevice::GetFrameNumber() const
+	{
+		return _frameNumber;
 	}
 
 }

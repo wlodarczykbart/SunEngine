@@ -1,6 +1,5 @@
 #pragma once
 
-#include "BoundingVolumes.h"
 #include "BaseMesh.h"
 #include "GPUResource.h"
 
