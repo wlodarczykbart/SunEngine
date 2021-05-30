@@ -119,12 +119,12 @@ void FillShaderBufferInfo(ShaderBindingType type, IShaderBuffer& buffer)
 		};
 	}
 
-	strncpy_s(buffer.name, bufferName.c_str(), bufferName.size());
+	sprintf_s(buffer.name, bufferName.c_str());
 	buffer.numVariables = variables.size();
 	uint offset = 0;
 	for (uint i = 0; i < variables.size(); i++)
 	{
-		strncpy_s(buffer.variables[i].name, variables[i].name.c_str(), variables[i].name.size());
+		sprintf_s(buffer.variables[i].name, variables[i].name.c_str());
 		buffer.variables[i].type = variables[i].type;
 		switch (variables[i].type)
 		{
@@ -280,7 +280,7 @@ int main(int argc, const char** argv)
 		vtxElem.format = VIF_FLOAT4;
 		vtxElem.offset = 0;
 		vtxElem.size = sizeof(XMFLOAT4);
-		strncpy_s(vtxElem.semantic, "POSITION", strlen("POSITION"));
+		sprintf_s(vtxElem.semantic, "POSITION");
 		info.vertexElements.push_back(vtxElem);
 
 		FileStream fs;
@@ -301,17 +301,14 @@ int main(int argc, const char** argv)
 		resource.bindType = SBT_SHADOW;
 		resource.stages = SS_PIXEL;
 
-		for (uint i = 0; i < MAX_CASCADES; i++)
-		{
-			sprintf_s(resource.name, "DepthTexture%d", i);
-			resource.dimension = SRD_TEXTURE_2D;
-			resource.type = SRT_TEXTURE;
-			resource.binding[SE_GFX_D3D11] = i;
-			//resource.binding[SE_GFX_VULKAN] = 0;
-			info.resources[resource.name] = resource;
-		}
+		sprintf_s(resource.name, "DepthTexture");
+		resource.dimension = SRD_TEXTURE_2D;
+		resource.type = SRT_TEXTURE;
+		resource.binding[SE_GFX_D3D11] = 0;
+		//resource.binding[SE_GFX_VULKAN] = 0;
+		info.resources[resource.name] = resource;
 
-		strncpy_s(resource.name, "Sampler", strlen("Sampler"));
+		sprintf_s(resource.name, "Sampler");
 		resource.binding[SE_GFX_D3D11] = 0;
 		//resource.binding[SE_GFX_VULKAN] = 0;
 		resource.type = SRT_SAMPLER;
@@ -353,22 +350,22 @@ int main(int argc, const char** argv)
 			return -1;
 
 		info.pShader = &depthShader;
+		info.settings.rasterizer.slopeScaledDepthBias = 1.0f;
 		if (!depthPipeline.Create(info))
 			return -1;
 	}
 
 	m_CopyOfCascadeConfig.m_nCascadeLevels = 4;
-	m_CopyOfCascadeConfig.m_iBufferSize = 512;
+	m_CopyOfCascadeConfig.m_iBufferSize = 2048;
 
-	RenderTarget depthTargets[MAX_CASCADES];
-	for(int i = 0; i < m_CopyOfCascadeConfig.m_nCascadeLevels; i++)
+	RenderTarget depthTarget;
 	{
 		RenderTarget::CreateInfo info = {};
-		info.width = m_CopyOfCascadeConfig.m_iBufferSize;
+		info.width = m_CopyOfCascadeConfig.m_iBufferSize * m_CopyOfCascadeConfig.m_nCascadeLevels;
 		info.height = m_CopyOfCascadeConfig.m_iBufferSize;
 		info.hasDepthBuffer = true;
 
-		if (!depthTargets[i].Create(info))
+		if (!depthTarget.Create(info))
 			return -1;
 	}
 
@@ -376,24 +373,22 @@ int main(int argc, const char** argv)
 	{
 		Sampler::CreateInfo info = {};
 		info.settings.anisotropicMode = SE_AM_OFF;
-		info.settings.filterMode = SE_FM_LINEAR;
+		info.settings.filterMode = SE_FM_NEAREST;
 		info.settings.wrapMode = SE_WM_CLAMP_TO_EDGE;
 		if (!sampler.Create(info))
 			return -1;
 	}
 
-	for (int i = 0; i < m_CopyOfCascadeConfig.m_nCascadeLevels; i++)
-	{
-		if (!bindingMap[SBT_SHADOW].bindings.SetTexture(StrFormat("DepthTexture%d", i), depthTargets[i].GetDepthTexture()))
-			return -1;
-	}
+	if (!bindingMap[SBT_SHADOW].bindings.SetTexture("DepthTexture", depthTarget.GetDepthTexture()))
+		return -1;
+
 	if (!bindingMap[SBT_SHADOW].bindings.SetSampler("Sampler", &sampler))
 		return -1;
 
 	auto* cmdBuffer = surface.GetCommandBuffer();
 
-	float nearClip = 0.5f;
-	float farClip = 200.0f;
+	float nearClip = 0.05f;
+	float farClip = 300.0f;
 	XMMATRIX projMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), 1.0f, nearClip, farClip);
 
 	XMINT2 mousePos(0, 0);
@@ -411,7 +406,7 @@ int main(int argc, const char** argv)
 	FLOAT worldRange = 40.0f;
 
 	Vector<RenderNode> renderNodes;
-	uint cubeCount = 30.0f;
+	uint cubeCount = 30;
 	for (uint i = 0; i < cubeCount; i++)
 	{
 		RenderNode planeNode;
@@ -420,7 +415,7 @@ int main(int argc, const char** argv)
 
 		XMVECTOR t = XMVectorSet(rand() / (float)RAND_MAX, 0.0f, rand() / (float)RAND_MAX, 0.0f);
 		XMVECTOR pos = XMVectorLerpV(XMVectorSet(-worldRange, 0.0f, -worldRange, 0.0f), XMVectorSet(worldRange, 0.0f, worldRange, 0.0f), t);
-		planeNode.worldMatrix = XMMatrixScaling(1.0f, 1.0f + (10.0f * (rand() / float(RAND_MAX))), 1.0f) * XMMatrixTranslationFromVector(pos);
+		planeNode.worldMatrix = XMMatrixScaling(1.0f, 1.0f + (20.0f * (rand() / float(RAND_MAX))), 1.0f) * XMMatrixTranslationFromVector(pos);
 		renderNodes.push_back(planeNode);
 	}
 
@@ -453,8 +448,8 @@ int main(int argc, const char** argv)
 		m_vSceneAABBMin = XMVectorMin(m_vSceneAABBMin, vMin);
 		m_vSceneAABBMin = XMVectorMin(m_vSceneAABBMin, vMax);
 
-		m_vSceneAABBMax = XMVectorMax(m_vSceneAABBMin, vMin);
-		m_vSceneAABBMax = XMVectorMax(m_vSceneAABBMin, vMax);
+		m_vSceneAABBMax = XMVectorMax(m_vSceneAABBMax, vMin);
+		m_vSceneAABBMax = XMVectorMax(m_vSceneAABBMax, vMax);
 	}
 
 	m_iCascadePartitionsZeroToOne[0] = 5;
@@ -468,7 +463,8 @@ int main(int argc, const char** argv)
 
 	m_iCascadePartitionsMax = 100;
 
-	XMMATRIX lightMatrix = XMMatrixLookAtLH(XMVector4Normalize(XMVectorSet(20.0f, 20.0f, -20.0f, 0.0)), g_vZero, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+	XMVECTOR lightDir = XMVector4Normalize(XMVectorSet(20.0f, 20.0f, -20.0f, 0.0));
 
 	window.Open();
 	while (window.IsAlive())
@@ -503,6 +499,17 @@ int main(int argc, const char** argv)
 		if (window.KeyDown(KEY_S))
 			viewPosition = XMVectorSubtract(viewPosition, viewRotation.r[2]);
 
+
+		if (window.KeyDown(KEY_UP))
+			lightDir = XMVector4Transform(lightDir, XMMatrixRotationX(XMConvertToRadians(1.0f)));
+		if (window.KeyDown(KEY_DOWN))
+			lightDir = XMVector4Transform(lightDir, XMMatrixRotationX(XMConvertToRadians(-1.0f)));
+		if (window.KeyDown(KEY_RIGHT))
+			lightDir = XMVector4Transform(lightDir, XMMatrixRotationY(XMConvertToRadians(1.0f)));
+		if (window.KeyDown(KEY_LEFT))
+			lightDir = XMVector4Transform(lightDir, XMMatrixRotationY(XMConvertToRadians(-1.0f)));
+
+		XMMATRIX lightMatrix = XMMatrixLookAtLH(lightDir, g_vZero, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
 
 		XMMATRIX viewMatrix = viewRotation * XMMatrixTranslationFromVector(viewPosition);
 		XMVECTOR det;
@@ -541,25 +548,31 @@ int main(int argc, const char** argv)
 		{
 			XMMATRIX ShadowMatrices[MAX_CASCADES];
 			XMMATRIX ShadowSplitDepths;
-		} shaderBufferData;
+		} shadowBufferData;
 
-		memset(&shaderBufferData, 0x0, sizeof(shaderBufferData));
+		shadowBufferData.ShadowSplitDepths = XMMatrixSet(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f / m_CopyOfCascadeConfig.m_nCascadeLevels, 1.0f / m_CopyOfCascadeConfig.m_iBufferSize);
 		for (int i = 0; i < m_CopyOfCascadeConfig.m_nCascadeLevels; i++)
 		{
-			shaderBufferData.ShadowMatrices[i] = cameraMatrices[i].ViewProj;
-			reinterpret_cast<FLOAT*>(shaderBufferData.ShadowSplitDepths.r)[i] = m_fCascadePartitionsFrustum[i];
+			shadowBufferData.ShadowMatrices[i] = cameraMatrices[i].ViewProj;
+			reinterpret_cast<FLOAT*>(shadowBufferData.ShadowSplitDepths.r)[i] = m_fCascadePartitionsFrustum[i];
 		}
-		bindingMap[SBT_SHADOW].ubo.Update(&shaderBufferData);
+		bindingMap[SBT_SHADOW].ubo.Update(&shadowBufferData);
 
 		surface.StartFrame();
 
+		depthTarget.Bind(cmdBuffer);
+		depthShader.Bind(cmdBuffer);
+		depthPipeline.Bind(cmdBuffer);
 		for (int c = 0; c < m_CopyOfCascadeConfig.m_nCascadeLevels; c++)
 		{
-			auto& depthTarget = depthTargets[c];
-			depthTarget.Bind(cmdBuffer);
-			depthShader.Bind(cmdBuffer);
-			depthPipeline.Bind(cmdBuffer);
+			float x, y, w, h;
+			x = float(c * m_CopyOfCascadeConfig.m_iBufferSize);
+			y = float(0.0f);
+			w = float(m_CopyOfCascadeConfig.m_iBufferSize);
+			h = float(m_CopyOfCascadeConfig.m_iBufferSize);
 
+			cmdBuffer->SetViewport(x, y, w, h);
+			cmdBuffer->SetScissor(x, y, w, h);
 			cameraBindState.DynamicIndices[0].second = c;
 			bindingMap[SBT_CAMERA].bindings.Bind(cmdBuffer, &cameraBindState);
 
@@ -575,9 +588,8 @@ int main(int argc, const char** argv)
 					node.pMesh->Unbind(cmdBuffer);
 				}
 			}
-
-			depthTarget.Unbind(cmdBuffer);
 		}
+		depthTarget.Unbind(cmdBuffer);
 
 		surface.Bind(cmdBuffer);
 
