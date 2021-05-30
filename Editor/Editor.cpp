@@ -193,7 +193,7 @@ namespace SunEngine
 			_updateTick = timer.Tick();
 			Render();
 			GraphicsContext::GetDevice()->SetFrameNumber(++frameNumber);
-			_renderTick= timer.Tick();
+			_renderTick = timer.Tick();
 		}
 
 		GraphicsContext::GetDevice()->WaitIdle();
@@ -314,10 +314,6 @@ namespace SunEngine
 				_bHasFocus = false;
 		}
 
-
-		//start here since this is when gpu is blocked for completion of previous frame, could think of better way to do this
-		_graphicsSurface.StartFrame();
-
 		//if (_bHasFocus)
 		{
 			CustomUpdate();
@@ -345,6 +341,8 @@ namespace SunEngine
 
 	void Editor::Render()
 	{
+		_graphicsSurface.StartFrame();
+
 		CommandBuffer* cmdBuffer = _graphicsSurface.GetCommandBuffer();
 
 		View* pGraphicsWindowView = 0;

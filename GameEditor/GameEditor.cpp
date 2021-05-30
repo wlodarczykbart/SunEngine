@@ -375,10 +375,10 @@ namespace SunEngine
 		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
 		//strAsset = "F:/Models/FBX/_PHONG_/Wooden_barrels__OBJ/Wooden_barrels.FBX";
 
-		auto options = SunEngine::AssetImporter::Options::Default;
-		options.MaxTextureSize = 1024;
-		Asset* pAsset = ImportAsset(strAsset, options);
-		pAsset->CreateSceneNode(pScene, _view->GetFarZ() - _view->GetNearZ());
+		//auto options = SunEngine::AssetImporter::Options::Default;
+		//options.MaxTextureSize = 1024;
+		//Asset* pAsset = ImportAsset(strAsset, options);
+		//pAsset->CreateSceneNode(pScene, _view->GetFarZ() - _view->GetNearZ());
 
 		return true;
 	}

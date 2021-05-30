@@ -91,8 +91,10 @@ namespace SunEngine
 
 	struct ShadowBufferData
 	{
-		ShaderMat4 ShadowMatrices[8];
-		ShaderMat4 ShadowSplitDepths;
+		static const uint MAX_CASCADE_SPLITS = 8;
+
+		ShaderMat4 ShadowMatrices[MAX_CASCADE_SPLITS];
+		ShaderMat4 ShadowSplitDepths; //could be array of 8 floats, but not bothering with potential alightment issues and just making it a matrix...
 	};
 
 	struct SampleSceneBufferData

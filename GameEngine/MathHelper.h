@@ -107,6 +107,20 @@ namespace SunEngine
 			corners[7] = glm::vec4(Max.x, Min.y, Min.z, 1.0f);
 		}
 
+		void GetCorners(glm::vec3 corners[8]) const
+		{
+			corners[0] = glm::vec3(Min);
+			corners[1] = glm::vec3(Max);
+								 
+			corners[2] = glm::vec3(Min.x, Min.y, Max.z);
+			corners[3] = glm::vec3(Min.x, Max.y, Max.z);
+			corners[4] = glm::vec3(Max.x, Min.y, Max.z);
+
+			corners[5] = glm::vec3(Max.x, Max.y, Min.z);
+			corners[6] = glm::vec3(Min.x, Max.y, Min.z);
+			corners[7] = glm::vec3(Max.x, Min.y, Min.z);
+		}
+
 		glm::vec3 GetExtent() const
 		{
 			return (Max - Min) * 0.5f;

@@ -259,6 +259,8 @@ namespace SunEngine
 			}
 		}
 
+		_renderer->SetCascadeSplitLambda(_settings.shadows.cascadeSplitLambda);
+
 	}
 
 	bool SceneView::OnCreate(const CreateInfo& info)
@@ -297,6 +299,8 @@ namespace SunEngine
 				return false;
 #endif
 		}
+
+		_settings.shadows.enabled = EngineInfo::GetRenderer().ShadowsEnabled();
 
 		return OnResize(info);
 	}
@@ -530,6 +534,9 @@ namespace SunEngine
 		fxaa.edgeThresholdMin = 0.0833f;
 
 		msaa.enabled = true;
+
+		shadows.enabled = true;
+		shadows.cascadeSplitLambda = 0.95f;
 
 		memset(&gui, 0x0, sizeof(gui));
 	}

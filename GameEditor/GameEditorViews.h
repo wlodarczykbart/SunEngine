@@ -51,7 +51,13 @@ namespace SunEngine
 
 			struct
 			{
-				bool showRendererInfo;
+				bool enabled;
+				float cascadeSplitLambda;
+			} shadows;
+
+			struct
+			{
+				bool showRenderer;
 				bool showEnvironments;
 			} gui;
 		};

@@ -32,6 +32,7 @@ namespace SunEngine
 		_cameraBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
 		_environmentBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
 		_shadowBuffer = UniquePtr<UniformBufferData>(new UniformBufferData());
+		_cascadeSplitLambda = 0.0f;
 	}
 
 	SceneRenderer::~SceneRenderer()
@@ -205,7 +206,7 @@ namespace SunEngine
 
 		if (EngineInfo::GetRenderer().ShadowsEnabled())
 		{
-			UpdateShadowCascades(cameraDataList);
+			UpdateShadowCascades(pScene, cameraDataList);
 
 			ThreadPool& tp = ThreadPool::Get();
 			struct ThreadData
@@ -230,7 +231,8 @@ namespace SunEngine
 					pData->pScene->TraverseRenderNodes(
 						[](const AABB& aabb, void* pAABBData) -> bool { 
 							//return FrustumAABBIntersect(static_cast<const glm::vec4*>(pAABBData), aabb);
-							return static_cast<DepthRenderData*>(pAABBData)->CameraData->FrustumIntersects(aabb);
+							//return static_cast<DepthRenderData*>(pAABBData)->CameraData->FrustumIntersects(aabb);
+							return true;
 						}, pData->pDepthData,
 						[](RenderNode* pNode, void* pNodeData) -> void { 
 							ThreadData* pData = static_cast<ThreadData*>(pNodeData); 
@@ -540,11 +542,11 @@ namespace SunEngine
 		if(glm::epsilonEqual(box.Min.y, box.Max.y, 0.001f))
 			return;
 
-		//if (!pDepthData->FrustumBox.Intersects(box))
+		//if (!pDepthData->FrustumBox.Contains(box))
 		//	return;
 
-		if (!pDepthData->CameraData->FrustumIntersects(pNode->GetWorldAABB()))
-			return;
+		//if (!pDepthData->CameraData->FrustumIntersects(pNode->GetWorldAABB()))
+		//	return;
 
 		Material* pMaterial = pNode->GetMaterial();
 		uint64 variantMask = GetVariantMask(pNode);
@@ -637,6 +639,10 @@ namespace SunEngine
 		}
 
 		if (isShadow) ShaderMgr::Get().BuildPipelineSettings(DefaultPipelines::ShadowDepth, settings);
+
+#ifdef GLM_FORCE_LEFT_HANDED
+		settings.rasterizer.frontFace = SE_FF_CLOCKWISE;
+#endif
 
 		for (uint i = 0; i < _graphicsPipelines.size(); i++)
 		{
@@ -846,11 +852,7 @@ namespace SunEngine
 		return hash;
 	}
 
-	/*
-		Calculate frustum split depths and matrices for the shadow map cascades
-		Based on https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
-	*/
-	void SceneRenderer::UpdateShadowCascades(Vector<CameraBufferData>& cameraBuffersToFill)
+	void SceneRenderer::UpdateShadowCascades(Scene* pScene, Vector<CameraBufferData>& cameraBuffersToFill)
 	{
 		if (!EngineInfo::GetRenderer().ShadowsEnabled())
 			return;
@@ -860,36 +862,17 @@ namespace SunEngine
 			return;
 
 		const Camera* pCamera = _currentCamera->C()->As<const Camera>();
-#if 0
-		{
-			glm::vec3 lightPos = glm::vec3(5, 20, 10);
-			lightPos = glm::vec3(-27.4350910, -35.4456558, 28.6385860);
-
-			lightPos = _currentEnvironment->GetSunDirection() * 10.0f;
-
-			glm::mat4 proj = glm::perspective(glm::radians(45.f), 1.0f, 0.1f, 100.0f);
-			glm::mat4 view = glm::lookAt(lightPos, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-
-			//proj = pCamera->GetProj();
-			//view = _currentCamera->GetView();
-
-			CameraBufferData data;
-			Shader::FillMatrices(view, proj, data);
-			data.Viewport.Set(0, 0, 1, 1);
-			cameraBuffersToFill.push_back(data);
-
-			ShadowBufferData shadowBufferData = {};
-			shadowBufferData.ShadowMatrices[0].Set(data.ViewProjectionMatrix.data);
-			_shadowBuffer->Buffer.Update(&shadowBufferData, 0, sizeof(ShadowBufferData));
-			return;
-		}
-
-#endif
-
 		ShadowBufferData shadowBufferData;
-		float cascadeSplits[SE_ARR_SIZE(shadowBufferData.ShadowMatrices)];
 
-		float cascadeSplitLambda = 0.95f;
+		glm::mat4 iden(1.0f);
+		glm::mat4 shadowBiasMtx = glm::translate(iden, glm::vec3(0.5f, 0.5f, 0.0f)) * glm::scale(iden, glm::vec3(0.5f, -0.5f, 1.0f));
+
+#if 1
+		/*
+			Calculate frustum split depths and matrices for the shadow map cascades
+			Based on https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
+		*/
+		float cascadeSplits[SE_ARR_SIZE(shadowBufferData.ShadowMatrices)];
 
 		float nearClip = pCamera->GetNearZ();
 		float farClip = pCamera->GetFarZ();
@@ -907,12 +890,9 @@ namespace SunEngine
 			float p = (i + 1) / static_cast<float>(SHADOW_MAP_CASCADE_COUNT);
 			float log = minZ * std::pow(ratio, p);
 			float uniform = minZ + range * p;
-			float d = cascadeSplitLambda * (log - uniform) + uniform;
+			float d = _cascadeSplitLambda * (log - uniform) + uniform;
 			cascadeSplits[i] = (d - nearClip) / clipRange;
 		}
-
-		glm::mat4 iden(1.0f);
-		glm::mat4 shadowBiasMtx = glm::translate(iden, glm::vec3(0.5f, 0.5f, 0.0f)) * glm::scale(iden, glm::vec3(0.5f, -0.5f, 1.0f));
 
 		// Calculate orthographic projection matrix for each cascade
 		float lastSplitDist = 0.0;
@@ -1010,46 +990,8 @@ namespace SunEngine
 			pDepthPass->FrustumBox.Expand(glm::vec3(FLT_MAX));
 			pDepthPass->FrustumBox.Expand(glm::vec3(-FLT_MAX));
 		}
+#else
 
-#if 0
-		float sceneRadius = 20.0f;
-		glm::vec3 lightDir = _currentEnvironment->GetSunDirection();
-		glm::vec3 lightPos = -2.0f * lightDir * sceneRadius;
-		glm::vec3 targetPos = _currentCamera->GetPosition();
-		targetPos = glm::vec3(0);
-		glm::vec3 lightUp = glm::vec3(0, 1, 0);
-		glm::mat4 view = glm::lookAt(lightPos, targetPos, lightUp);
-
-		glm::vec3 sphereCenterLS = view * glm::vec4(targetPos, 1.0f);
-		float l = sphereCenterLS.x - sceneRadius;
-		float r = sphereCenterLS.x + sceneRadius;
-		float b = sphereCenterLS.y - sceneRadius;
-		float t = sphereCenterLS.y + sceneRadius;
-		float n = sphereCenterLS.z - sceneRadius;
-		float f = sphereCenterLS.z + sceneRadius;
-		glm::mat4 proj = glm::ortho(l, r, b, t, 0.0f, 100.0f);
-
-		//glm::mat4 dxMtx = *(glm::mat4*)&DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
-
-		//bool eq = true;
-		//for (int ii = 0; ii < 4; ii++)
-		//{
-		//	for (int jj = 0; jj < 4; jj++) {
-		//		if (fabsf(proj[ii][jj] - dxMtx[ii][jj]) > 0.0001)
-		//		{
-		//			eq = false;
-		//		}
-		//	}
-		//}
-
-		//lightPos = glm::vec3(-27.4350910, -35.4456558, 28.6385860);
-		//lightPos = lightDir* sceneRadius;
-		//proj = glm::perspective(glm::radians(45.0f), 1.0f, 1.0f, 96.0f);
-		//view = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0, 1, 0));
-
-		Shader::FillMatrices(view, proj, cameraBuffersToFill[1]);
-		glm::mat4 viewProj = proj * view;
-		shadowBufferData.ShadowMatrices[0].Set(&viewProj);
 #endif
 
 		_shadowBuffer->Buffer.Update(&shadowBufferData);

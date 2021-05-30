@@ -387,7 +387,7 @@ namespace SunEngine
 	{
 		SceneView* pView = static_cast<SceneView*>(pBaseView);
 		auto& settings = pView->GetSettings();
-		if (ImGui::MenuItem("RendererInfo")) settings.gui.showRendererInfo = true;
+		if (ImGui::MenuItem("Renderer")) settings.gui.showRenderer = true;
 		if (ImGui::MenuItem("Environments")) settings.gui.showEnvironments = true;
 	}
 
@@ -398,8 +398,8 @@ namespace SunEngine
 
 		Scene* pScene = SceneMgr::Get().GetActiveScene();
 
-		bool& showRendererInfo = settings.gui.showRendererInfo;
-		if (showRendererInfo && ImGui::Begin("RendererInfo", &showRendererInfo))
+		bool& showRenderer = settings.gui.showRenderer;
+		if (showRenderer && ImGui::Begin("Renderer", &showRenderer))
 		{
 			if (ImGui::TreeNode("FXAA"))
 			{
@@ -413,6 +413,13 @@ namespace SunEngine
 			if (ImGui::TreeNode("MSAA"))
 			{
 				ImGui::Checkbox("Enabled", &settings.msaa.enabled);
+				ImGui::TreePop();
+			}
+
+			if (ImGui::TreeNode("Shadows"))
+			{
+				ImGui::Checkbox("Enabled", &settings.shadows.enabled);
+				ImGui::DragFloat("CascadeSplitLambda", &settings.shadows.cascadeSplitLambda, 0.005f, 0.0f, 1.0f);
 				ImGui::TreePop();
 			}
 

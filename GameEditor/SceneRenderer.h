@@ -46,6 +46,7 @@ namespace SunEngine
 		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo, RenderTargetPassInfo* pMSAAResolveInfo);
 
 		BaseTexture* GetShadowMapTexture() const { return _depthTarget.GetDepthTexture(); }
+		void SetCascadeSplitLambda(float lambda) { _cascadeSplitLambda = lambda; }
 
 	private:
 		struct UniformBufferData
@@ -64,6 +65,7 @@ namespace SunEngine
 			void Flush();
 			void Reset();
 			void Update(const void* dataBlock, uint& updatedIndex, UniformBufferData** ppUpdatedBuffer = 0, BaseShader* pShader = 0);
+
 
 		private:
 			String _name;
@@ -115,7 +117,7 @@ namespace SunEngine
 		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6);
 		bool CreateDepthMaterial(Material* pMaterial, uint64 variantMask, Material* pEmptyMaterial) const;
 		uint64 CalculateDepthVariantHash(Material* pMaterial, uint64 variantMask) const;
-		void UpdateShadowCascades(Vector<CameraBufferData>& cameraBuffersToFill);
+		void UpdateShadowCascades(Scene* pScene, Vector<CameraBufferData>& cameraBuffersToFill);
 		bool ShouldRender(const RenderNode* pNode) const;
 		uint64 GetVariantMask(const RenderNode* pNode) const;
 
@@ -136,6 +138,7 @@ namespace SunEngine
 		Map<usize, UniquePtr<Material>> _depthMaterials;
 		RenderTarget _depthTarget;
 		Vector<UniquePtr<DepthRenderData>> _depthPasses;
+		float _cascadeSplitLambda;
 
 		Vector<ShaderMat4> _skinnedBoneMatrixBlock;
 
