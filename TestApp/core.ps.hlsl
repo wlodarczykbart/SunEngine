@@ -10,6 +10,7 @@ struct PS_In
 	float4 color : COLOR;
 };
 
+#define SHADOW_COORDINATE_SYSTEM ShadowSplitDepths[3][1]
 #define SHADOW_SLICE_RATIO ShadowSplitDepths[3][2]
 #define INV_SHADOW_MAP_RESOLUTION ShadowSplitDepths[3][3]
 
@@ -94,7 +95,7 @@ float3 getShadowFactor(float4 eyePos, float4 worldPos)
 	//return shadowFactor;
 
 	uint cascadeIndex = MAX_CASCADES - 1;
-	float eyeDist = eyePos.z;
+	float eyeDist = eyePos.z * SHADOW_COORDINATE_SYSTEM;
 
 	[unroll]
 	for (uint i = 0; i < MAX_CASCADES; i++)

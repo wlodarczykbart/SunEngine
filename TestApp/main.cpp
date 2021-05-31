@@ -11,22 +11,33 @@
 #include "StringUtil.h"
 #include "RenderTarget.h"
 
-#if 0
+#if 1
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_FORCE_LEFT_HANDED
+//#define GLM_FORCE_LEFT_HANDED
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 
 using namespace SunEngine;
-
-//void updateCascades(float nearClip, float farClip, float cascadeSplitLambda, const mat4& viewProj, const vec3& lightPos, mat4& shadowMatrix);
 
 struct ShaderBindingData
 {
 	UniformBuffer ubo;
 	ShaderBindings bindings;
 	IShaderBuffer bufferInfo;
+};
+
+enum CSMFitMode
+{
+	FIT_TO_CASCADES,
+	FIT_TO_SCENE,
+};
+
+enum CSMFitNearFarMode
+{
+	FIT_NEARFAR_AABB,
+	FIT_NEARFAR_SCENE_AABB,
+	FIT_NEARFAR_PANCAKING,
 };
 
 static const glm::vec4 g_vFLTMAX = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
@@ -48,6 +59,10 @@ struct
 	INT m_nCascadeLevels;
 	INT m_iBufferSize;
 } m_CopyOfCascadeConfig;
+
+CSMFitMode m_eSelectedCascadesFit = FIT_TO_CASCADES;
+CSMFitNearFarMode m_eSelectedNearFarFit = FIT_NEARFAR_SCENE_AABB;
+const INT m_iPCFBlurSize = 3;
 
 namespace glm
 {
@@ -285,7 +300,7 @@ void FillShaderBufferInfo(ShaderBindingType type, IShaderBuffer& buffer)
 			this->type = type;
 		}
 
-		ShaderVarDef(const char* name, ShaderDataType type, uint numElements) : ShaderVarDef(name,type)
+		ShaderVarDef(const char* name, ShaderDataType type, uint numElements) : ShaderVarDef(name, type)
 		{
 			this->numElements = numElements;
 		}
@@ -350,9 +365,9 @@ void FillShaderBufferInfo(ShaderBindingType type, IShaderBuffer& buffer)
 		case SDT_FLOAT2: buffer.variables[i].size = sizeof(glm::vec2); break;
 		case SDT_FLOAT3: buffer.variables[i].size = sizeof(glm::vec3); break;
 		case SDT_FLOAT4: buffer.variables[i].size = sizeof(glm::vec4); break;
-		case SDT_MAT2: buffer.variables[i].size = sizeof(glm::vec2)*2; break;
-		case SDT_MAT3: buffer.variables[i].size = sizeof(glm::vec3)*3; break;
-		case SDT_MAT4: buffer.variables[i].size = sizeof(glm::vec4)*4; break;
+		case SDT_MAT2: buffer.variables[i].size = sizeof(glm::vec2) * 2; break;
+		case SDT_MAT3: buffer.variables[i].size = sizeof(glm::vec3) * 3; break;
+		case SDT_MAT4: buffer.variables[i].size = sizeof(glm::vec4) * 4; break;
 		default:
 			break;
 		}
@@ -493,7 +508,7 @@ int main(int argc, const char** argv)
 		info.buffers[bindingMap[SBT_CAMERA].bufferInfo.name] = bindingMap[SBT_CAMERA].bufferInfo;
 		info.buffers[bindingMap[SBT_OBJECT].bufferInfo.name] = bindingMap[SBT_OBJECT].bufferInfo;
 		info.buffers[bindingMap[SBT_SHADOW].bufferInfo.name] = bindingMap[SBT_SHADOW].bufferInfo;
-		
+
 		IVertexElement vtxElem;
 		vtxElem.format = VIF_FLOAT4;
 		vtxElem.offset = 0;
@@ -561,7 +576,9 @@ int main(int argc, const char** argv)
 	GraphicsPipeline corePipeline, depthPipeline;
 	{
 		GraphicsPipeline::CreateInfo info = {};
+#ifdef GLM_FORCE_LEFT_HANDED
 		info.settings.rasterizer.frontFace = SE_FF_CLOCKWISE;
+#endif
 
 		info.pShader = &coreShader;
 		if (!corePipeline.Create(info))
@@ -609,9 +626,14 @@ int main(int argc, const char** argv)
 	float farClip = 300.0f;
 	glm::mat4 projMatrix = glm::perspective(glm::radians(45.0f), 1.0f, nearClip, farClip);
 
+	float coordinateSystem = -1.0f;
+#ifdef GLM_FORCE_LEFT_HANDED
+	coordinateSystem = -coordinateSystem;
+#endif
+
 	glm::ivec2 mousePos(0, 0);
-	glm::vec4 viewAngles = glm::vec4(461, 5.0f, 0.0f, 0.0f);
-	glm::vec4 viewPosition = glm::vec4(-29.f, 4.8f, -12.8f, 1.0f);
+	glm::vec4 viewAngles = glm::vec4(618.0f, -19.0f, 0.0f, 0.0f);
+	glm::vec4 viewPosition = glm::vec4(-19.f, 3.8f, -12.8f, 1.0f);
 	glm::vec4 viewSpeed = glm::vec4(0.1f, 0.1f, 0.1f, 0.1f);
 
 	struct RenderNode
@@ -707,6 +729,7 @@ int main(int argc, const char** argv)
 	glm::vec4 lightDir = glm::normalize(glm::vec4(20.0f, 20.0f, -20.0f, 0.0));
 
 	window.Open();
+	bool bFocus = true;
 	while (window.IsAlive())
 	{
 		GWEventData* pEvents = 0;
@@ -717,37 +740,48 @@ int main(int argc, const char** argv)
 		{
 			if (pEvents[i].type == GWE_MOUSE_DOWN && pEvents[i].mouseButtonCode == MOUSE_LEFT)
 				window.GetMousePosition(mousePos.x, mousePos.y);
+			if (pEvents[i].type == GWE_FOCUS_LOST)
+				bFocus = false;
+			if (pEvents[i].type == GWE_FOCUS_SET)
+				bFocus = true;
 		}
 
-		if (window.KeyDown(KEY_LBUTTON))
+		//bFocus = false;
+		if (bFocus)
 		{
-			glm::ivec2 currPos;
-			window.GetMousePosition(currPos.x, currPos.y);
-			glm::vec4 delta = glm::vec4(currPos.x - mousePos.x, currPos.y - mousePos.y, 0.0f, 0.0f);
-			viewAngles = glm::vec4Add(viewAngles, glm::vec4Multiply(delta, viewSpeed));
-			mousePos = currPos;
+			if (window.KeyDown(KEY_LBUTTON))
+			{
+				glm::ivec2 currPos;
+				window.GetMousePosition(currPos.x, currPos.y);
+				glm::vec4 delta = glm::vec4(currPos.x - mousePos.x, currPos.y - mousePos.y, 0.0f, 0.0f);
+				viewAngles = glm::vec4Add(viewAngles, glm::vec4Multiply(delta, viewSpeed));
+				mousePos = currPos;
+			}
 		}
 
 		glm::mat4 viewRotation = glm::mat4RotationY(glm::radians(glm::vec4GetX(viewAngles))) * glm::mat4RotationX(glm::radians(glm::vec4GetY(viewAngles)));
 
-		if (window.KeyDown(KEY_A))
-			viewPosition = glm::vec4Subtract(viewPosition, viewRotation[0]);
-		if (window.KeyDown(KEY_D))
-			viewPosition = glm::vec4Add(viewPosition, viewRotation[0]);
-		if (window.KeyDown(KEY_W))
-			viewPosition = glm::vec4Add(viewPosition, viewRotation[2]);
-		if (window.KeyDown(KEY_S))
-			viewPosition = glm::vec4Subtract(viewPosition, viewRotation[2]);
+		if (bFocus)
+		{
+			if (window.KeyDown(KEY_A))
+				viewPosition = glm::vec4Subtract(viewPosition, viewRotation[0]);
+			if (window.KeyDown(KEY_D))
+				viewPosition = glm::vec4Add(viewPosition, viewRotation[0]);
+			if (window.KeyDown(KEY_W))
+				viewPosition = glm::vec4Add(viewPosition, viewRotation[2] * coordinateSystem);
+			if (window.KeyDown(KEY_S))
+				viewPosition = glm::vec4Subtract(viewPosition, viewRotation[2] * coordinateSystem);
 
 
-		if (window.KeyDown(KEY_UP))
-			lightDir = glm::vec44Transform(lightDir, glm::mat4RotationX(glm::radians(1.0f)));
-		if (window.KeyDown(KEY_DOWN))
-			lightDir = glm::vec44Transform(lightDir, glm::mat4RotationX(glm::radians(-1.0f)));
-		if (window.KeyDown(KEY_RIGHT))
-			lightDir = glm::vec44Transform(lightDir, glm::mat4RotationY(glm::radians(1.0f)));
-		if (window.KeyDown(KEY_LEFT))
-			lightDir = glm::vec44Transform(lightDir, glm::mat4RotationY(glm::radians(-1.0f)));
+			if (window.KeyDown(KEY_UP))
+				lightDir = glm::vec44Transform(lightDir, glm::mat4RotationX(glm::radians(1.0f)));
+			if (window.KeyDown(KEY_DOWN))
+				lightDir = glm::vec44Transform(lightDir, glm::mat4RotationX(glm::radians(-1.0f)));
+			if (window.KeyDown(KEY_RIGHT))
+				lightDir = glm::vec44Transform(lightDir, glm::mat4RotationY(glm::radians(1.0f)));
+			if (window.KeyDown(KEY_LEFT))
+				lightDir = glm::vec44Transform(lightDir, glm::mat4RotationY(glm::radians(-1.0f)));
+		}
 
 		glm::mat4 lightMatrix = glm::lookAt(glm::vec3(lightDir), glm::vec3(g_vZero), glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -789,7 +823,7 @@ int main(int argc, const char** argv)
 			glm::mat4 ShadowSplitDepths;
 		} shadowBufferData;
 
-		shadowBufferData.ShadowSplitDepths = glm::mat4(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f / m_CopyOfCascadeConfig.m_nCascadeLevels, 1.0f / m_CopyOfCascadeConfig.m_iBufferSize);
+		shadowBufferData.ShadowSplitDepths = glm::mat4(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, coordinateSystem, 1.0f / m_CopyOfCascadeConfig.m_nCascadeLevels, 1.0f / m_CopyOfCascadeConfig.m_iBufferSize);
 		for (int i = 0; i < m_CopyOfCascadeConfig.m_nCascadeLevels; i++)
 		{
 			shadowBufferData.ShadowMatrices[i] = cameraMatrices[i].ViewProj;
@@ -1144,7 +1178,10 @@ void ComputeNearAndFar(FLOAT& fNearPlane,
 				// Set the near and far plan and the min and max z values respectivly.
 				for (int vertind = 0; vertind < 3; ++vertind)
 				{
-					float fTriangleCoordZ = glm::vec4GetZ(triangleList[index].pt[vertind]);
+					float fTriangleCoordZ = -glm::vec4GetZ(triangleList[index].pt[vertind]);
+#ifdef GLM_FORCE_LEFT_HANDED
+					fTriangleCoordZ = -fTriangleCoordZ;
+#endif
 					if (fNearPlane > fTriangleCoordZ)
 					{
 						fNearPlane = fTriangleCoordZ;
@@ -1171,6 +1208,7 @@ void CreateFrustumPointsFromCascadeInterval(float fCascadeIntervalBegin,
 	glm::vec4* pvCornerPointsWorld)
 {
 
+#if 0
 	BoundingFrustum vViewFrust(vProjection);
 	vViewFrust.Near = fCascadeIntervalBegin;
 	vViewFrust.Far = fCascadeIntervalEnd;
@@ -1196,6 +1234,42 @@ void CreateFrustumPointsFromCascadeInterval(float fCascadeIntervalBegin,
 	pvCornerPointsWorld[5] = glm::vec4Select(vRightTopFar, vLeftBottomFar, vGrabX);
 	pvCornerPointsWorld[6] = vLeftBottomFar;
 	pvCornerPointsWorld[7] = glm::vec4Select(vRightTopFar, vLeftBottomFar, vGrabY);
+#else
+
+	float nearZ = -1.0f * 1.0f;
+		glm::vec3 frustumCorners[8] = {
+		glm::vec3(-1.0f,  1.0f, nearZ),
+		glm::vec3(1.0f,  1.0f, nearZ),
+		glm::vec3(1.0f, -1.0f, nearZ),
+		glm::vec3(-1.0f, -1.0f, nearZ),
+		glm::vec3(-1.0f,  1.0f,  1.0f),
+		glm::vec3(1.0f,  1.0f,  1.0f),
+		glm::vec3(1.0f, -1.0f,  1.0f),
+		glm::vec3(-1.0f, -1.0f,  1.0f),
+	};
+
+	// Project frustum corners into world space
+	glm::mat4 invCam = glm::inverse(vProjection);
+	for (uint32_t i = 0; i < 8; i++) {
+		glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[i], 1.0f);
+		frustumCorners[i] = invCorner / invCorner.w;
+	}
+
+	//This range might not be the EXACT value you would get subtracting far - near due to precision 
+	float nearFarRange = glm::abs((frustumCorners[4] - frustumCorners[0]).z);
+	fCascadeIntervalBegin /= nearFarRange;
+	fCascadeIntervalEnd /= nearFarRange;
+
+	for (uint32_t i = 0; i < 4; i++) {
+		glm::vec3 dist = frustumCorners[i + 4] - frustumCorners[i];
+		frustumCorners[i + 4] = frustumCorners[i] + (dist * fCascadeIntervalEnd);
+		frustumCorners[i] = frustumCorners[i] + (dist * fCascadeIntervalBegin);
+	}
+	for (uint32_t i = 0; i < 8; i++) {
+
+		pvCornerPointsWorld[i] = glm::vec4(frustumCorners[i], 1.0f);
+	}
+#endif
 
 }
 
@@ -1232,14 +1306,14 @@ void UpdateShadows(FLOAT nearClip, FLOAT farClip, const glm::mat4& matViewCamera
 	{
 		// Calculate the interval of the View Frustum that this cascade covers. We measure the interval 
 		// the cascade covers as a Min and Max distance along the Z Axis.
-		//if (m_eSelectedCascadesFit == FIT_TO_CASCADES)
-		//{
-		//	// Because we want to fit the orthogrpahic projection tightly around the Cascade, we set the Mimiumum cascade 
-		//	// value to the previous Frustum end Interval
-		//	if (iCascadeIndex == 0) fFrustumIntervalBegin = 0.0f;
-		//	else fFrustumIntervalBegin = (FLOAT)m_iCascadePartitionsZeroToOne[iCascadeIndex - 1];
-		//}
-		//else
+		if (m_eSelectedCascadesFit == FIT_TO_CASCADES)
+		{
+			// Because we want to fit the orthogrpahic projection tightly around the Cascade, we set the Mimiumum cascade 
+			// value to the previous Frustum end Interval
+			if (iCascadeIndex == 0) fFrustumIntervalBegin = 0.0f;
+			else fFrustumIntervalBegin = (FLOAT)m_iCascadePartitionsZeroToOne[iCascadeIndex - 1];
+		}
+		else
 		{
 			// In the FIT_TO_SCENE technique the Cascades overlap eachother.  In other words, interval 1 is coverd by
 			// cascades 1 to 8, interval 2 is covered by cascades 2 to 8 and so forth.
@@ -1277,7 +1351,7 @@ void UpdateShadows(FLOAT nearClip, FLOAT farClip, const glm::mat4& matViewCamera
 
 		// This code removes the shimmering effect along the edges of shadows due to
 		// the light changing to fit the camera.
-		//if (m_eSelectedCascadesFit == FIT_TO_SCENE)
+		if (m_eSelectedCascadesFit == FIT_TO_SCENE)
 		{
 			// Fit the ortho projection to the cascades far plane and a near plane of zero. 
 			// Pad the projection to be the size of the diagonal of the Frustum partition. 
@@ -1309,35 +1383,35 @@ void UpdateShadows(FLOAT nearClip, FLOAT farClip, const glm::mat4& matViewCamera
 
 
 		}
-		//else if (m_eSelectedCascadesFit == FIT_TO_CASCADES)
-		//{
+		else if (m_eSelectedCascadesFit == FIT_TO_CASCADES)
+		{
 
-		//	// We calculate a looser bound based on the size of the PCF blur.  This ensures us that we're 
-		//	// sampling within the correct map.
-		//	float fScaleDuetoBlureAMT = ((float)(m_iPCFBlurSize * 2 + 1)
-		//		/ (float)m_CopyOfCascadeConfig.m_iBufferSize);
-		//	glm::vec4F32 vScaleDuetoBlureAMT = { fScaleDuetoBlureAMT, fScaleDuetoBlureAMT, 0.0f, 0.0f };
+			// We calculate a looser bound based on the size of the PCF blur.  This ensures us that we're 
+			// sampling within the correct map.
+			float fScaleDuetoBlureAMT = ((float)(m_iPCFBlurSize * 2 + 1)
+				/ (float)m_CopyOfCascadeConfig.m_iBufferSize);
+			glm::vec4 vScaleDuetoBlureAMT = { fScaleDuetoBlureAMT, fScaleDuetoBlureAMT, 0.0f, 0.0f };
 
 
-		//	float fNormalizeByBufferSize = (1.0f / (float)m_CopyOfCascadeConfig.m_iBufferSize);
-		//	glm::vec4 vNormalizeByBufferSize = glm::vec4(fNormalizeByBufferSize, fNormalizeByBufferSize, 0.0f, 0.0f);
+			float fNormalizeByBufferSize = (1.0f / (float)m_CopyOfCascadeConfig.m_iBufferSize);
+			glm::vec4 vNormalizeByBufferSize = glm::vec4(fNormalizeByBufferSize, fNormalizeByBufferSize, 0.0f, 0.0f);
 
-		//	// We calculate the offsets as a percentage of the bound.
-		//	glm::vec4 vBoarderOffset = vLightCameraOrthographicMax - vLightCameraOrthographicMin;
-		//	vBoarderOffset *= g_vHalfVector;
-		//	vBoarderOffset *= vScaleDuetoBlureAMT;
-		//	vLightCameraOrthographicMax += vBoarderOffset;
-		//	vLightCameraOrthographicMin -= vBoarderOffset;
+			// We calculate the offsets as a percentage of the bound.
+			glm::vec4 vBoarderOffset = vLightCameraOrthographicMax - vLightCameraOrthographicMin;
+			vBoarderOffset *= g_vHalfVector;
+			vBoarderOffset *= vScaleDuetoBlureAMT;
+			vLightCameraOrthographicMax += vBoarderOffset;
+			vLightCameraOrthographicMin -= vBoarderOffset;
 
-		//	// The world units per texel are used to snap  the orthographic projection
-		//	// to texel sized increments.  
-		//	// Because we're fitting tighly to the cascades, the shimmering shadow edges will still be present when the 
-		//	// camera rotates.  However, when zooming in or strafing the shadow edge will not shimmer.
-		//	vWorldUnitsPerTexel = vLightCameraOrthographicMax - vLightCameraOrthographicMin;
-		//	vWorldUnitsPerTexel *= vNormalizeByBufferSize;
+			// The world units per texel are used to snap  the orthographic projection
+			// to texel sized increments.  
+			// Because we're fitting tighly to the cascades, the shimmering shadow edges will still be present when the 
+			// camera rotates.  However, when zooming in or strafing the shadow edge will not shimmer.
+			vWorldUnitsPerTexel = vLightCameraOrthographicMax - vLightCameraOrthographicMin;
+			vWorldUnitsPerTexel *= vNormalizeByBufferSize;
 
-		//}
-		//float fLightCameraOrthographicMinZ = glm::vec4GetZ(vLightCameraOrthographicMin);
+		}
+		float fLightCameraOrthographicMinZ = glm::vec4GetZ(vLightCameraOrthographicMin);
 
 
 		//if (m_bMoveLightTexelSize)
@@ -1360,37 +1434,37 @@ void UpdateShadows(FLOAT nearClip, FLOAT farClip, const glm::mat4& matViewCamera
 		FLOAT fNearPlane = 0.0f;
 		FLOAT fFarPlane = 10000.0f;
 
-		//if (m_eSelectedNearFarFit == FIT_NEARFAR_AABB)
-		//{
+		if (m_eSelectedNearFarFit == FIT_NEARFAR_AABB)
+		{
 
-		//	glm::vec4 vLightSpaceSceneAABBminValue = g_vFLTMAX;  // world space scene aabb 
-		//	glm::vec4 vLightSpaceSceneAABBmaxValue = g_vFLTMIN;
-		//	// We calculate the min and max vectors of the scene in light space. The min and max "Z" values of the  
-		//	// light space AABB can be used for the near and far plane. This is easier than intersecting the scene with the AABB
-		//	// and in some cases provides similar results.
-		//	for (int index = 0; index < 8; ++index)
-		//	{
-		//		vLightSpaceSceneAABBminValue = glm::min(vSceneAABBPointsLightSpace[index], vLightSpaceSceneAABBminValue);
-		//		vLightSpaceSceneAABBmaxValue = glm::max(vSceneAABBPointsLightSpace[index], vLightSpaceSceneAABBmaxValue);
-		//	}
+			glm::vec4 vLightSpaceSceneAABBminValue = g_vFLTMAX;  // world space scene aabb 
+			glm::vec4 vLightSpaceSceneAABBmaxValue = g_vFLTMIN;
+			// We calculate the min and max vectors of the scene in light space. The min and max "Z" values of the  
+			// light space AABB can be used for the near and far plane. This is easier than intersecting the scene with the AABB
+			// and in some cases provides similar results.
+			for (int index = 0; index < 8; ++index)
+			{
+				vLightSpaceSceneAABBminValue = glm::min(vSceneAABBPointsLightSpace[index], vLightSpaceSceneAABBminValue);
+				vLightSpaceSceneAABBmaxValue = glm::max(vSceneAABBPointsLightSpace[index], vLightSpaceSceneAABBmaxValue);
+			}
 
-		//	// The min and max z values are the near and far planes.
-		//	fNearPlane = glm::vec4GetZ(vLightSpaceSceneAABBminValue);
-		//	fFarPlane = glm::vec4GetZ(vLightSpaceSceneAABBmaxValue);
-		//}
-		//else if (m_eSelectedNearFarFit == FIT_NEARFAR_SCENE_AABB
-		//	|| m_eSelectedNearFarFit == FIT_NEARFAR_PANCAKING)
+			// The min and max z values are the near and far planes.
+			fNearPlane = glm::vec4GetZ(vLightSpaceSceneAABBminValue);
+			fFarPlane = glm::vec4GetZ(vLightSpaceSceneAABBmaxValue);
+		}
+		else if (m_eSelectedNearFarFit == FIT_NEARFAR_SCENE_AABB
+			|| m_eSelectedNearFarFit == FIT_NEARFAR_PANCAKING)
 		{
 			// By intersecting the light frustum with the scene AABB we can get a tighter bound on the near and far plane.
 			ComputeNearAndFar(fNearPlane, fFarPlane, vLightCameraOrthographicMin,
 				vLightCameraOrthographicMax, vSceneAABBPointsLightSpace);
-			//if (m_eSelectedNearFarFit == FIT_NEARFAR_PANCAKING)
-			//{
-			//	if (fLightCameraOrthographicMinZ > fNearPlane)
-			//	{
-			//		fNearPlane = fLightCameraOrthographicMinZ;
-			//	}
-			//}
+			if (m_eSelectedNearFarFit == FIT_NEARFAR_PANCAKING)
+			{
+				if (fLightCameraOrthographicMinZ > fNearPlane)
+				{
+					fNearPlane = fLightCameraOrthographicMinZ;
+				}
+			}
 		}
 		// Create the orthographic projection for this cascade.
 		m_matShadowProj[iCascadeIndex] = glm::ortho(glm::vec4GetX(vLightCameraOrthographicMin), glm::vec4GetX(vLightCameraOrthographicMax),
@@ -1400,19 +1474,12 @@ void UpdateShadows(FLOAT nearClip, FLOAT farClip, const glm::mat4& matViewCamera
 	}
 }
 
-//void updateCascades(float nearClip, float farClip, float cascadeSplitLambda, const mat4& viewProj, const vec3& lightPos, mat4& shadowMatrix)
-//{
-//
-//}
-
 #else
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
 
 using namespace SunEngine;
 using namespace DirectX;
-
-//void updateCascades(float nearClip, float farClip, float cascadeSplitLambda, const mat4& viewProj, const vec3& lightPos, mat4& shadowMatrix);
 
 struct ShaderBindingData
 {
@@ -1967,7 +2034,7 @@ int main(int argc, const char** argv)
 			XMMATRIX ShadowSplitDepths;
 		} shadowBufferData;
 
-		shadowBufferData.ShadowSplitDepths = XMMatrixSet(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f / m_CopyOfCascadeConfig.m_nCascadeLevels, 1.0f / m_CopyOfCascadeConfig.m_iBufferSize);
+		shadowBufferData.ShadowSplitDepths = XMMatrixSet(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f / m_CopyOfCascadeConfig.m_nCascadeLevels, 1.0f / m_CopyOfCascadeConfig.m_iBufferSize);
 		for (int i = 0; i < m_CopyOfCascadeConfig.m_nCascadeLevels; i++)
 		{
 			shadowBufferData.ShadowMatrices[i] = cameraMatrices[i].ViewProj;
@@ -2577,9 +2644,4 @@ void UpdateShadows(FLOAT nearClip, FLOAT farClip, const XMMATRIX& matViewCameraP
 		m_fCascadePartitionsFrustum[iCascadeIndex] = fFrustumIntervalEnd;
 	}
 }
-
-//void updateCascades(float nearClip, float farClip, float cascadeSplitLambda, const mat4& viewProj, const vec3& lightPos, mat4& shadowMatrix)
-//{
-//
-//}
 #endif
