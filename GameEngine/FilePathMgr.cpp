@@ -84,11 +84,12 @@ namespace SunEngine
 
 		SetGraphicsAPI(_api);
 
-		_cascadeShadowMapResolution = configSection->GetInt("CascadeShadowMapResolution", 2048);
+		_cascadeShadowMapResolution = configSection->GetInt("CascadeShadowMapResolution", 1024);
+		_cascadeShadowMapSplits = configSection->GetInt("CascadeShadowMapSplits", 3);
+		_cascadeShadowMapPCFBlurSize = configSection->GetInt("CascadeShadowMapPCFBlurSize", 3);
 		
 		_maxSkinnedBoneMatrices = configSection->GetInt("MaxSkinnedBoneMatrices", 128);
 		_maxTextureTransforms = configSection->GetInt("MaxTextureTransforms", 32);
-		_maxShadowCascadeSplits = configSection->GetInt("MaxShadowCascadeSplits", 4);
 
 		_shadowsEnabled = configSection->GetBool("Shadows", true);
 

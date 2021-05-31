@@ -35,6 +35,7 @@ namespace SunEngine
 		bool FrustumIntersects(const AABB& aabb) const;
 
 		const glm::mat4& GetView() const { return _viewMatrix; }
+		const glm::mat4& GetInvView() const { return _invViewMatrix; }
 		const glm::vec3& GetPosition() const { return _position; }
 		const glm::vec3& GetRight() const { return _right; }
 		const glm::vec3& GetUp() const { return _up; }
@@ -45,6 +46,7 @@ namespace SunEngine
 	private:
 		friend class Camera;
 		glm::mat4 _viewMatrix;
+		glm::mat4 _invViewMatrix;
 		glm::vec3 _position;
 		glm::vec3 _right;
 		glm::vec3 _up;

@@ -68,10 +68,12 @@ namespace SunEngine
 		//Make sure these line up with what is in the shaders...
 		threadData.defines.push_back(StrFormat("MAX_SKINNED_BONES %d", EngineInfo::GetRenderer().MaxSkinnedBoneMatrices()));
 		threadData.defines.push_back(StrFormat("MAX_TEXTURE_TRANSFORMS %d", EngineInfo::GetRenderer().MaxTextureTransforms()));
-		threadData.defines.push_back(StrFormat("MAX_SHADOW_CASCADE_SPLITS %d", EngineInfo::GetRenderer().MaxShadowCascadeSplits()));
-		threadData.defines.push_back(StrFormat("INV_MAX_SHADOW_CASCADE_SPLITS %f", 1.0f / EngineInfo::GetRenderer().MaxShadowCascadeSplits())); 
+		threadData.defines.push_back(StrFormat("CASCADE_SHADOW_MAP_SPLITS %d", EngineInfo::GetRenderer().CascadeShadowMapSplits()));
+		threadData.defines.push_back(StrFormat("INV_CASCADE_SHADOW_MAP_SPLITS %f", 1.0f / EngineInfo::GetRenderer().CascadeShadowMapSplits()));
 		threadData.defines.push_back(StrFormat("CASCADE_SHADOW_MAP_RESOLUTION %d", EngineInfo::GetRenderer().CascadeShadowMapResolution()));
 		threadData.defines.push_back(StrFormat("INV_CASCADE_SHADOW_MAP_RESOLUTION %f", 1.0f / EngineInfo::GetRenderer().CascadeShadowMapResolution()));
+		threadData.defines.push_back(StrFormat("CASCADE_SHADOW_MAP_PCF_BLUR_SIZE %d", EngineInfo::GetRenderer().CascadeShadowMapPCFBlurSize()));
+		threadData.defines.push_back(StrFormat("CASCADE_SHADOW_MAP_PCF_BLUR_SIZE_2 %d", EngineInfo::GetRenderer().CascadeShadowMapPCFBlurSize()*EngineInfo::GetRenderer().CascadeShadowMapPCFBlurSize()));
 		threadData.defines.push_back(StrFormat("MSAA_SAMPLES %d", 1 << EngineInfo::GetRenderer().GetMSAAMode()));
 
 		Timer timer(true);

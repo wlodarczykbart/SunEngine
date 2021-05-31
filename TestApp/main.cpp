@@ -225,6 +225,7 @@ void BoundingBox::CreateFromPoints(BoundingBox& box, const glm::vec4& vmin, cons
 	box.Extents = (vmax - vmin) * 0.5f;
 }
 
+#if 0
 struct BoundingFrustum
 {
 	BoundingFrustum(const glm::mat4& Projection)
@@ -278,6 +279,7 @@ struct BoundingFrustum
 	float Near;
 	float Far;
 };
+#endif
 
 void UpdateShadows(FLOAT nearClip, FLOAT farClip, const glm::mat4& matViewCameraProjection, const glm::mat4& matViewCameraView, const glm::mat4& matLightCameraView);
 
@@ -703,7 +705,7 @@ int main(int argc, const char** argv)
 
 	m_iCascadePartitionsMax = 100;
 
-#if 0
+#if 1
 	// Calculate split depths based on view camera frustum
 	// Based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
 	float clipRange = farClip - nearClip;
@@ -783,7 +785,8 @@ int main(int argc, const char** argv)
 				lightDir = glm::vec44Transform(lightDir, glm::mat4RotationY(glm::radians(-1.0f)));
 		}
 
-		glm::mat4 lightMatrix = glm::lookAt(glm::vec3(lightDir), glm::vec3(g_vZero), glm::vec3(0.0f, 1.0f, 0.0f));
+		float lightScale = 1.0f;
+		glm::mat4 lightMatrix = glm::lookAt(glm::vec3(lightDir) * lightScale, glm::vec3(g_vZero), glm::vec3(0.0f, 1.0f, 0.0f));
 
 		glm::mat4 viewMatrix = glm::translate(glm::vec3(viewPosition)) * viewRotation;
 		viewMatrix = glm::inverse(viewMatrix);

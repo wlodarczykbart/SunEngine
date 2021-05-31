@@ -10,19 +10,19 @@ cbuffer ShadowBuffer
 uint GetCascadeIndex(float eyeSpaceZ)
 {
 	[unroll]
-	for(uint i = 0; i < MAX_SHADOW_CASCADE_SPLITS; i++)
+	for(uint i = 0; i < CASCADE_SHADOW_MAP_SPLITS; i++)
 	{
 		float splitDepth = ShadowSplitDepths[i / 4][i % 4];
 		if(eyeSpaceZ > splitDepth)
 			return i;	
 	}	
-	return MAX_SHADOW_CASCADE_SPLITS - 1;
+	return CASCADE_SHADOW_MAP_SPLITS - 1;
 }
 
 float SampleShadow(float2 texCoord, int splitIndex)
 {
-	float rangeStart = splitIndex * INV_MAX_SHADOW_CASCADE_SPLITS;
-	texCoord.x = lerp(rangeStart, rangeStart + INV_MAX_SHADOW_CASCADE_SPLITS, saturate(texCoord.x));
+	float rangeStart = splitIndex * INV_CASCADE_SHADOW_MAP_SPLITS;
+	texCoord.x = lerp(rangeStart, rangeStart + INV_CASCADE_SHADOW_MAP_SPLITS, saturate(texCoord.x));
 	return ShadowTexture.Sample(ShadowSampler, texCoord).r;
 }
 
@@ -33,20 +33,41 @@ static const float3 testColors[4] = {
 	float3(0, 0, 1)
 };	
 	
-static const float2 PCFOffsets[9] = {
-	float2(0.0, 0.0),
-	float2(INV_CASCADE_SHADOW_MAP_RESOLUTION, 0.0),
-	float2(0.0, INV_CASCADE_SHADOW_MAP_RESOLUTION),
-	float2(INV_CASCADE_SHADOW_MAP_RESOLUTION, INV_CASCADE_SHADOW_MAP_RESOLUTION),
-	float2(-INV_CASCADE_SHADOW_MAP_RESOLUTION, 0.0),
-	float2(0.0, -INV_CASCADE_SHADOW_MAP_RESOLUTION),
-	float2(-INV_CASCADE_SHADOW_MAP_RESOLUTION, INV_CASCADE_SHADOW_MAP_RESOLUTION),
-	float2(INV_CASCADE_SHADOW_MAP_RESOLUTION, -INV_CASCADE_SHADOW_MAP_RESOLUTION),
-	float2(-INV_CASCADE_SHADOW_MAP_RESOLUTION, -INV_CASCADE_SHADOW_MAP_RESOLUTION)
+//Supports blur size of 1, 3, or 5
+static const float2 CascadeShadowMapPCFOffsets[25] = {
+	float2(+0.0, +0.0),
+	
+	float2(+1.0, +0.0),
+	float2(-1.0, +0.0),
+	float2(+0.0, +1.0),
+	float2(+0.0, -1.0),
+	
+	float2(+1.0, +1.0),
+	float2(-1.0, +1.0),
+	float2(+1.0, -1.0),
+	float2(-1.0, -1.0),
+	
+	float2(+2.0, +0.0),
+	float2(-2.0, +0.0),
+	float2(+0.0, +2.0),
+	float2(+0.0, -2.0),
+	
+	float2(+2.0, +1.0),
+	float2(-2.0, +1.0),
+	float2(+1.0, +2.0),
+	float2(+1.0, -2.0),
+	
+	float2(+2.0, -1.0),
+	float2(-2.0, -1.0),
+	float2(-1.0, +2.0),
+	float2(-1.0, -2.0),	
+	
+	float2(+2.0, +2.0),
+	float2(-2.0, +2.0),
+	float2(+2.0, -2.0),
+	float2(-2.0, -2.0)
 };
 
-#define PCF_SAMPLES 9
-	
 float3 ComputeShadowFactor(float3 viewPos)
 {
 	uint cascadeIndex = GetCascadeIndex(viewPos.z);
@@ -55,26 +76,24 @@ float3 ComputeShadowFactor(float3 viewPos)
 	float4 shadowCoord = mul(worldPos, ShadowMatrices[cascadeIndex]);
 	shadowCoord /= shadowCoord.w;
 	
-	float shadowFactor = PCF_SAMPLES;
+	float shadowFactor = 1.0;
 	float bias = 0.001;
 	
-	if(
-		shadowCoord.x > 0.0 && 
-		shadowCoord.x < 1.0 && 
-		shadowCoord.y > 0.0 && 
-		shadowCoord.y < 1.0 && 
-		shadowCoord.z >-1.0 && 
-		shadowCoord.z < 1.0) 
+	if(	shadowCoord.x > 0.0 && shadowCoord.x < 1.0 && 
+		shadowCoord.y > 0.0 && shadowCoord.y < 1.0 && 
+		shadowCoord.z >-1.0 && shadowCoord.z < 1.0) 
 	{
+		shadowFactor = 0.0;
 		[unroll]
-		for(uint i = 0; i < PCF_SAMPLES; i++)
+		for(uint i = 0; i < CASCADE_SHADOW_MAP_PCF_BLUR_SIZE_2; i++)
 		{
-			float depth = SampleShadow(shadowCoord.xy + PCFOffsets[i], cascadeIndex);
-			if(depth < shadowCoord.z - bias) shadowFactor -= 1.0;
+			float depth = SampleShadow(shadowCoord.xy + CascadeShadowMapPCFOffsets[i] * INV_CASCADE_SHADOW_MAP_RESOLUTION, cascadeIndex);
+			shadowFactor += depth < shadowCoord.z - bias ? 0.5 : 1.0;
 		}
+		
+		shadowFactor /= CASCADE_SHADOW_MAP_PCF_BLUR_SIZE_2;
 	}	
-	
-	shadowFactor /= PCF_SAMPLES;
+
 #if 1
 	return float3(shadowFactor, shadowFactor, shadowFactor);
 #else

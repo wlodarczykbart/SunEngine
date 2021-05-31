@@ -24,10 +24,11 @@ namespace SunEngine
 			ERenderMode RenderMode() const { return _renderMode; }
 
 			uint CascadeShadowMapResolution() const { return _cascadeShadowMapResolution; }
+			uint CascadeShadowMapPCFBlurSize() const { return _cascadeShadowMapPCFBlurSize; }
+			uint CascadeShadowMapSplits() const { return _cascadeShadowMapSplits; }
 
 			uint MaxSkinnedBoneMatrices() const { return _maxSkinnedBoneMatrices; }
 			uint MaxTextureTransforms() const { return _maxTextureTransforms; }
-			uint MaxShadowCascadeSplits() const { return _maxShadowCascadeSplits; }
 
 			bool ShadowsEnabled() const { return _shadowsEnabled; }
 			MSAAMode GetMSAAMode() const { return _msaaMode; }
@@ -44,8 +45,9 @@ namespace SunEngine
 			ERenderMode _renderMode;
 			uint _maxSkinnedBoneMatrices;
 			uint _maxTextureTransforms;
-			uint _maxShadowCascadeSplits;
+			uint _cascadeShadowMapSplits;
 			uint _cascadeShadowMapResolution;
+			uint _cascadeShadowMapPCFBlurSize;
 			bool _shadowsEnabled;
 			MSAAMode _msaaMode;
 		};

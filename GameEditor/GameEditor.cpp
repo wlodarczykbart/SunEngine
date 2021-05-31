@@ -329,9 +329,9 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
-			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
-			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
+			//SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
+			//pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
+			//pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
 		int Slices = 4*1;
@@ -369,16 +369,16 @@ namespace SunEngine
 		//strAsset = "F:/Models/OBJ/Small_Tropical_Island/Small Tropical Island.obj";
 		//strAsset = "F:/Models/FBX/_PHONG_/RuralStallObj/RuralStall_phong.fbx";
 		//strAsset = "F:/Models/Scenes/Bistro/Bistro_Research_Interior.fbx";
-		//strAsset = "F:/Downloads/Bistro/Bistro_Research_Exterior.fbx";
+		//strAsset = "F:/Models/Scenes/Bistro/Bistro_Research_Exterior.fbx";
 		//strAsset = "F:/Models/Scenes/sponza/sponza.obj";
 		//strAsset = "F:/Models/Scenes/sibenik/sibenik.obj";
 		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
 		//strAsset = "F:/Models/FBX/_PHONG_/Wooden_barrels__OBJ/Wooden_barrels.FBX";
 
-		//auto options = SunEngine::AssetImporter::Options::Default;
-		//options.MaxTextureSize = 1024;
-		//Asset* pAsset = ImportAsset(strAsset, options);
-		//pAsset->CreateSceneNode(pScene, _view->GetFarZ() - _view->GetNearZ());
+		auto options = SunEngine::AssetImporter::Options::Default;
+		options.MaxTextureSize = 1024;
+		Asset* pAsset = ImportAsset(strAsset, options);
+		pAsset->CreateSceneNode(pScene,  _view->GetFarZ() - _view->GetNearZ());
 
 		return true;
 	}

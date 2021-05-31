@@ -55,6 +55,8 @@ Environment.h
 Environment.cpp
 SkyModels.h
 SkyModels.cpp
+CascadedShadowMap.h
+CascadedShadowMap.cpp
 ${CMAKE_SOURCE_DIR}/External/HosekWilkie_SkylightModel_C_Source.1.4a/ArHosekSkyModel.cpp
 )
 

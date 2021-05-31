@@ -58,6 +58,7 @@ namespace SunEngine
 		camWorld[2] = glm::normalize(camWorld[2]);
 
 		pCamData->_viewMatrix = glm::inverse(camWorld);
+		pCamData->_invViewMatrix = camWorld;
 		pCamData->_right = camWorld[0];
 		pCamData->_up = camWorld[1];
 		pCamData->_forward = -camWorld[2];
@@ -139,6 +140,7 @@ namespace SunEngine
 	CameraComponentData::CameraComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode)
 	{
 		_viewMatrix = glm::mat4(1.0f);
+		_invViewMatrix = glm::mat4(1.0f);
 		_position = glm::vec3(0.0f);
 		_right = glm::vec3(1.0f, 0.0f, 0.0f);
 		_up = glm::vec3(0.0f, 1.0f, 0.0f);

@@ -24,6 +24,42 @@
 
 namespace SunEngine
 {
+	struct Vec4
+	{
+		static const glm::vec4 Zero;
+		static const glm::vec4 One;
+		static const glm::vec4 Half;
+		static const glm::vec4 Right;
+		static const glm::vec4 Left;
+		static const glm::vec4 Up;
+		static const glm::vec4 Down;
+		static const glm::vec4 Forward;
+		static const glm::vec4 Back;
+		static const glm::vec4 Min;
+		static const glm::vec4 Max;
+	};
+
+	struct Vec3
+	{
+		static const glm::vec3 Zero;
+		static const glm::vec3 One;
+		static const glm::vec3 Half;
+		static const glm::vec3 Right;
+		static const glm::vec3 Left;
+		static const glm::vec3 Up;
+		static const glm::vec3 Down;
+		static const glm::vec3 Forward;
+		static const glm::vec3 Back;
+		static const glm::vec3 Min;
+		static const glm::vec3 Max;
+	};
+
+	struct Mat4
+	{
+		static const glm::mat4 Identity;
+		static const glm::mat4 Zero;
+	};
+
 	struct Ray
 	{
 		glm::vec3 Origin;
