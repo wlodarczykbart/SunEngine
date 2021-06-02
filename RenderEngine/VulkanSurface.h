@@ -37,7 +37,7 @@ namespace SunEngine
 			VkFramebuffer _framebuffer;
 
 			VkImage _depthImage;
-			VkDeviceMemory _depthMem;
+			VulkanDevice::MemoryHandle _depthMem;
 			VkImageView _depthView;
 
 			VkSemaphore _imgAvailableSemaphore;

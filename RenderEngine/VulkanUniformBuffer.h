@@ -31,7 +31,7 @@ namespace SunEngine
 		struct BufferData
 		{
 			VkBuffer buffer;
-			VkDeviceMemory memory;
+			VulkanDevice::MemoryHandle memory;
 		};
 
 		friend class VulkanShaderBindings;

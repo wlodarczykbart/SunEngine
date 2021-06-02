@@ -1,14 +1,20 @@
+//TODO: this header file has not been checked in to source control as of this comment, leaving the code here in case I want to add it in the future as it seemed to work
+//#define VMA_IMPLEMENTATION
+#ifdef VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+#endif
+
 #include <assert.h>
 #include "VulkanSurface.h"
-#include "VulkanDevice.h"
 #include "StringUtil.h"
+#include "VulkanDevice.h"
 
-//Copied from Vulkan.h, keep updated?
-
-#define CheckVkResult(expression) if(expression != VK_SUCCESS) { auto strErr = VulkanResultStrings.find(expression); _errLine = StrFormat("err: %s, line: %d", strErr != VulkanResultStrings.end() ? (*strErr).second.data() : std::to_string(expression).data(), __LINE__); return false; }
+#define CheckVkResult(expression) { VkResult expResult = expression; if(expResult != VK_SUCCESS) { auto strErr = VulkanResultStrings.find(expResult); _errLine = StrFormat("err: %s, line: %d", strErr != VulkanResultStrings.end() ? (*strErr).second.data() : std::to_string(expResult).data(), __LINE__); return false; } }
+#define VkReturnOnFailure(expression) { VkResult expResult = expression; if(expResult != VK_SUCCESS) return expResult; }
 
 namespace SunEngine
 {
+	//Copied from Vulkan.h, keep updated?
 	const Map<VkResult, String> VulkanResultStrings = {
 		{ VK_SUCCESS , "VK_SUCCESS" },
 		{ VK_NOT_READY , "VK_NOT_READY" },
@@ -64,15 +70,307 @@ namespace SunEngine
 		return VK_TRUE;
 	}
 
+	
+#ifdef VMA_IMPLEMENTATION
+	class VulkanDevice::MemoryAllocator
+	{
+	public:
+		VkResult Create(VulkanDevice* pDevice)
+		{
+			VmaAllocatorCreateInfo allocatorInfo = {};
+			allocatorInfo.device = pDevice->_device;
+			allocatorInfo.instance = pDevice->_instance;
+			allocatorInfo.physicalDevice = pDevice->_gpu;
+			VkReturnOnFailure(vmaCreateAllocator(&allocatorInfo, &vma));
+			return VK_SUCCESS;
+		}
+
+		VkResult AllocateImageMemory(VkImage image, VkMemoryPropertyFlags flags, MemoryHandle* pHandle) 
+		{
+			VmaAllocationCreateInfo createInfo = {};
+			createInfo.preferredFlags = flags;
+
+			MemoryInfo info;
+			VkReturnOnFailure(vmaAllocateMemoryForImage(vma, image, &createInfo, &info.allocation, &info.info));
+			VkReturnOnFailure(vmaBindImageMemory(vma, info.allocation, image));
+			*pHandle = info.allocation;
+			_memoryInfos[*pHandle] = info;
+			return VK_SUCCESS;
+		}
+
+		VkResult AllocateBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags flags, MemoryHandle* pHandle)
+		{
+			VmaAllocationCreateInfo createInfo = {};
+			createInfo.preferredFlags = flags;
+
+			MemoryInfo info;
+			VkReturnOnFailure(vmaAllocateMemoryForBuffer(vma, buffer, &createInfo, &info.allocation, &info.info));
+			VkReturnOnFailure(vmaBindBufferMemory(vma, info.allocation, buffer));
+			*pHandle = info.allocation;
+			_memoryInfos[*pHandle] = info;
+			return VK_SUCCESS;
+		}
+
+		VkResult MapMemory(MemoryHandle handle, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData)
+		{
+			auto found = _memoryInfos.find(handle);
+			if (found == _memoryInfos.end())
+				return VK_ERROR_MEMORY_MAP_FAILED;
+
+			VkReturnOnFailure(vmaMapMemory(vma, (*found).second.allocation, ppData));
+			return VK_SUCCESS;
+		}
+
+		void UnmapMemory(MemoryHandle handle)
+		{
+			auto found = _memoryInfos.find(handle);
+			if (found != _memoryInfos.end())
+				vmaUnmapMemory(vma, (*found).second.allocation);
+		}
+
+		void FreeMemory(MemoryHandle handle)
+		{
+			auto found = _memoryInfos.find(handle);
+			if (found != _memoryInfos.end())
+			{
+				vmaFreeMemory(vma, (*found).second.allocation);
+				_memoryInfos.erase(handle);
+			}
+		}
+
+	private:
+		struct MemoryInfo
+		{
+			VmaAllocation allocation;
+			VmaAllocationInfo info;
+		};
+
+		VmaAllocator vma;
+		Map<MemoryHandle, MemoryInfo> _memoryInfos;
+	};
+#else
+
+#define USE_BLOCK_ALLOCATION 
+	class VulkanDevice::MemoryAllocator 
+	{
+	public:	
+		MemoryAllocator()
+		{
+			_handleID = ID_START_OFFSET;
+			_pDevice = NULL;
+			_allocatedMemoryCount = 0;
+		}
+
+		VkResult Create(VulkanDevice* pDevice)
+		{
+			_pDevice = pDevice;
+			return VK_SUCCESS;
+		}
+
+		VkResult AllocateImageMemory(VkImage image, VkMemoryPropertyFlags flags, MemoryHandle* pHandle)
+		{
+			VkMemoryRequirements req;
+			vkGetImageMemoryRequirements(_pDevice->_device, image, &req);
+			VkReturnOnFailure(Alloc(req, flags, pHandle));
+			const InternalMemoryHandle* pInternalHandle = GetInternalHandle(*pHandle);
+			VkReturnOnFailure(vkBindImageMemory(_pDevice->_device, image, pInternalHandle->memory, pInternalHandle->offset));
+			return VK_SUCCESS;
+		}
+
+		VkResult AllocateBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags flags, MemoryHandle* pHandle)
+		{
+			VkMemoryRequirements req;
+			vkGetBufferMemoryRequirements(_pDevice->_device, buffer, &req);
+			VkReturnOnFailure(Alloc(req, flags, pHandle));
+			const InternalMemoryHandle* pInternalHandle = GetInternalHandle(*pHandle);
+			VkReturnOnFailure(vkBindBufferMemory(_pDevice->_device, buffer, pInternalHandle->memory, pInternalHandle->offset));
+			return VK_SUCCESS;
+		}
+
+		void FreeMemory(MemoryHandle handle)
+		{
+			const InternalMemoryHandle* pInternalHandle = GetInternalHandle(handle);
+			if (pInternalHandle)
+			{
+#ifdef USE_BLOCK_ALLOCATION
+				_freeHandles.push_back(pInternalHandle->id);
+#else
+				vkFreeMemory(_pDevice->_device, pInternalHandle->memory, VK_NULL_HANDLE);
+#endif
+			}
+		}
+
+		VkResult MapMemory(MemoryHandle handle, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData)
+		{
+			const InternalMemoryHandle* pInternalHandle = GetInternalHandle(handle);
+			if (pInternalHandle == 0)
+				return VK_ERROR_MEMORY_MAP_FAILED;
+
+			assert(offset + size <= pInternalHandle->alignedSize);
+			VkReturnOnFailure(vkMapMemory(_pDevice->_device, pInternalHandle->memory, pInternalHandle->offset + offset, size, flags, ppData));
+			return VK_SUCCESS;
+		}
+
+		void UnmapMemory(MemoryHandle handle)
+		{
+			const InternalMemoryHandle* pInternalHandle = GetInternalHandle(handle);
+			if (pInternalHandle != 0)
+			{
+				vkUnmapMemory(_pDevice->_device, pInternalHandle->memory);
+			}
+		}
+
+	private:
+		struct InternalMemoryHandle
+		{
+			usize id;
+			int typeIndex;
+			VkDeviceSize alignment;
+			VkDeviceSize offset;
+			VkDeviceSize alignedSize;
+			VkDeviceSize size;
+			VkDeviceMemory memory;
+		};
+
+		struct MemorySection
+		{
+			VkDeviceSize allocSize;
+			VkDeviceSize usedOffset;
+			VkDeviceMemory memory;
+		};
+
+		const InternalMemoryHandle* GetInternalHandle(MemoryHandle handle) const
+		{
+			usize id = (usize)handle;
+			id -= ID_START_OFFSET;
+			if (id > _handles.size())
+				return 0;
+			return &_handles[id];
+		}
+
+		VkResult Alloc(VkMemoryRequirements& req, VkMemoryPropertyFlags flags, MemoryHandle* pHandle)
+		{
+			int memIndex = _pDevice->getMemoryIndex(req, flags);
+			if (memIndex == -1) return VK_ERROR_INITIALIZATION_FAILED;
+
+			VkDeviceSize alignedSize = VkDeviceSize(ceilf((float)req.size / req.alignment)) * req.alignment;
+#ifdef USE_BLOCK_ALLOCATION
+
+			//First we check any free handles to see if they can be used here
+
+			auto freeIter = _freeHandles.end();
+			VkDeviceSize minSize = UINT32_MAX;
+
+			for (auto iter = _freeHandles.begin(); iter != _freeHandles.end(); ++iter)
+			{
+				InternalMemoryHandle& handle = _handles[(*iter) - ID_START_OFFSET];
+				if (memIndex == handle.typeIndex && req.alignment == handle.alignment && alignedSize <= handle.alignedSize)
+				{
+					freeIter = iter;
+					minSize = min(minSize, handle.alignedSize);
+				}
+			}
+
+			if (freeIter != _freeHandles.end())
+			{
+				*pHandle = (MemoryHandle)*freeIter;
+				_freeHandles.erase(freeIter);
+				return VK_SUCCESS;
+			}
+
+			MemorySection* pSection = 0;
+			Vector<MemorySection>& alignedList = _sections[memIndex][req.alignment];
+			for (uint i = 0; i < alignedList.size(); i++)
+			{
+				MemorySection& section = alignedList[i];
+				if (section.usedOffset + alignedSize <= section.allocSize)
+				{
+					pSection = &section;
+					break;
+				}
+			}
+
+			if (pSection == 0)
+			{
+				//static const VkDeviceSize OneMB = 1024 * 1024 * 1024;
+				//static const VkDeviceSize MBPerSection = 128;
+				static const VkDeviceSize HeapSizeDivider = 8; //Likely a better way of doing this, but just going with it until something bad happens...
+
+				MemorySection section;
+				section.allocSize = _pDevice->_gpuMem.memoryHeaps[_pDevice->_gpuMem.memoryTypes[memIndex].heapIndex].size / HeapSizeDivider;
+				section.usedOffset = 0;
+
+				VkMemoryAllocateInfo allocInfo = {};
+				allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+				allocInfo.allocationSize = section.allocSize;
+				allocInfo.memoryTypeIndex = (uint)memIndex;
+				VkReturnOnFailure(vkAllocateMemory(_pDevice->_device, &allocInfo, VK_NULL_HANDLE, &section.memory));
+				++_allocatedMemoryCount;
+				assert(_allocatedMemoryCount <= _pDevice->_gpuProps.limits.maxMemoryAllocationCount);
+
+				alignedList.push_back(section);
+				pSection = &alignedList.back();
+			}
+
+			InternalMemoryHandle handle = {};
+			handle.id = _handleID;
+			handle.typeIndex = memIndex;
+			handle.alignment = req.alignment;
+			handle.memory = pSection->memory;
+			handle.offset = pSection->usedOffset;
+			handle.size = req.size;
+			handle.alignedSize = alignedSize;
+			_handles.push_back(handle);
+			*pHandle = (MemoryHandle)_handleID;
+			++_handleID;
+			pSection->usedOffset += alignedSize;
+#else
+			VkMemoryAllocateInfo allocInfo = {};
+			allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+			allocInfo.allocationSize = req.size;
+			allocInfo.memoryTypeIndex = (uint)memIndex;
+
+			InternalMemoryHandle handle = {};
+			handle.id = _handleID;
+			handle.typeIndex = memIndex;
+			handle.alignment = req.alignment;
+			handle.offset = 0;
+			handle.size = req.size;
+			handle.alignedSize = alignedSize;
+
+			VkReturnOnFailure(vkAllocateMemory(_pDevice->_device, &allocInfo, VK_NULL_HANDLE, &handle.memory));
+			_handles.push_back(handle);
+			*pHandle = (MemoryHandle)_handleID;
+			++_handleID;
+
+			++_allocatedMemoryCount;
+			assert(_allocatedMemoryCount <= _pDevice->_gpuProps.limits.maxMemoryAllocationCount);
+#endif
+
+			return VK_SUCCESS;
+		}
+
+		static const usize ID_START_OFFSET = 0xFFF8A;
+		VulkanDevice* _pDevice;
+		Map<int, Map<VkDeviceSize, Vector<MemorySection>>> _sections;
+		Vector<InternalMemoryHandle> _handles;
+		LinkedList<usize> _freeHandles;
+		usize _handleID;
+		uint _allocatedMemoryCount;
+	};
+
+#endif
+
+
 	VulkanDevice::VulkanDevice()
 	{
+		//_memMgr = UniquePtr<MemoryManager>(new MemoryManager(this));
+		_allocator = UniquePtr<MemoryAllocator>(new MemoryAllocator());
 	}
-
 
 	VulkanDevice::~VulkanDevice()
 	{
 	}
-
 
 	bool VulkanDevice::Create(const IDeviceCreateInfo& info)
 	{
@@ -178,41 +476,15 @@ namespace SunEngine
 		return true;
 	}
 
-	bool VulkanDevice::AllocImageMemory(VkImage image, VkMemoryPropertyFlags flags, VkDeviceMemory *pHandle)
+	bool VulkanDevice::AllocImageMemory(VkImage image, VkMemoryPropertyFlags flags, MemoryHandle*pHandle)
 	{
-		VkMemoryRequirements req;
-		vkGetImageMemoryRequirements(_device, image, &req);
-
-		VkMemoryAllocateInfo allocInfo = {};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize = req.size;
-
-		int memIndex = getMemoryIndex(req, flags);
-		if (memIndex == -1) return false;
-
-		allocInfo.memoryTypeIndex = memIndex;
-		CheckVkResult(vkAllocateMemory(_device, &allocInfo, VK_NULL_HANDLE, pHandle));
-		CheckVkResult(vkBindImageMemory(_device, image, *pHandle, 0));
-
+		CheckVkResult(_allocator->AllocateImageMemory(image, flags, pHandle));
 		return true;
 	}
 
-	bool VulkanDevice::AllocBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags flags, VkDeviceMemory * pHandle)
+	bool VulkanDevice::AllocBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags flags, MemoryHandle* pHandle)
 	{
-		VkMemoryRequirements req;
-		vkGetBufferMemoryRequirements(_device, buffer, &req);
-
-		VkMemoryAllocateInfo allocInfo = {};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize = req.size;
-
-		int memIndex = getMemoryIndex(req, flags);
-		if (memIndex == -1) return false;
-
-		allocInfo.memoryTypeIndex = memIndex;
-		CheckVkResult(vkAllocateMemory(_device, &allocInfo, VK_NULL_HANDLE, pHandle));
-		CheckVkResult(vkBindBufferMemory(_device, buffer, *pHandle, 0));
-
+		CheckVkResult(_allocator->AllocateBufferMemory(buffer, flags, pHandle));
 		return true;
 	}
 
@@ -407,7 +679,7 @@ namespace SunEngine
 		cmdInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 		VkBuffer transferSrc;
-		VkDeviceMemory transferMem;
+		MemoryHandle transferMem;
 		VkBufferCreateInfo transferInfo = {};
 		transferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		transferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -417,9 +689,9 @@ namespace SunEngine
 		if (!AllocBufferMemory(transferSrc, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &transferMem)) return false;
 
 		void *deviceMem = 0;
-		CheckVkResult(vkMapMemory(_device, transferMem, 0, size, 0, &deviceMem));
+		MapMemory(transferMem, 0, size, 0, &deviceMem);
 		memcpy(deviceMem, pData, size);
-		vkUnmapMemory(_device, transferMem);
+		UnmapMemory(transferMem);
 
 		CheckVkResult(vkBeginCommandBuffer(_utilCmd, &cmdInfo));
 		{
@@ -463,15 +735,15 @@ namespace SunEngine
 		return true;
 	}
 
-	bool VulkanDevice::MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData)
+	bool VulkanDevice::MapMemory(MemoryHandle memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData)
 	{
-		CheckVkResult(vkMapMemory(_device, memory, offset, size, flags, ppData));
+		CheckVkResult(_allocator->MapMemory(memory, offset, size, flags, ppData));
 		return true;
 	}
 
-	bool VulkanDevice::UnmapMemory(VkDeviceMemory memory)
+	bool VulkanDevice::UnmapMemory(MemoryHandle memory)
 	{
-		vkUnmapMemory(_device, memory);
+		_allocator->UnmapMemory(memory);
 		return true;
 	}
 
@@ -501,7 +773,7 @@ namespace SunEngine
 		cmdInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 		VkBuffer transferSrc;
-		VkDeviceMemory transferMem;
+		MemoryHandle transferMem;
 		VkBufferCreateInfo transferInfo = {};
 		transferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		transferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -511,7 +783,7 @@ namespace SunEngine
 		if (!AllocBufferMemory(transferSrc, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &transferMem)) return false;
 
 		void *deviceMem = 0;
-		CheckVkResult(vkMapMemory(_device, transferMem, 0, size, 0, &deviceMem));
+		MapMemory(transferMem, 0, size, 0, &deviceMem);
 		usize memAddr = (usize)deviceMem;
 		for (uint i = 0; i < images.size(); i++)
 		{
@@ -520,7 +792,7 @@ namespace SunEngine
 			memcpy((void*)memAddr, img.Pixels, imgSize);
 			memAddr += imgSize;
 		}
-		vkUnmapMemory(_device, transferMem);
+		UnmapMemory(transferMem);
 
 		CheckVkResult(vkBeginCommandBuffer(_utilCmd, &cmdInfo));
 		{
@@ -591,7 +863,7 @@ namespace SunEngine
 		cmdInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 		VkBuffer transferSrc;
-		VkDeviceMemory transferMem;
+		MemoryHandle transferMem;
 		VkBufferCreateInfo transferInfo = {};
 		transferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		transferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -601,7 +873,7 @@ namespace SunEngine
 		if (!AllocBufferMemory(transferSrc, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &transferMem)) return false;
 
 		void* deviceMem = 0;
-		CheckVkResult(vkMapMemory(_device, transferMem, 0, size, 0, &deviceMem));
+		MapMemory(transferMem, 0, size, 0, &deviceMem);
 		usize memAddr = (usize)deviceMem;
 		for (uint i = 0; i < imageCount; i++)
 		{
@@ -610,7 +882,7 @@ namespace SunEngine
 			memcpy((void*)memAddr, img.Pixels, imgSize);
 			memAddr += imgSize;
 		}
-		vkUnmapMemory(_device, transferMem);
+		UnmapMemory(transferMem);
 
 		CheckVkResult(vkBeginCommandBuffer(_utilCmd, &cmdInfo));
 		{
@@ -667,9 +939,9 @@ namespace SunEngine
 		return true;
 	}
 
-	bool VulkanDevice::FreeMemory(VkDeviceMemory memory)
+	bool VulkanDevice::FreeMemory(MemoryHandle memory)
 	{
-		vkFreeMemory(_device, memory, VK_NULL_HANDLE);
+		_allocator->FreeMemory(memory);
 		return true;
 	}
 
@@ -823,6 +1095,8 @@ namespace SunEngine
 		CheckVkResult(vkCreateDevice(_gpu, &info, VK_NULL_HANDLE, &_device));
 
 		vkGetDeviceQueue(_device, _queue._familyIndex, 0, &_queue._queue);
+
+		CheckVkResult(_allocator->Create(this));
 
 		return true;
 	}

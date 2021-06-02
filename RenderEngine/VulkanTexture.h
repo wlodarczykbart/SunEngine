@@ -27,7 +27,7 @@ namespace SunEngine
 
 		VkImage _image;
 		VkImageView _view;
-		VkDeviceMemory _memory;
+		VulkanDevice::MemoryHandle _memory;
 
 		VkImageCreateInfo _vkInfo;
 	};

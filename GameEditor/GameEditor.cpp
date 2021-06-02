@@ -24,7 +24,6 @@ namespace SunEngine
 
 	GameEditor::GameEditor()
 	{
-		_view = 0;
 	}
 
 	GameEditor::~GameEditor()
@@ -70,14 +69,14 @@ namespace SunEngine
 			viewInfo.floatingPointColorBuffer = false;
 		}
 
-		_view = new SceneView(&_sceneRenderer);
+		SceneView* pView = new SceneView(&_sceneRenderer);
 		//_view->SetRenderToGraphicsWindow(true);
-		if (!_view->Create(viewInfo))
+		if (!pView->Create(viewInfo))
 		{
-			spdlog::error("Failed to create {} RenderTarget: {}", _view->GetName().c_str(), _view->GetRenderTarget()->GetErrStr().c_str());
+			spdlog::error("Failed to create {} RenderTarget: {}", pView->GetName().c_str(), pView->GetRenderTarget()->GetErrStr().c_str());
 			return false;
 		}
-		AddView(_view);
+		AddView(pView);
 
 		//String inputFile = GetFilenameFromConfig("GameFile");
 		bool loadDefault = true;
@@ -106,7 +105,7 @@ namespace SunEngine
 		AddView(pShadowView);
 
 		GameEditorGUI* gui = new GameEditorGUI();
-		gui->RegisterSceneView(_view);
+		gui->RegisterSceneView(pView);
 		*ppOutGUI = gui;
 		spdlog::info("GameEditor initialization succesful");
 		return true;
@@ -378,7 +377,7 @@ namespace SunEngine
 		auto options = SunEngine::AssetImporter::Options::Default;
 		options.MaxTextureSize = 1024;
 		Asset* pAsset = ImportAsset(strAsset, options);
-		pAsset->CreateSceneNode(pScene,  _view->GetFarZ() - _view->GetNearZ());
+		pAsset->CreateSceneNode(pScene,  200);
 
 		return true;
 	}

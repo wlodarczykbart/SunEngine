@@ -1,7 +1,6 @@
 #pragma once
 
 #include "GraphicsAPIDef.h"
-
 #include "Types.h"
 #include "GraphicsWindow.h"
 #include "vulkan/vulkan.h"
@@ -15,6 +14,8 @@ namespace SunEngine
 	class VulkanDevice : public IDevice
 	{
 	public:
+		typedef void* MemoryHandle;
+
 		static const uint BUFFERED_FRAME_COUNT = 2; //ideally this should be >= the number of swap chain images
 
 		VulkanDevice();
@@ -60,8 +61,8 @@ namespace SunEngine
 
 
 		bool GetSwapchainImages(VkSwapchainKHR pHandle, Vector<VkImage> &images);
-		bool AllocImageMemory(VkImage image, VkMemoryPropertyFlags flags, VkDeviceMemory *pHandle);
-		bool AllocBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags flags, VkDeviceMemory *pHandle);
+		bool AllocImageMemory(VkImage image, VkMemoryPropertyFlags flags, MemoryHandle* pHandle);
+		bool AllocBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags flags, MemoryHandle* pHandle);
 		bool AcquireNextImage(VkSwapchainKHR swapchain, VkSemaphore semaphore, uint64_t timeout, VkFence fence, uint* pImgIndex);
 		bool AllocateCommandBuffer(VkCommandBuffer *pHandle);
 		bool QueueSubmit(VkSubmitInfo *pInfos, uint count, VkFence fence);
@@ -70,11 +71,11 @@ namespace SunEngine
 		bool TransferBufferData(VkBuffer buffer, const void* pData, uint size);
 		bool AllocateDescriptorSets(VkDescriptorSetAllocateInfo &info, VkDescriptorSet* pHandle);
 		bool UpdateDescriptorSets(VkWriteDescriptorSet *pWriteSets, uint count);
-		bool MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData);
-		bool UnmapMemory(VkDeviceMemory memory);
+		bool MapMemory(MemoryHandle memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData);
+		bool UnmapMemory(MemoryHandle memory);
 		bool TransferImageData(VkImage image, const ImageData& baseImg, uint mipCount, const ImageData* pMipData);
 		bool TransferImageData(VkImage image, const ImageData* baseImages, uint imageCount);
-		bool FreeMemory(VkDeviceMemory memory);
+		bool FreeMemory(MemoryHandle memory);
 		bool FreeCommandBuffer(VkCommandBuffer cmdBuffer);
 
 		bool WaitIdle();
@@ -134,6 +135,9 @@ namespace SunEngine
 		String _errMsg;
 		String _apiErrMsg;
 		String _errLine;
+
+		class MemoryAllocator;
+		UniquePtr<MemoryAllocator> _allocator;
 	};
 
 }

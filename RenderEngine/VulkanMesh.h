@@ -25,10 +25,10 @@ namespace SunEngine
 
 	private:
 		VkBuffer _vertexBuffer;
-		VkDeviceMemory _vertexMem;
+		VulkanDevice::MemoryHandle _vertexMem;
 
 		VkBuffer _indexBuffer;
-		VkDeviceMemory _indexMem;
+		VulkanDevice::MemoryHandle _indexMem;
 	};
 
 }
