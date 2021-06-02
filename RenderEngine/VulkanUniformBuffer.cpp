@@ -59,7 +59,7 @@ namespace SunEngine
 		void* deviceMem = 0;
 		if (!(_device->MapMemory(currBuffer.memory, offset, _size, 0, &deviceMem))) return false;
 		memcpy((void*)((usize)deviceMem), pData, size); //offset was taken into account in map function
-		if (!_device->UnmapMemory(currBuffer.memory)) return false;
+		_device->UnmapMemory(currBuffer.memory);
 
 		return true;
 	}
@@ -91,7 +91,7 @@ namespace SunEngine
 			srcMemAddr += _size;
 		}
 
-		if (!_device->UnmapMemory(currBuffer.memory)) return false;
+		_device->UnmapMemory(currBuffer.memory);;
 
 		return true;
 	}

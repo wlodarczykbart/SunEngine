@@ -228,7 +228,6 @@ namespace SunEngine
 			VkDeviceSize alignment;
 			VkDeviceSize offset;
 			VkDeviceSize alignedSize;
-			VkDeviceSize size;
 			VkDeviceMemory memory;
 		};
 
@@ -248,7 +247,7 @@ namespace SunEngine
 			return &_handles[id];
 		}
 
-		VkResult Alloc(VkMemoryRequirements& req, VkMemoryPropertyFlags flags, MemoryHandle* pHandle)
+		VkResult Alloc(const VkMemoryRequirements& req, VkMemoryPropertyFlags flags, MemoryHandle* pHandle)
 		{
 			int memIndex = _pDevice->getMemoryIndex(req, flags);
 			if (memIndex == -1) return VK_ERROR_INITIALIZATION_FAILED;
@@ -318,7 +317,6 @@ namespace SunEngine
 			handle.alignment = req.alignment;
 			handle.memory = pSection->memory;
 			handle.offset = pSection->usedOffset;
-			handle.size = req.size;
 			handle.alignedSize = alignedSize;
 			_handles.push_back(handle);
 			*pHandle = (MemoryHandle)_handleID;
@@ -364,7 +362,6 @@ namespace SunEngine
 
 	VulkanDevice::VulkanDevice()
 	{
-		//_memMgr = UniquePtr<MemoryManager>(new MemoryManager(this));
 		_allocator = UniquePtr<MemoryAllocator>(new MemoryAllocator());
 	}
 
@@ -689,7 +686,7 @@ namespace SunEngine
 		if (!AllocBufferMemory(transferSrc, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &transferMem)) return false;
 
 		void *deviceMem = 0;
-		MapMemory(transferMem, 0, size, 0, &deviceMem);
+		if (!MapMemory(transferMem, 0, size, 0, &deviceMem)) return false;
 		memcpy(deviceMem, pData, size);
 		UnmapMemory(transferMem);
 
@@ -741,10 +738,9 @@ namespace SunEngine
 		return true;
 	}
 
-	bool VulkanDevice::UnmapMemory(MemoryHandle memory)
+	void VulkanDevice::UnmapMemory(MemoryHandle memory)
 	{
 		_allocator->UnmapMemory(memory);
-		return true;
 	}
 
 	bool VulkanDevice::TransferImageData(VkImage image, const ImageData& baseImg, uint mipCount, const ImageData* pMipData)
@@ -783,7 +779,7 @@ namespace SunEngine
 		if (!AllocBufferMemory(transferSrc, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &transferMem)) return false;
 
 		void *deviceMem = 0;
-		MapMemory(transferMem, 0, size, 0, &deviceMem);
+		if (!MapMemory(transferMem, 0, size, 0, &deviceMem)) return false;
 		usize memAddr = (usize)deviceMem;
 		for (uint i = 0; i < images.size(); i++)
 		{
@@ -939,16 +935,14 @@ namespace SunEngine
 		return true;
 	}
 
-	bool VulkanDevice::FreeMemory(MemoryHandle memory)
+	void VulkanDevice::FreeMemory(MemoryHandle memory)
 	{
 		_allocator->FreeMemory(memory);
-		return true;
 	}
 
-	bool VulkanDevice::FreeCommandBuffer(VkCommandBuffer cmdBuffer)
+	void VulkanDevice::FreeCommandBuffer(VkCommandBuffer cmdBuffer)
 	{
 		vkFreeCommandBuffers(_device, _cmdPool, 1, &cmdBuffer);
-		return true;
 	}
 
 	bool VulkanDevice::WaitIdle()

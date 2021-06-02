@@ -78,7 +78,7 @@ namespace SunEngine
 			void* pMem;
 			if (!_device->MapMemory(_vertexMem, 0, size, 0, &pMem)) return false;
 			memcpy(pMem, pVerts, size);
-			if (!_device->UnmapMemory(_vertexMem)) return false;
+			_device->UnmapMemory(_vertexMem);
 		}
 
 		return true;
@@ -90,7 +90,7 @@ namespace SunEngine
 		void* pMem;
 		if (!_device->MapMemory(_vertexMem, offset, size, 0, &pMem)) return false;
 		memcpy(pMem, pVerts, size);
-		if (!_device->UnmapMemory(_vertexMem)) return false;
+		_device->UnmapMemory(_vertexMem);
 
 		return true;
 	}
@@ -114,7 +114,7 @@ namespace SunEngine
 		void* pMem;
 		if (!_device->MapMemory(_indexMem, 0, size, 0, &pMem)) return false;
 		memcpy(pMem, pIndices, size);
-		if (!_device->UnmapMemory(_indexMem)) return false;
+		_device->UnmapMemory(_indexMem);
 
 		return true;
 	}
@@ -126,7 +126,7 @@ namespace SunEngine
 		void* pMem;
 		if (!_device->MapMemory(_indexMem, offset, size, 0, &pMem)) return false;
 		memcpy(pMem, pIndices, size);
-		if (!_device->UnmapMemory(_indexMem)) return false;
+		_device->UnmapMemory(_indexMem);
 
 		return true;
 	}

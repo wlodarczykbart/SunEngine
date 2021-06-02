@@ -72,11 +72,11 @@ namespace SunEngine
 		bool AllocateDescriptorSets(VkDescriptorSetAllocateInfo &info, VkDescriptorSet* pHandle);
 		bool UpdateDescriptorSets(VkWriteDescriptorSet *pWriteSets, uint count);
 		bool MapMemory(MemoryHandle memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData);
-		bool UnmapMemory(MemoryHandle memory);
+		void UnmapMemory(MemoryHandle memory);
 		bool TransferImageData(VkImage image, const ImageData& baseImg, uint mipCount, const ImageData* pMipData);
 		bool TransferImageData(VkImage image, const ImageData* baseImages, uint imageCount);
-		bool FreeMemory(MemoryHandle memory);
-		bool FreeCommandBuffer(VkCommandBuffer cmdBuffer);
+		void FreeMemory(MemoryHandle memory);
+		void FreeCommandBuffer(VkCommandBuffer cmdBuffer);
 
 		bool WaitIdle();
 
