@@ -22,6 +22,7 @@ namespace SunEngine
 	private:
 		friend class D3D11Shader;
 		friend class D3D11RenderTarget;
+		friend class D3D11VRInterface;
 
 		ID3D11Texture2D* _texture;
 		ID3D11ShaderResourceView* _srv;

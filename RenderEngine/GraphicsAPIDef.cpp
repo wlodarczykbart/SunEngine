@@ -11,6 +11,7 @@
 #include "ITextureArray.h"
 #include "ICommandBuffer.h"
 #include "IUniformBuffer.h"
+#include "IVRInterface.h"
 
 #include "GraphicsAPIDef.h"
 
@@ -51,6 +52,7 @@ namespace SunEngine
 		AllocateGraphics<ITextureArray>();
 		AllocateGraphics<ICommandBuffer>();
 		AllocateGraphics<IUniformBuffer>();
+		AllocateGraphics<IVRInterface>();
 	}
 
 }

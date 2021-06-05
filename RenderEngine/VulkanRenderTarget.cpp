@@ -130,13 +130,11 @@ namespace SunEngine
 
 		for(uint i = 0; i < _numTargets; i++)
 		{
-			const VkImageCreateInfo& imgInfo = pColorTextures[i]->GetVulkanInfo();
-
 			VkAttachmentDescription desc = {};
 			desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			desc.finalLayout = GetColorFinalLayout();
-			desc.format = imgInfo.format;
-			desc.samples = imgInfo.samples;
+			desc.format = pColorTextures[i]->GetFormat();
+			desc.samples = pColorTextures[i]->GetSampleMask();
 			desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 			desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -157,13 +155,11 @@ namespace SunEngine
 
 		if (pDepthTexture)
 		{
-			const VkImageCreateInfo& imgInfo = pDepthTexture->GetVulkanInfo();
-
 			VkAttachmentDescription desc = {};
 			desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			desc.finalLayout = GetDepthFinalLayout();
-			desc.format = imgInfo.format;
-			desc.samples = imgInfo.samples;
+			desc.format = pDepthTexture->GetFormat();
+			desc.samples = pDepthTexture->GetSampleMask();
 			desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 			desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;

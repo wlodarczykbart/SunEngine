@@ -4,13 +4,12 @@
 #include "D3D11CommandBuffer.h"
 #include "StringUtil.h"
 
-#define CheckDXResult(expression) if(expression != S_OK) { _errMsg = StrFormat("Error on line %d, %s\n",  __LINE__, #expression); return false; }
-
 namespace SunEngine
 {
 	D3D11Device::D3D11Device()
 	{
 		_device = 0;
+		_context = 0;
 	}
 
 	D3D11Device::~D3D11Device()
@@ -47,8 +46,8 @@ namespace SunEngine
 
 		if (outFeatureLevel != D3D_FEATURE_LEVEL_11_1) return false;
 
-		if (device->QueryInterface(__uuidof(ID3D11Device1), (void**)&_device) != S_OK) return false;
-		if (context->QueryInterface(__uuidof(ID3D11DeviceContext1), (void**)&_context) != S_OK) return false;
+		CheckDXResult(device->QueryInterface(__uuidof(ID3D11Device1), (void**)&_device));
+		CheckDXResult(context->QueryInterface(__uuidof(ID3D11DeviceContext1), (void**)&_context));
 
 		COM_RELEASE(device);
 		COM_RELEASE(context);

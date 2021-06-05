@@ -15,6 +15,7 @@ namespace SunEngine
 			ImageData image;
 			ImageData* pMips;
 			uint mipLevels;
+			bool isExternal;
 		};
 
 		BaseTexture();
@@ -28,7 +29,6 @@ namespace SunEngine
 
 		uint GetWidth() const;
 		uint GetHeight() const;
-
 	private:
 		ITexture* _iTexture;
 		uint _width;

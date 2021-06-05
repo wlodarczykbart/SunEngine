@@ -32,16 +32,29 @@ namespace SunEngine
 			_iDevice->Destroy();
 		}
 
-		IDeviceCreateInfo deviceInfo = {};
-		deviceInfo.debugEnabled = createInfo.debugEnabled;
-
-		if (!_iDevice->Create(deviceInfo))
+		//vr will initialize the device at a different point in time
+		if (!createInfo.vrEnabled)
 		{
-			return false;
+			IDeviceCreateInfo deviceInfo = {};
+			deviceInfo.debugEnabled = createInfo.debugEnabled;
+
+			if (!_iDevice->Create(deviceInfo))
+			{
+				return false;
+			}
+
+			if (!CreateDefaultObjects())
+				return false;
 		}
 
+
+		return true;
+	}
+
+	bool GraphicsContext::CreateDefaultObjects()
+	{
 		Vector<Pixel> defaultPixels[DT_COUNT];
-		
+
 		defaultPixels[DT_BLACK] =
 		{
 			{ 0, 0, 0, 255, }, { 0, 0, 0, 255, },
@@ -165,5 +178,4 @@ namespace SunEngine
 			return "";
 		}
 	}
-
 }

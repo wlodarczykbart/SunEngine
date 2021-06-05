@@ -14,6 +14,9 @@ namespace SunEngine
 		floatingPointColorBuffer = false;
 		pSharedDepthBuffer = 0;
 		msaa = SE_MSAA_OFF;
+
+		for (uint i = 0; i < MAX_SUPPORTED_RENDER_TARGETS; i++)
+			pSharedColorBuffers[i] = 0;
 	}
 
 	RenderTarget::RenderTarget() : GraphicsObject(GraphicsObject::RENDER_TARGET)
@@ -34,7 +37,8 @@ namespace SunEngine
 		for (uint i = 0; i < MAX_SUPPORTED_RENDER_TARGETS; i++)
 			_colorTextures[i] = 0;
 
-		_ownsDepthTexture = true;
+		_depthTextureOwnership = false;
+		_colorTextureOwnership = 0;
 	}
 
 
@@ -55,19 +59,30 @@ namespace SunEngine
 
 		for (uint i = 0; i < info.numTargets; i++)
 		{
-			BaseTexture* pTexture = new BaseTexture();
-			BaseTexture::CreateInfo texInfo = {};
-			texInfo.image.Width = info.width;
-			texInfo.image.Height = info.height;
+			BaseTexture* pTexture = 0;
+			
+			if (info.pSharedColorBuffers[i] == 0)
+			{
+				pTexture = new BaseTexture();
+				BaseTexture::CreateInfo texInfo = {};
+				texInfo.image.Width = info.width;
+				texInfo.image.Height = info.height;
 
-			if (!info.floatingPointColorBuffer)
-				texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA8;
+				if (!info.floatingPointColorBuffer)
+					texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA8;
+				else
+					texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
+
+				texInfo.image.Flags |= msaaFlags;
+				if (!pTexture->Create(texInfo))
+					_errStr = pTexture->GetErrStr();
+
+				_colorTextureOwnership |= 1 << i;
+			}
 			else
-				texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
-
-			texInfo.image.Flags |= msaaFlags;
-			if (!pTexture->Create(texInfo))
-				_errStr = pTexture->GetErrStr();
+			{
+				pTexture = info.pSharedColorBuffers[i];
+			}
 
 			_colorTextures[i] = pTexture;
 		}
@@ -85,11 +100,12 @@ namespace SunEngine
 				texInfo.image.Flags |= msaaFlags;
 				if (!_depthTexture->Create(texInfo))
 					_errStr = _depthTexture->GetErrStr();
+
+				_depthTextureOwnership = true;
 			}
 			else
 			{
 				_depthTexture = info.pSharedDepthBuffer;
-				_ownsDepthTexture = false;
 			}
 		}
 
@@ -125,14 +141,17 @@ namespace SunEngine
 
 		for (uint i = 0; i < _numTargets; i++)
 		{
-			if (!_colorTextures[i]->Destroy())
-				return false;
-			delete _colorTextures[i];
+			if (_colorTextureOwnership & (1 << i))
+			{
+				if (!_colorTextures[i]->Destroy())
+					return false;
+				delete _colorTextures[i];
+			}
 		}
 
 		if (_depthTexture)
 		{
-			if (_ownsDepthTexture)
+			if (_depthTextureOwnership)
 			{
 				if (!_depthTexture->Destroy())
 					return false;
@@ -142,7 +161,8 @@ namespace SunEngine
 		}
 
 		_numTargets = 0;
-		_ownsDepthTexture = true;
+		_depthTextureOwnership = true;
+		_colorTextureOwnership = 0;
 
 		return true;
 	}

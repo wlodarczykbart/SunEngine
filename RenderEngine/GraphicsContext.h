@@ -13,6 +13,7 @@ namespace SunEngine
 		struct CreateInfo
 		{
 			bool debugEnabled;
+			bool vrEnabled;
 		};
 
 		enum DefaultTexture
@@ -37,6 +38,7 @@ namespace SunEngine
 		~GraphicsContext();
 
 		bool Create(const CreateInfo& createInfo);
+		bool CreateDefaultObjects();
 		bool Destroy();
 
 		const String& GetErrStr() const;

@@ -27,6 +27,8 @@ VulkanDevice.h
 VulkanDevice.cpp
 VulkanCommandBuffer.h
 VulkanCommandBuffer.cpp
+VulkanVRInterface.h
+VulkanVRInterface.cpp
 UniformBuffer.h
 UniformBuffer.cpp
 Surface.h
@@ -59,6 +61,8 @@ IRenderTarget.h
 IRenderTarget.cpp
 IObject.h
 IObject.cpp
+IVRInterface.h
+IVRInterface.cpp
 InputCodes.h
 IMesh.h
 IMesh.cpp
@@ -110,6 +114,8 @@ D3D11Device.h
 D3D11Device.cpp
 D3D11CommandBuffer.h
 D3D11CommandBuffer.cpp
+D3D11VRInterface.h
+D3D11VRInterface.cpp
 CommandBuffer.h
 CommandBuffer.cpp
 CMakeLists.txt
@@ -123,10 +129,13 @@ BaseShader.h
 BaseShader.cpp
 BaseMesh.h
 BaseMesh.cpp
+VRInterface.h
+VRInterface.cpp
 )
 
 target_include_directories(RenderEngine PUBLIC 
 "${CMAKE_SOURCE_DIR}/EngineTools"
-"${CMAKE_SOURCE_DIR}/Math")
+"${CMAKE_SOURCE_DIR}/Math"
+"${CMAKE_SOURCE_DIR}/External/OpenXR/include")
 
 target_link_libraries(RenderEngine Vulkan::Vulkan)

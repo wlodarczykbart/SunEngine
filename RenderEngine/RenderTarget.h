@@ -29,6 +29,7 @@ namespace SunEngine
 			bool hasDepthBuffer;
 			bool floatingPointColorBuffer;
 
+			BaseTexture* pSharedColorBuffers[MAX_SUPPORTED_RENDER_TARGETS];
 			BaseTexture* pSharedDepthBuffer;
 
 			CreateInfo();
@@ -64,7 +65,8 @@ namespace SunEngine
 		uint _height;
 		uint _numTargets;
 		bool _clearOnBind;
-		bool _ownsDepthTexture;
+		bool _depthTextureOwnership;
+		uint _colorTextureOwnership;
 	};
 
 }

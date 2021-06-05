@@ -107,15 +107,18 @@ namespace SunEngine
 		if (!_iTexture)
 			_iTexture = AllocateGraphics<ITexture>();
 
-		ITextureCreateInfo apiInfo = {};
-		apiInfo.image = info.image;
-		apiInfo.pMips = info.pMips;
-		apiInfo.mipLevels = info.mipLevels;
-
-		if (!_iTexture->Create(apiInfo))
+		if (!info.isExternal)
 		{
-			_errStr = "Failed to create API BaseTexture";
-			return false;
+			ITextureCreateInfo apiInfo = {};
+			apiInfo.image = info.image;
+			apiInfo.pMips = info.pMips;
+			apiInfo.mipLevels = info.mipLevels;
+
+			if (!_iTexture->Create(apiInfo))
+			{
+				_errStr = "Failed to create API BaseTexture";
+				return false;
+			}
 		}
 
 		_width = info.image.Width;
@@ -147,5 +150,4 @@ namespace SunEngine
 	{
 		return _height;
 	}
-
 }

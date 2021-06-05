@@ -12,6 +12,7 @@
 #include "IDevice.h"
 
 #define COM_RELEASE(dx) if(dx) {dx->Release(); dx = 0;}
+#define CheckDXResult(expression) if(expression != S_OK) { _errMsg = StrFormat("Error on line %d, %s\n",  __LINE__, #expression); return false; }
 
 namespace SunEngine
 {
@@ -68,6 +69,7 @@ namespace SunEngine
 		bool FillSampleDesc(DXGI_FORMAT format, uint samples, DXGI_SAMPLE_DESC& desc);
 
 	private:
+		friend class D3D11VRInterface;
 
 		ID3D11Device1* _device;
 		ID3D11DeviceContext1* _context;

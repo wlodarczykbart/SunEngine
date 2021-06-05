@@ -89,6 +89,8 @@ namespace SunEngine
 		uint GetBufferedFrameNumber() const;
 
 	private:
+		friend class VulkanVRInterface;
+
 		static VkBool32 VKAPI_PTR DebugCallback(
 			VkDebugReportFlagsEXT                       flags,
 			VkDebugReportObjectTypeEXT                  objectType,

@@ -24,6 +24,7 @@ namespace SunEngine
 			SHADER_BINDINGS,
 			TEXTURE_CUBE,
 			TEXTURE_ARRAY,
+			VR_INTERFACE,
 		};
 
 		GraphicsObject::Type GetType() const;

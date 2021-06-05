@@ -22,4 +22,4 @@ target_include_directories(GameEditor PUBLIC
 "${CMAKE_SOURCE_DIR}/External/imgui/${IMGUI_VER}")
 
 target_link_libraries(GameEditor GameEngine Editor ModelImporter zlib)
-target_link_libraries(GameEditor optimized "${ASSIMP_BUILD_DIR}lib/Release/assimp-vc142-mt.lib" debug "${ASSIMP_BUILD_DIR}lib/Debug/assimp-vc142-mtd.lib")
+target_link_libraries(GameEditor optimized "${LIB_DIR}/Release/assimp-vc142-mt.lib" debug "${LIB_DIR}/Debug/assimp-vc142-mtd.lib")

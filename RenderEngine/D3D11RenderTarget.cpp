@@ -115,13 +115,16 @@ namespace SunEngine
 			//DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
 			D3D11Texture* pTex = static_cast<D3D11Texture*>(pColorTexures[i]);
 
-			D3D11_TEXTURE2D_DESC desc;
-			pTex->_texture->GetDesc(&desc);
+			D3D11_TEXTURE2D_DESC texDesc;
+			pTex->_texture->GetDesc(&texDesc);
+
+			D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc;
+			pTex->_srv->GetDesc(&viewDesc);
 
 			//_device->Get
 			D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-			rtvDesc.ViewDimension = desc.SampleDesc.Count == 1 ? D3D11_RTV_DIMENSION_TEXTURE2D : D3D11_RTV_DIMENSION_TEXTURE2DMS;
-			rtvDesc.Format = desc.Format;
+			rtvDesc.ViewDimension = texDesc.SampleDesc.Count == 1 ? D3D11_RTV_DIMENSION_TEXTURE2D : D3D11_RTV_DIMENSION_TEXTURE2DMS;
+			rtvDesc.Format = viewDesc.Format;
 			if (!_device->CreateRenderTargetView(rtvDesc, pTex->_texture, &_rtv[i])) return false;
 		}
 
@@ -129,14 +132,18 @@ namespace SunEngine
 		{
 			D3D11Texture* pTex = static_cast<D3D11Texture*>(pDepthTex);
 
-			D3D11_TEXTURE2D_DESC desc;
-			pTex->_texture->GetDesc(&desc);
+			D3D11_TEXTURE2D_DESC texDesc;
+			pTex->_texture->GetDesc(&texDesc);
+
+			D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc;
+			pTex->_srv->GetDesc(&viewDesc);
 
 			D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-			dsvDesc.ViewDimension =  desc.SampleDesc.Count == 1 ? D3D11_DSV_DIMENSION_TEXTURE2D : D3D11_DSV_DIMENSION_TEXTURE2DMS;
+			dsvDesc.ViewDimension = texDesc.SampleDesc.Count == 1 ? D3D11_DSV_DIMENSION_TEXTURE2D : D3D11_DSV_DIMENSION_TEXTURE2DMS;
 
-			if (desc.Format == DXGI_FORMAT_R32_TYPELESS) dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
-			else if (desc.Format == DXGI_FORMAT_R24G8_TYPELESS) dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			if (viewDesc.Format == DXGI_FORMAT_R32_TYPELESS) dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+			else if (viewDesc.Format == DXGI_FORMAT_R32_FLOAT) dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+			else if (viewDesc.Format == DXGI_FORMAT_R24G8_TYPELESS) dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 			if (!_device->CreateDepthStencilView(dsvDesc, pTex->_texture, &_dsv)) return false;
 		}

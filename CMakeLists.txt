@@ -17,7 +17,7 @@ find_package(Vulkan REQUIRED)
 
 set(IMGUI_VER imgui-1.80)
 set(ZLIB_VER zlib-1.2.11)
-set(ASSIMP_BUILD_DIR "${CMAKE_SOURCE_DIR}/External/assimp/build/")
+set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib/lib/")
 
 add_subdirectory(EngineTools)
 add_subdirectory(RenderEngine)
@@ -29,6 +29,7 @@ add_subdirectory(GameEditor)
 add_subdirectory(FBXEditor)
 add_subdirectory(External/zlib/${ZLIB_VER})
 add_subdirectory(TestApp)
+add_subdirectory(VRApp)
 
 add_dependencies(RenderEngine EngineTools)
 add_dependencies(GameEngine RenderEngine)

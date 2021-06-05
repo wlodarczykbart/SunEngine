@@ -33,6 +33,7 @@ namespace SunEngine
 	class IShaderBindings;
 	class ITextureCube;
 	class ITextureArray;
+	class IVRInterface;
 
 	void SetGraphicsAPI(GraphicsAPI api);
 	GraphicsAPI GetGraphicsAPI();
@@ -74,6 +75,18 @@ namespace SunEngine
 	struct ISamplerCreateInfo
 	{
 		SamplerSettings settings;
+	};
+
+	typedef void* VRHandle;
+	struct IVRInitInfo
+	{
+		VRHandle inInstance;
+		VRHandle inSystemID;
+		VRHandle inGetInstanceProcAddr;
+		bool inDebugEnabled;
+		VRHandle outBinding;
+		VRHandle outImageHeaders;
+		Vector<int64> outSupportedSwapchainFormats;
 	};
 
 	enum ShaderStage

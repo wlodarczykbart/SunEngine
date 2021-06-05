@@ -1,12 +1,13 @@
 #include "D3D11Shader.h"
 #include "D3D11Texture.h"
 
-
 namespace SunEngine
 {
 
 	D3D11Texture::D3D11Texture()
 	{
+		_texture = 0;
+		_srv = 0;
 	}
 
 

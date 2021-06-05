@@ -20,6 +20,7 @@ namespace SunEngine
 	typedef unsigned char uchar;
 	typedef size_t usize;
 	typedef unsigned long long uint64;
+	typedef signed long long int64;
 
 	typedef std::string String;
 
