@@ -428,6 +428,7 @@ namespace SunEngine
 				ImGui::Text("FrameTick: %fms", pEditor->GetFrameTick() * 1000.0);
 				ImGui::Text("UpdateTick: %fms", pEditor->GetUpdateTick() * 1000.0);
 				ImGui::Text("RenderTick: %fms", pEditor->GetRenderTick() * 1000.0);
+				ImGui::TreePop();
 			}
 
 			ImGui::End();

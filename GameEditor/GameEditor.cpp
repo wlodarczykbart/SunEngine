@@ -14,6 +14,7 @@
 #include "GameEditorGUI.h"
 #include "Environment.h"
 #include "Timer.h"
+#include "Terrain.h"
 #include "FilePathMgr.h"
 
 #include "GameEditor.h"
@@ -354,6 +355,13 @@ namespace SunEngine
 			}
 		}
 
+		Asset* pAssetTerrain = resMgr.AddAsset("Terrain");
+		{
+			AssetNode* pRoot = pAssetTerrain->AddNode("Terrain");
+			Terrain* pTerrain = pRoot->AddComponent(new Terrain())->As<Terrain>();
+			SceneNode* pTerrainNode = pAssetTerrain->CreateSceneNode(pScene);
+		}
+
 		//pScene->Initialize();
 		sceneMgr.SetActiveScene(pScene->GetName());
 
@@ -374,10 +382,10 @@ namespace SunEngine
 		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
 		//strAsset = "F:/Models/FBX/_PHONG_/Wooden_barrels__OBJ/Wooden_barrels.FBX";
 
-		auto options = SunEngine::AssetImporter::Options::Default;
-		options.MaxTextureSize = 1024;
-		Asset* pAsset = ImportAsset(strAsset, options);
-		pAsset->CreateSceneNode(pScene,  200);
+		//auto options = SunEngine::AssetImporter::Options::Default;
+		//options.MaxTextureSize = 1024;
+		//Asset* pAsset = ImportAsset(strAsset, options);
+		//pAsset->CreateSceneNode(pScene,  200);
 
 		return true;
 	}

@@ -68,6 +68,9 @@ namespace SunEngine
 		void SetTri(uint triIndex, uint t0, uint t1, uint t2);
 		void GetTri(uint triIndex, uint& t0, uint& t1, uint& t2) const;
 
+		void SetIndices(const uint* pIndices, uint indexOffset, uint indexCount);
+		uint GetIndex(uint index) const { return _indices.at(index); }
+
 		glm::vec4 GetVertexVar(uint vertexIndex, uint varIndex) const;
 		glm::vec4 GetVertexPos(uint vertexIndex) const;
 

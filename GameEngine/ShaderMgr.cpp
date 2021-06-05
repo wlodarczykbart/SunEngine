@@ -27,6 +27,7 @@ namespace SunEngine
 	DefineStaticStr(DefaultShaders, Clouds)
 	DefineStaticStr(DefaultShaders, SkyArHosek)
 	DefineStaticStr(DefaultShaders, MSAAResolve)
+	DefineStaticStr(DefaultShaders, Terrain)
 
 	DefineStaticStr(DefaultPipelines, ShadowDepth)
 

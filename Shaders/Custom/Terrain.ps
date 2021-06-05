@@ -1,0 +1,10 @@
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 normal : NORMAL;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	return pIn.normal;
+}
