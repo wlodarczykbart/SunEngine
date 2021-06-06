@@ -359,6 +359,14 @@ namespace SunEngine
 		{
 			AssetNode* pRoot = pAssetTerrain->AddNode("Terrain");
 			Terrain* pTerrain = pRoot->AddComponent(new Terrain())->As<Terrain>();
+
+			Texture2D* pHeightMap = resMgr.AddTexture2D("HeightMap");
+			pHeightMap->SetFilename("C:/Users/Bart/Documents/World Machine Documents/New Project Height Output-1025.r16");
+			pHeightMap->LoadFromRAW16();
+			//pHeightMap->SetFilename("C:/Users/Bart/Downloads/043-ue4-heightmap-guide-02.jpg");
+			//pHeightMap->LoadFromFile();
+			pTerrain->SetHeights(pHeightMap);
+
 			SceneNode* pTerrainNode = pAssetTerrain->CreateSceneNode(pScene);
 		}
 

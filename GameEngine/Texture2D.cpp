@@ -1,4 +1,5 @@
 #include "MipMapGenerator.h"
+#include "FileBase.h"
 #include "Texture2D.h"
 
 namespace SunEngine
@@ -53,6 +54,59 @@ namespace SunEngine
 		if (!_img.Load(_filename))
 			return false;
 
+		return true;
+	}
+
+	bool Texture2D::LoadFromRAW()
+	{
+		return LoadRAWInternal(1);
+	}
+
+	bool Texture2D::LoadFromRAW16()
+	{
+		return LoadRAWInternal(2);
+	}
+
+	bool Texture2D::LoadFromRAWF32()
+	{
+		return LoadRAWInternal(4);
+	}
+
+	bool Texture2D::LoadRAWInternal(uint byteDivider)
+	{
+		FileStream file;
+		if (!file.OpenForRead(_filename.c_str()))
+			return false;
+		
+		MemBuffer buffer;
+		if(!file.ReadBuffer(buffer))
+			return false;
+		file.Close();
+
+		uint resolutionSquared = buffer.GetSize() / byteDivider;
+		uint resolution = uint(sqrtf(resolutionSquared));
+
+		if (!Alloc(resolution, resolution))
+			return false;
+
+		uchar* p_uchar = (uchar*)buffer.GetData();
+		ushort* p_ushort = (ushort*)buffer.GetData();
+		float* p_float = (float*)buffer.GetData();
+
+		for (uint y = 0; y < resolution; y++)
+		{
+			for (uint x = 0; x < resolution; x++)
+			{
+				uint index = y * resolution + x;
+				float value = 0.0f;
+				if (byteDivider == 0) value = (float)p_uchar[index];
+				else if (byteDivider == 2) value = (float)p_ushort[index];
+				else if (byteDivider == 4) value = (float)p_float[index];
+				SetPixel(x, y, reinterpret_cast<Pixel&>(value));
+			}
+		}
+
+		SetSingleFloatTexture();
 		return true;
 	}
 
@@ -171,5 +225,11 @@ namespace SunEngine
 	void Texture2D::GetPixel(uint x, uint y, Pixel& color) const
 	{
 		color = _img.GetPixel(x, y);
+	}
+
+	void Texture2D::GetFloat(uint x, uint y, float& value) const
+	{
+		Pixel p = _img.GetPixel(x, y);
+		value = *reinterpret_cast<float*>(&p.R);
 	}
 }

@@ -4,6 +4,8 @@
 
 namespace SunEngine
 {
+	class Texture2D;
+
 	class TerrainComponentData : public RenderComponentData
 	{
 	public:
@@ -27,6 +29,7 @@ namespace SunEngine
 		uint GetSlices() const { return _slices; }
 
 		void BuildMesh();
+		void SetHeights(Texture2D* pHeightTexture);
 
 		void Initialize(SceneNode* pNode, ComponentData* pData) override;
 		void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override;
@@ -49,6 +52,7 @@ namespace SunEngine
 		bool RequestData(RenderNode* pNode, RenderComponentData* pData, Mesh*& pMesh, Material*& pMaterial, const glm::mat4*& worldMtx, const AABB*& aabb, uint& idxCount, uint& instanceCount, uint& firstIdx, uint& vtxOffset) const override;
 		void BuildSliceIndices(Map<glm::uvec2, Vector<uint>>& sliceTypeIndices, uint& indexCount) const;
 		void BuildPipelineSettings(PipelineSettings& settings) const override;
+		void RecalcNormals();
 
 		uint _resolution;
 		uint _slices;

@@ -2,13 +2,14 @@
 #include "Material.h"
 #include "SceneNode.h"
 #include "ShaderMgr.h"
+#include "Texture2D.h"
 #include "Terrain.h"
 
 namespace SunEngine
 {
     Terrain::Terrain()
     {
-        _resolution = 2048;
+        _resolution = 1025/2;
         _slices = 4;
         _mesh = UniquePtr<Mesh>(new Mesh());
         _material = UniquePtr<Material>(new Material());
@@ -106,6 +107,71 @@ namespace SunEngine
         _mesh->RegisterToGPU();
     }
 
+    void Terrain::SetHeights(Texture2D* pHeightTexture)
+    {
+        float mapTextureX = pHeightTexture->GetWidth() / (float)_resolution;
+        float mapTextureY = pHeightTexture->GetHeight() / (float)_resolution;
+
+        bool isFloatTexture = pHeightTexture->GetImageFlags() & ImageData::SAMPLED_TEXTURE_R32F;
+
+        Vector<float> heights(pHeightTexture->GetWidth() * pHeightTexture->GetHeight());
+        float maxHeight = -FLT_MAX;
+        float minHeight = FLT_MAX;
+        for (uint y = 0; y < pHeightTexture->GetHeight(); y++)
+        {
+            for (uint x = 0; x < pHeightTexture->GetWidth(); x++)
+            {
+                uint index = y * pHeightTexture->GetWidth() + x;
+                if (isFloatTexture)
+                {
+                    pHeightTexture->GetFloat(x, y, heights[index]);
+                }
+                else
+                {
+                    Pixel p;
+                    pHeightTexture->GetPixel(x, y, p);
+                    heights[index] = (float)p.R;
+                }
+                maxHeight = glm::max(maxHeight, heights[index]);
+                minHeight = glm::min(minHeight, heights[index]);
+            }
+        }
+
+        float yStart = minHeight / maxHeight;
+
+        for (uint y = 0; y < _resolution; y++)
+        {
+            uint ty = uint(y * mapTextureY);
+            for (uint x = 0; x < _resolution; x++)
+            {
+                uint tx = uint(x * mapTextureX);
+
+                uint vIndex = y * _resolution + x;
+                uint tIndex = ty * pHeightTexture->GetWidth() + tx;
+                glm::vec4 position = _mesh->GetVertexPos(vIndex);
+
+                position.y = (heights[tIndex])/ maxHeight;
+               // position.y -= yStart;
+                position.y *= 100.0f;
+
+                _mesh->SetVertexVar(vIndex, position);
+            }
+        }
+        RecalcNormals();
+        _mesh->UpdateVertices();
+
+        for (uint s = 0; s < _sliceData.size(); s++)
+        {
+            Slice& slice = _sliceData[s];
+            slice.aabb.Reset();
+            for (uint i = 0; i < slice.indexCount; i++)
+            {
+                glm::vec4 position = _mesh->GetVertexPos(_mesh->GetIndex(i + slice.firstIndex) + slice.vertexOffset);
+                slice.aabb.Expand(position);
+            }
+        }
+    }
+
     void Terrain::BuildSliceIndices(Map<glm::uvec2, Vector<uint>> &sliceTypeIndices, uint& indexCount) const
     {
         uint sliceResolution = _resolution / _slices;
@@ -195,5 +261,76 @@ namespace SunEngine
         instanceCount = 1;
 
         return false;
+    }
+
+    void Terrain::RecalcNormals()
+    {
+#if 0
+        for (uint y = 0; y < _resolution; y++)
+        {
+            uint top = y == 0 ? y : y - 1;
+            uint bottom = y == _resolution - 1 ? y : y + 1;
+            for (uint x = 0; x < _resolution; x++)
+            {
+                uint left = x == 0 ? x : x - 1;
+                uint right = x == _resolution - 1 ? x : x + 1;
+
+                glm::vec4 vLeft = _mesh->GetVertexPos(y * _resolution + left);
+                glm::vec4 vRight = _mesh->GetVertexPos(y * _resolution + right);
+                glm::vec4 vTop = _mesh->GetVertexPos(top * _resolution + x);
+                glm::vec4 vBottom = _mesh->GetVertexPos(bottom * _resolution + x);
+
+                glm::vec4 normal;
+                normal.x = (vRight - vLeft).y;
+                normal.z = (vBottom - vTop).y;
+                normal.y = 2.0f;
+                normal.w = 0.0f;
+
+                normal = glm::normalize(normal);
+
+                _mesh->SetVertexVar(y * _resolution + x, normal, 1);
+            }
+        }
+#else
+        Vector<glm::vec3> normals;
+        normals.resize(_resolution * _resolution);
+        memset(normals.data(), 0x0, sizeof(glm::vec3)* normals.size());
+
+        for (uint y = 0; y < _resolution - 1; y++)
+        {
+            for (uint x = 0; x < _resolution - 1; x++)
+            {
+                uint topLeft = y * _resolution + x;
+                uint topRight = topLeft + 1;
+                uint bottomLeft = topLeft + _resolution;
+                uint bottomRight = topRight + 1;
+
+                {
+                    glm::vec3 p0 = _mesh->GetVertexPos(topLeft);
+                    glm::vec3 p1 = _mesh->GetVertexPos(bottomLeft);
+                    glm::vec3 p2 = _mesh->GetVertexPos(bottomRight);
+                    glm::vec3 normal = glm::cross(p1 - p0, p2 - p0);
+                    normals[topLeft] += normal;
+                    normals[bottomLeft] += normal;
+                    normals[bottomRight] += normal;
+                }
+
+                {
+                    glm::vec3 p0 = _mesh->GetVertexPos(topLeft);
+                    glm::vec3 p1 = _mesh->GetVertexPos(bottomRight);
+                    glm::vec3 p2 = _mesh->GetVertexPos(topRight);
+                    glm::vec3 normal = glm::cross(p1 - p0, p2 - p0);
+                    normals[topLeft] += normal;
+                    normals[bottomRight] += normal;
+                    normals[topRight] += normal;
+                }
+            }
+        }
+
+        for (uint i = 0; i < normals.size(); i++)
+        {
+            _mesh->SetVertexVar(i, glm::vec4(glm::normalize(normals[i]), 0.0f), 1);
+        }
+#endif
     }
 }

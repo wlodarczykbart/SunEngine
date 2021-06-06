@@ -85,6 +85,8 @@ namespace SunEngine
 		const Sphere& GetSphere() const { return _sphere; }
 		void UpdateBoundingVolume();
 
+		bool UpdateVertices();
+
 	private:
 		VertexDef _vertexDef;
 		Vector<glm::vec4> _vertices;

@@ -387,4 +387,13 @@ namespace SunEngine
 		}
 		_sphere.Radius = sqrtf(maxDist);
 	}
+
+	bool Mesh::UpdateVertices()
+	{
+		if(!_gpuObject.UpdateVertices(_vertices.data(), GetVertexStride() * GetVertexCount()))
+			return false;
+
+		UpdateBoundingVolume();
+		return true;
+	}
 }

@@ -645,8 +645,7 @@ namespace SunEngine
 		settings.rasterizer.frontFace = SE_FF_CLOCKWISE;
 #endif
 
-		if (data.RenderNode->GetMaterial()->GetShader()->GetName() == DefaultShaders::Terrain)
-			settings.rasterizer.polygonMode = SE_PM_LINE;
+		//if (data.RenderNode->GetMaterial()->GetShader()->GetName() == DefaultShaders::Terrain) settings.rasterizer.polygonMode = SE_PM_LINE;
 
 		for (uint i = 0; i < _graphicsPipelines.size(); i++)
 		{
