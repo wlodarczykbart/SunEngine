@@ -27,6 +27,7 @@ namespace SunEngine
 	struct Vec4
 	{
 		static const glm::vec4 Zero;
+		static const glm::vec4 Point;
 		static const glm::vec4 One;
 		static const glm::vec4 Half;
 		static const glm::vec4 Right;
@@ -117,6 +118,12 @@ namespace SunEngine
 		{
 			Expand(box.Min);
 			Expand(box.Max);
+		}
+
+		void ExpandY(float value)
+		{
+			Min.y = glm::min(Min.y, value);
+			Max.y = glm::max(Max.y, value);
 		}
 
 		void Transform(const glm::mat4& mtx)

@@ -3,6 +3,7 @@
 namespace SunEngine
 {
 	const glm::vec4 Vec4::Zero = glm::vec4(0.0f);
+	const glm::vec4 Vec4::Point = glm::vec4(0.0f, 0.0f, 0.0, 1.0f);
 	const glm::vec4 Vec4::One = glm::vec4(1.0f);
 	const glm::vec4 Vec4::Half = glm::vec4(0.5f);
 	const glm::vec4 Vec4::Right = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);

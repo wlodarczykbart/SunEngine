@@ -8,6 +8,8 @@
 
 namespace SunEngine
 {
+	class Terrain;
+
 	class ICameraView : public View
 	{
 	public:
@@ -86,6 +88,8 @@ namespace SunEngine
 
 		void BuildSceneTree(SceneNode* pNode);
 		void BuildSelectedNodeGUI(Scene* pScene, GUIRenderer* pRenderer);
+		void BuildTerrain(Terrain* pTerrain);
+
 		bool CreateRenderPassData(const String& shader, RenderPassData& data, bool useOneZ = false);
 
 		SceneRenderer* _renderer;

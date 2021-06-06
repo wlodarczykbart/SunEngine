@@ -86,7 +86,9 @@ namespace SunEngine
 		const float floatDrag = 0.0005f;
 		const char* floatFmt = "%.4f";
 
-		if (ImGui::TreeNode(mtl->GetName().c_str()))
+		String name = mtl->GetName().size() ? mtl->GetName() : StrFormat("Material-%p", mtl);
+
+		if (ImGui::TreeNode(name.c_str()))
 		{
 			if (ImGui::TreeNode("Variables"))
 			{

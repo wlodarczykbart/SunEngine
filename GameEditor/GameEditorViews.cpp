@@ -13,6 +13,8 @@
 #include "MeshRenderer.h"
 #include "ResourceMgr.h"
 #include "GameEditorGUI.h"
+#include "StringUtil.h"
+#include "Terrain.h"
 #include "GameEditorViews.h"
 
 namespace SunEngine
@@ -447,12 +449,32 @@ namespace SunEngine
 				else if (c->GetType() == COMPONENT_RENDER_OBJECT)
 				{
 					RenderComponentData* renderData = pNode->GetComponentData<RenderComponentData>(c);
+					RenderObject* pRenderObject = const_cast<RenderObject*>(renderData->C()->As<RenderObject>());
+
+					if (pRenderObject->GetRenderType() == RO_TERRAIN)
+					{
+						if (ImGui::TreeNode("Terrain"))
+						{
+							BuildTerrain(static_cast<Terrain*>(pRenderObject));
+							ImGui::TreePop();
+						}
+					}
+
+					HashSet<Material*> materials;
 					for (auto riter = renderData->BeginNode(); riter != renderData->EndNode(); ++riter)
 					{
-						auto& node = *riter;
-						Material* pMaterial = node.GetMaterial();
+						Material* pMaterial = (*riter).GetMaterial();
 						if (pMaterial)
-							gui->RenderMaterial(pMaterial);
+							materials.insert(pMaterial);
+					}
+
+					if(ImGui::TreeNode("Materials"))
+					{
+						for (auto& mtl : materials)
+						{
+							gui->RenderMaterial(mtl);
+						}
+						ImGui::TreePop();
 					}
 				}
 			}
@@ -467,6 +489,44 @@ namespace SunEngine
 		if (removeNode)
 		{
 			pScene->RemoveNode(pNode);
+		}
+	}
+
+	void SceneView::BuildTerrain(Terrain* pTerrain)
+	{
+		Vector<Terrain::Biome*> biomes;
+		pTerrain->GetBiomes(biomes);
+
+		for (auto& biome : biomes)
+		{
+			if (ImGui::TreeNode(biome->GetName().c_str()))
+			{
+				//void SetTexture(Texture2D * pTexture);
+				//Texture2D* GetTexture() const { return _texture; }
+
+				float ResolutionScale = biome->GetResolutionScale();
+				if (ImGui::DragFloat("ResolutionScale", &ResolutionScale, 0.005f, 0.0f, 1.0f)) biome->SetResolutionScale(ResolutionScale);
+
+				float HeightScale = biome->GetHeightScale();
+				if (ImGui::DragFloat("HeightScale", &HeightScale, 0.5f)) biome->SetHeightScale(HeightScale);
+
+				float HeightOffset = biome->GetHeightOffset();
+				if (ImGui::DragFloat("HeightOffset", &HeightOffset, 0.5f)) biome->SetHeightOffset(HeightOffset);
+
+				int SmoothKernelSize = biome->GetSmoothKernelSize();
+				if (ImGui::DragInt("SmoothKernelSize", &SmoothKernelSize, 0.005f, 0, 3)) biome->SetSmoothKernelSize(SmoothKernelSize);
+
+				bool Invert = biome->GetInvert();
+				if (ImGui::Checkbox("Invert", &Invert)) biome->SetInvert(Invert);
+
+				glm::int2 Center = biome->GetCenter();
+				int halfRes = pTerrain->GetResolution() / 2;
+				if (ImGui::DragInt2("Center", &Center.x, 0.5f, -halfRes, halfRes)) biome->SetCenter(Center);
+
+				if (ImGui::Button("Update")) pTerrain->UpdateBiomes();
+
+				ImGui::TreePop();
+			}
 		}
 	}
 

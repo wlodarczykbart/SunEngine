@@ -517,7 +517,7 @@ namespace SunEngine
 	bool ParseMesh(aiMesh* pSrc, Mesh* pDst, Material* pMtl)
 	{
 		pDst->AllocIndices(pSrc->mNumFaces * 3);
-		pDst->AllocVertices(pSrc->mNumVertices, VertexDef::POS_TEXCOORD_NORMAL_TANGENT);
+		pDst->AllocVertices(pSrc->mNumVertices, StandardVertex::Definition);
 
 		for (uint i = 0; i < pSrc->mNumVertices; i++)
 		{

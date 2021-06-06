@@ -7,7 +7,7 @@
 namespace SunEngine
 {
 
-	MeshRenderer::MeshRenderer()
+	MeshRenderer::MeshRenderer() : RenderObject(RO_MESH_RENDERER)
 	{
 		_mesh = 0;
 		_material = 0;

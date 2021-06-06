@@ -19,18 +19,18 @@ namespace SunEngine
 		static const uint DEFAULT_TEX_COORD_INDEX;
 		static const uint DEFAULT_NORMAL_INDEX;
 		static const uint DEFAULT_TANGENT_INDEX;
-
-		static const VertexDef POS_TEXCOORD_NORMAL_TANGENT;
 	};
 
 	struct StandardVertex
 	{
+		static const VertexDef Definition;
+
 		StandardVertex()
 		{
 			Position = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-			Normal = glm::vec4(0.0f);
-			Tangent = glm::vec4(0.0f);
-			TexCoord = glm::vec4(0.0f);
+			Normal = Vec4::Zero;
+			Tangent = Vec4::Zero;
+			TexCoord = Vec4::Zero;
 		}
 
 		StandardVertex(float px, float py, float pz, float nx, float ny, float nz, float tx, float ty, float tz, float u, float v)
@@ -46,6 +46,20 @@ namespace SunEngine
 		glm::vec4 Normal;
 		glm::vec4 Tangent;
 
+	};
+
+	struct TerrainVertex
+	{
+		static const VertexDef Definition;
+
+		TerrainVertex()
+		{
+			Position = Vec4::Point;
+			Normal = Vec4::Up;
+		}
+
+		glm::vec4 Position;
+		glm::vec4 Normal;
 	};
 
 	class Mesh : public GPUResource<BaseMesh>
@@ -67,6 +81,15 @@ namespace SunEngine
 		void SetVertexVar(uint vertexIndex, const glm::vec4& value, uint varIndex = 0);
 		void SetTri(uint triIndex, uint t0, uint t1, uint t2);
 		void GetTri(uint triIndex, uint& t0, uint& t1, uint& t2) const;
+		
+		template<typename T>
+		T* GetVertices()
+		{
+			if (GetVertexStride() == sizeof(T))
+				return reinterpret_cast<T*>(_vertices.data());
+			else
+				return 0;
+		}
 
 		void SetIndices(const uint* pIndices, uint indexOffset, uint indexCount);
 		uint GetIndex(uint index) const { return _indices.at(index); }

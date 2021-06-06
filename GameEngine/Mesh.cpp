@@ -9,7 +9,8 @@ namespace SunEngine
 	const uint VertexDef::DEFAULT_NORMAL_INDEX = 2;
 	const uint VertexDef::DEFAULT_TANGENT_INDEX = 3;
 
-	const VertexDef VertexDef::POS_TEXCOORD_NORMAL_TANGENT = VertexDef(4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX);
+	const VertexDef StandardVertex::Definition = VertexDef(4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX);
+	const VertexDef TerrainVertex::Definition = VertexDef(2, VertexDef::DEFAULT_INVALID_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_INVALID_INDEX);
 
 	Mesh::Mesh()
 	{
@@ -50,7 +51,7 @@ namespace SunEngine
 
 	void Mesh::AllocateCube()
 	{
-		AllocVertices(24, VertexDef { 4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX } );
+		AllocVertices(24, StandardVertex::Definition );
 		AllocIndices(36);
 
 		uint vtx = 0;
@@ -229,7 +230,7 @@ namespace SunEngine
 			_indices.push_back(baseIndex + i + 1);
 		}
 
-		AllocVertices(vertices.size(), VertexDef::POS_TEXCOORD_NORMAL_TANGENT);
+		AllocVertices(vertices.size(), StandardVertex::Definition);
 		for (uint i = 0; i < vertices.size(); i++)
 		{
 			SetVertexVar(i, vertices[i].Position, 0);
@@ -243,7 +244,7 @@ namespace SunEngine
 
 	void Mesh::AllocatePlane()
 	{
-		AllocVertices(8, VertexDef{ 4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX });
+		AllocVertices(8, StandardVertex::Definition);
 		AllocIndices(12);
 
 		uint vtx = 0;
@@ -288,7 +289,7 @@ namespace SunEngine
 
 	void Mesh::AllocateQuad()
 	{
-		AllocVertices(4, VertexDef{ 4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX });
+		AllocVertices(4, StandardVertex::Definition);
 		AllocIndices(6);
 
 		uint vtx = 0;

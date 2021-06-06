@@ -84,7 +84,7 @@ namespace SunEngine
 		file.Close();
 
 		uint resolutionSquared = buffer.GetSize() / byteDivider;
-		uint resolution = uint(sqrtf(resolutionSquared));
+		uint resolution = uint(sqrtf((float)resolutionSquared));
 
 		if (!Alloc(resolution, resolution))
 			return false;

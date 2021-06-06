@@ -11,6 +11,13 @@ namespace SunEngine
 	class Mesh;
 	class RenderObject;
 
+	enum RenderObjectType
+	{
+		RO_MESH_RENDERER,
+		RO_PARTICLE_SYSTEM,
+		RO_TERRAIN,
+	};
+
 	class RenderNode
 	{
 	public:
@@ -70,7 +77,6 @@ namespace SunEngine
 	public:		
 		static const ComponentType CType;
 
-		RenderObject();
 		virtual ~RenderObject();
 
 		virtual void BuildPipelineSettings(PipelineSettings&) const {};
@@ -81,7 +87,9 @@ namespace SunEngine
 		virtual void Initialize(SceneNode* pNode, ComponentData* pData) override;
 
 		ComponentType GetType() const override { return CType; }
+		RenderObjectType GetRenderType() const { return _type; }
 	protected:
+		RenderObject(RenderObjectType type);
 		virtual RenderComponentData* AllocRenderData(SceneNode* pNode) = 0;
 		virtual bool RequestData(RenderNode* pNode, RenderComponentData* pData, Mesh*& pMesh, Material*& pMaterial, const glm::mat4*& worldMtx, const AABB*& aabb, uint& idxCount, uint& instanceCount, uint& firstIdx, uint& vtxOffset) const = 0;
 
@@ -89,5 +97,7 @@ namespace SunEngine
 
 	private:
 		void UpdateRenderNode(RenderNode& node, RenderComponentData* pData);
+
+		RenderObjectType _type;
 	};
 }

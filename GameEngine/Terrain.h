@@ -19,6 +19,52 @@ namespace SunEngine
 	class Terrain : public RenderObject
 	{
 	public:
+		class Biome
+		{
+		public:
+			Biome(const String& name);
+
+			const String& GetName() const { return _name; }
+
+			void SetTexture(Texture2D* pTexture);
+			Texture2D* GetTexture() const { return _texture; }
+
+			void SetResolutionScale(float value);
+			float GetResolutionScale() const { return _resolutionScale; }
+
+			void SetHeightScale(float value);
+			float GetHeightScale() const { return _heightScale; }
+
+			void SetHeightOffset(float value);
+			float GetHeightOffset() const { return _heightOffset; }
+
+			void SetSmoothKernelSize(int value);
+			int GetSmoothKernelSize() const { return _smoothKernelSize; }
+
+			void SetInvert(bool value);
+			int GetInvert() const { return _invert; }
+
+			void SetCenter(const glm::ivec2& value);
+			const glm::ivec2& GetCenter() const { return _center; }
+
+		private:
+			float GetSmoothHeight(int x, int y) const;
+
+			friend class Terrain;
+
+			String _name;
+			Texture2D* _texture;
+			float _resolutionScale;
+			float _heightScale;
+			float _heightOffset;
+			int _smoothKernelSize;
+			bool _invert;
+			glm::ivec2 _center;
+			bool _changed;
+			Vector<float> _normalizedTextureHeights;
+			Vector<float> _heights;
+		};
+
 		Terrain();
 		~Terrain();
 
@@ -29,13 +75,17 @@ namespace SunEngine
 		uint GetSlices() const { return _slices; }
 
 		void BuildMesh();
-		void SetHeights(Texture2D* pHeightTexture);
 
 		void Initialize(SceneNode* pNode, ComponentData* pData) override;
 		void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override;
 
 		Material* GetMaterial() const { return _material.get(); }
 		Mesh* GetMesh() const { return _mesh.get(); }
+
+		Biome* AddBiome(const String& name);
+		Biome* GetBiome(const String& name) const;
+		void UpdateBiomes();
+		void GetBiomes(Vector<Biome*>& biomes) const;
 
 	private:
 		struct Slice
@@ -60,5 +110,6 @@ namespace SunEngine
 
 		UniquePtr<Mesh> _mesh;
 		UniquePtr<Material> _material;
+		StrMap<UniquePtr<Biome>> _biomes;
 	};
 }
