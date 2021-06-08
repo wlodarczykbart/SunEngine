@@ -1,10 +1,12 @@
 #pragma once
 
 #include "RenderObject.h"
+#include "FilePathMgr.h"
 
 namespace SunEngine
 {
 	class Texture2D;
+	class Texture2DArray;
 
 	class TerrainComponentData : public RenderComponentData
 	{
@@ -19,6 +21,14 @@ namespace SunEngine
 	class Terrain : public RenderObject
 	{
 	public:
+		class Strings
+		{
+		public:
+			static const String SplatMap;
+			static const String SplatSampler;
+			static const String PosToUV;
+		};
+
 		class Biome
 		{
 		public:
@@ -48,6 +58,11 @@ namespace SunEngine
 			const glm::ivec2& GetCenter() const { return _center; }
 
 		private:
+			struct Splat
+			{
+				float weights[EngineInfo::Renderer::Limits::MaxTerrainTextures];
+			};
+
 			float GetSmoothHeight(int x, int y) const;
 
 			friend class Terrain;
@@ -111,5 +126,8 @@ namespace SunEngine
 		UniquePtr<Mesh> _mesh;
 		UniquePtr<Material> _material;
 		StrMap<UniquePtr<Biome>> _biomes;
+		UniquePtr<Texture2DArray> _diffuseMapArray;
+		UniquePtr<Texture2DArray> _normalMapArray;
+		UniquePtr<Texture2DArray> _splatMapArray;
 	};
 }

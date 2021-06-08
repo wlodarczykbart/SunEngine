@@ -47,7 +47,7 @@ namespace SunEngine
 		}
 
 		apiInfo.numImages = apiImages.size();
-		apiInfo.pImages = apiImages.data();
+		apiInfo.images = apiImages.data();
 
 		if (!_iTexture->Create(apiInfo))
 		{

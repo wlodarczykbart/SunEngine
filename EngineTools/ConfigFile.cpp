@@ -187,6 +187,11 @@ namespace SunEngine
 		}
 	}
 
+	uint ConfigSection::GetUInt(const String& key, uint defaultValue) const
+	{
+		return uint(GetInt(key, (uint)defaultValue));
+	}
+
 	float ConfigSection::GetFloat(const String& key, float defaultValue) const
 	{
 		const String *pStr;

@@ -356,6 +356,7 @@ namespace SunEngine
 		}
 
 		Asset* pAssetTerrain = resMgr.AddAsset("Terrain");
+		//if(false)
 		{
 			AssetNode* pRoot = pAssetTerrain->AddNode("Terrain");
 			Terrain* pTerrain = pRoot->AddComponent(new Terrain())->As<Terrain>();
@@ -367,6 +368,38 @@ namespace SunEngine
 			auto* biome = pTerrain->AddBiome("Test");
 			biome->SetTexture(biomeTex);
 
+			//Texture2DArray* pTerarinTexArray = resMgr.AddTexture2DArray("TerrainTextures");
+			//pTerarinTexArray->SetWidth(512);
+			//pTerarinTexArray->SetHeight(512);
+
+			//String basePath = "F:/Models/TerrainTextures/50-free-textures-4+normalmaps/";
+			//Vector<String> filenames =
+			//{
+			//	"151.JPG",
+			//	"156.JPG",
+			//	"160.JPG",
+			//	"164.JPG",
+			//	"172.JPG",
+			//	"182.JPG",
+			//};
+
+			//for (uint i = 0; i < filenames.size(); i++) 
+			//{
+			//	Texture2D* pTex = resMgr.AddTexture2D(filenames[i]);
+			//	pTex->SetFilename(basePath + filenames[i]);
+			//	if (!pTex->LoadFromFile())
+			//		return false;
+
+			//	if (!pTerarinTexArray->AddTexture(pTex))
+			//		return false;
+			//}
+
+			//if (!pTerarinTexArray->GenerateMips(true))
+			//	return false;
+
+			//pTerarinTexArray->SetSRGB();
+			//if (!pTerarinTexArray->RegisterToGPU())
+			//	return false;
 
 			Timer t(true);
 			pTerrain->UpdateBiomes();

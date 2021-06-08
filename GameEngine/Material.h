@@ -9,6 +9,7 @@ namespace SunEngine
 {
 	class Texture2D;
 	class TextureCube;
+	class Texture2DArray;
 	class Sampler;
 
 	class MaterialStrings
@@ -38,6 +39,7 @@ namespace SunEngine
 			{
 				Texture2D* pTexture;
 				TextureCube* pTextureCube;
+				Texture2DArray* pTextureArray;
 			};
 			IShaderResource Res;
 		};
@@ -68,6 +70,7 @@ namespace SunEngine
 
 		bool SetTexture2D(const String& name, Texture2D* pTexture);
 		bool SetTextureCube(const String& name, TextureCube* pTexture);
+		bool SetTexture2DArray(const String& name, Texture2DArray* pTexture);
 		bool SetSampler(const String& name, Sampler* pSampler);
 
 		bool RegisterToGPU() override;
@@ -93,6 +96,7 @@ namespace SunEngine
 		StrMap<ShaderBufferVariable> _mtlVariables;
 		StrMap<MaterialTextureData> _mtlTextures2D;
 		StrMap<MaterialTextureData> _mtlTextureCubes;
+		StrMap<MaterialTextureData> _mtlTexture2DArrays;
 		StrMap<MaterialSamplerData> _mtlSamplers;
 
 		UniformBuffer _mtlBuffer;

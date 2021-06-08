@@ -232,4 +232,31 @@ namespace SunEngine
 		Pixel p = _img.GetPixel(x, y);
 		value = *reinterpret_cast<float*>(&p.R);
 	}
+
+	void Texture2D::GetAveragePixel(uint x, uint y, int kernelSize, glm::vec4& color) const
+	{
+		int samples = 0;
+		color = Vec4::Zero;
+
+		glm::vec4 tmp;
+		for (int i = -kernelSize; i <= kernelSize; i++)
+		{
+			int yi = (int)y + i;
+			if (yi >= 0 && yi < (int)GetHeight())
+			{
+				for (int j = -kernelSize; j <= kernelSize; j++)
+				{
+					int xj = (int)x + j;
+					if (xj >= 0 && xj < (int)GetWidth())
+					{
+						GetPixel(xj, yi, tmp);
+						color += tmp;
+						++samples;
+					}
+				}
+			}
+		}
+
+		color /= (float)samples;
+	}
 }

@@ -26,6 +26,7 @@ namespace SunEngine
 		void GetPixel(uint x, uint y, glm::vec4& color) const;
 		void GetPixel(uint x, uint y, Pixel& color) const;
 		void GetFloat(uint x, uint y, float& value) const; //for use in a SAMPLED_TEXTURE_R32F texture
+		void GetAveragePixel(uint x, uint y, int kernelSize, glm::vec4& color) const;
 
 		uint GetWidth() const { return _img.Width(); }
 		uint GetHeight() const { return _img.Height(); }
@@ -41,6 +42,10 @@ namespace SunEngine
 		bool LoadFromRAW();
 		bool LoadFromRAW16();
 		bool LoadFromRAWF32();
+
+		ImageData GetImageData() const { return _img.ImageData(); }
+		ImageData GetMipImageData(uint index) const { return _mips[index]->ImageData(); }
+		uint GetMipCount() const { return _mips.size(); }
 
 	private:
 		bool LoadRAWInternal(uint byteDivider);

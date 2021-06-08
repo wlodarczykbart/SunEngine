@@ -14,6 +14,23 @@ namespace SunEngine
 		class Renderer
 		{
 		public:
+			class Limits
+			{
+			public:
+				static const uint MinCascadeShadowMapResolution = 512;
+				static const uint MaxCascadeShadowMapResolution = 4096;
+				static const uint MinCascadeShadowPCFBlurSize = 1;
+				static const uint MaxCascadeShadowPCFBlurSize = 5;
+				static const uint MinCascadeShadowMapSplits = 1;
+				static const uint MaxCascadeShadowMapSplits = 4;
+				static const uint MinSkinnedBoneMatrices = 64;
+				static const uint MaxSkinnedBoneMatrices = 256;
+				static const uint MinTerrainTextures = 4;
+				static const uint MaxTerrainTextures = 16;
+				static const uint MinTerrainTextureResolution = 512;
+				static const uint MaxTerrainTextureResolution = 2048;
+			};
+
 			enum ERenderMode
 			{
 				Forward,
@@ -27,8 +44,9 @@ namespace SunEngine
 			uint CascadeShadowMapPCFBlurSize() const { return _cascadeShadowMapPCFBlurSize; }
 			uint CascadeShadowMapSplits() const { return _cascadeShadowMapSplits; }
 
-			uint MaxSkinnedBoneMatrices() const { return _maxSkinnedBoneMatrices; }
-			uint MaxTextureTransforms() const { return _maxTextureTransforms; }
+			uint SkinnedBoneMatrices() const { return _skinnedBoneMatrices; }
+			uint TerrainTextures() const { return _terrainTextures; }
+			uint TerrainTextureResolution() const { return _terrainTextureResolution; }
 
 			bool ShadowsEnabled() const { return _shadowsEnabled; }
 			MSAAMode GetMSAAMode() const { return _msaaMode; }
@@ -43,13 +61,14 @@ namespace SunEngine
 
 			GraphicsAPI _api;
 			ERenderMode _renderMode;
-			uint _maxSkinnedBoneMatrices;
-			uint _maxTextureTransforms;
+			uint _skinnedBoneMatrices;
 			uint _cascadeShadowMapSplits;
 			uint _cascadeShadowMapResolution;
 			uint _cascadeShadowMapPCFBlurSize;
 			bool _shadowsEnabled;
 			MSAAMode _msaaMode;
+			uint _terrainTextures;
+			uint _terrainTextureResolution;
 		};
 
 		class Paths

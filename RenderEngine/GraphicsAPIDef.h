@@ -146,7 +146,7 @@ namespace SunEngine
 
 	struct ITextureArrayCreateInfo
 	{
-		ITextureCreateInfo* pImages;
+		ITextureCreateInfo* images;
 		uint numImages;
 	};
 

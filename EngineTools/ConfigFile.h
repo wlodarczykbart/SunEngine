@@ -14,6 +14,7 @@ namespace SunEngine
 
 		String GetString(const String& key, const char* defaultValue = "") const;
 		int GetInt(const String& key, int defaultValue = 0) const;
+		uint GetUInt(const String& key, uint defaultValue = 0) const;
 		float GetFloat(const String& key, float defaultValue = 0.0f) const;
 		bool GetBool(const String& key, bool defaultValue = true) const;
 		bool GetBlock(const String& key, StrMap<String>& block, char blockStart = 0, char blockEnd = 0) const;

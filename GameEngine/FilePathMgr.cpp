@@ -1,5 +1,6 @@
 #include "StringUtil.h"
 #include "ConfigFile.h"
+#include "MathHelper.h"
 #include "FilePathMgr.h"
 
 namespace SunEngine
@@ -84,12 +85,12 @@ namespace SunEngine
 
 		SetGraphicsAPI(_api);
 
-		_cascadeShadowMapResolution = configSection->GetInt("CascadeShadowMapResolution", 1024);
-		_cascadeShadowMapSplits = configSection->GetInt("CascadeShadowMapSplits", 3);
-		_cascadeShadowMapPCFBlurSize = configSection->GetInt("CascadeShadowMapPCFBlurSize", 3);
-		
-		_maxSkinnedBoneMatrices = configSection->GetInt("MaxSkinnedBoneMatrices", 128);
-		_maxTextureTransforms = configSection->GetInt("MaxTextureTransforms", 32);
+		_cascadeShadowMapResolution = glm::clamp(configSection->GetUInt("CascadeShadowMapResolution", 1024), Limits::MinCascadeShadowMapResolution, Limits::MaxCascadeShadowMapResolution);
+		_cascadeShadowMapSplits = glm::clamp(configSection->GetUInt("CascadeShadowMapSplits", 3), Limits::MinCascadeShadowMapSplits, Limits::MaxCascadeShadowMapSplits);
+		_cascadeShadowMapPCFBlurSize = glm::clamp(configSection->GetUInt("CascadeShadowMapPCFBlurSize", 3), Limits::MinCascadeShadowPCFBlurSize, Limits::MaxCascadeShadowPCFBlurSize);
+		_skinnedBoneMatrices = glm::clamp(configSection->GetUInt("SkinnedBoneMatrices", 128), Limits::MinSkinnedBoneMatrices, Limits::MaxSkinnedBoneMatrices);
+		_terrainTextures = glm::clamp(configSection->GetUInt("TerrainTextures", 8), Limits::MinTerrainTextures, Limits::MaxTerrainTextures);
+		_terrainTextureResolution = glm::clamp(configSection->GetUInt("TerrainTextureResolution", 1024), Limits::MinTerrainTextureResolution, Limits::MaxTerrainTextureResolution);
 
 		_shadowsEnabled = configSection->GetBool("Shadows", true);
 
@@ -98,5 +99,6 @@ namespace SunEngine
 		else if (msaaSamples == 4)  _msaaMode = SE_MSAA_4;
 		else if (msaaSamples == 8)  _msaaMode = SE_MSAA_8;
 		else  _msaaMode = SE_MSAA_OFF;
+
 	}
 }

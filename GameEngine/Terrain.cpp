@@ -3,11 +3,18 @@
 #include "SceneNode.h"
 #include "ShaderMgr.h"
 #include "Texture2D.h"
+#include "Texture2DArray.h"
 #include "ThreadPool.h"
+#include "FilePathMgr.h"
+#include "ResourceMgr.h"
 #include "Terrain.h"
 
 namespace SunEngine
 {
+    const String Terrain::Strings::SplatMap = "SplatMap";
+    const String Terrain::Strings::SplatSampler = "SplatSampler";
+    const String Terrain::Strings::PosToUV = "PosToUV";
+
     Terrain::Terrain() : RenderObject(RO_TERRAIN)
     {
         _resolution = 2048;
@@ -16,6 +23,41 @@ namespace SunEngine
         _material = UniquePtr<Material>(new Material());
         _material->SetShader(ShaderMgr::Get().GetShader(DefaultShaders::Terrain));
         _material->RegisterToGPU();
+
+        _diffuseMapArray = UniquePtr<Texture2DArray>(new Texture2DArray());
+        _diffuseMapArray->SetWidth(EngineInfo::GetRenderer().TerrainTextureResolution());
+        _diffuseMapArray->SetHeight(EngineInfo::GetRenderer().TerrainTextureResolution());
+
+        _normalMapArray = UniquePtr<Texture2DArray>(new Texture2DArray());
+        _normalMapArray->SetWidth(EngineInfo::GetRenderer().TerrainTextureResolution());
+        _normalMapArray->SetHeight(EngineInfo::GetRenderer().TerrainTextureResolution());
+
+        _splatMapArray = UniquePtr<Texture2DArray>(new Texture2DArray());
+        _splatMapArray->SetWidth(_resolution);
+        _splatMapArray->SetHeight(_resolution);
+
+        uint numTextures = EngineInfo::GetRenderer().TerrainTextures();
+        for (uint i = 0; i < numTextures; i++)
+        {
+            _diffuseMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::White));
+            _normalMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::Normal));
+        }
+
+        _splatMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::Red));
+        for(uint i = 1; i < numTextures / 4; i++)
+            _splatMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::Black));
+
+        _diffuseMapArray->RegisterToGPU();
+        _normalMapArray->RegisterToGPU();
+        _splatMapArray->RegisterToGPU();
+
+        uint setCount = 0;
+        setCount += _material->SetTexture2DArray(MaterialStrings::DiffuseMap, _diffuseMapArray.get());
+        setCount += _material->SetTexture2DArray(MaterialStrings::NormalMap, _normalMapArray.get());
+        setCount += _material->SetTexture2DArray(Strings::SplatMap, _splatMapArray.get());
+        setCount += _material->SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_REPEAT, SE_AM_8));
+        setCount += _material->SetSampler(Strings::SplatSampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
+        setCount += _material->SetMaterialVar(Strings::PosToUV, glm::vec4(1.0f / _resolution, 1.0f / _resolution, 0.5f, 0.5f));
 
         BuildMesh();
     }
@@ -46,6 +88,7 @@ namespace SunEngine
                 uint vIndex = z * _resolution + x;
 
                 pVerts[vIndex].Position = glm::vec4(x, 0, z, 1) * scaleFactor + offset;
+                //printf("%f %f\n", pVerts[vIndex].Position.x, pVerts[vIndex].Position.z);
             }
         }
 

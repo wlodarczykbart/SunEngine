@@ -6,19 +6,56 @@ struct PS_In
 	float4 clipPos : SV_POSITION;	
 	float4 position : POSITION;
 	float4 normal : NORMAL;
+	float4 tangent : TANGENT;
+	float2 texCoord : TEXCOORD;
 };
+
+Texture2DArray DiffuseMap;
+Texture2DArray NormalMap;
+SamplerState Sampler;
+
+Texture2DArray SplatMap;
+SamplerState SplatSampler;
 
 PS_Out main(PS_In pIn) : SV_TARGET
 {
 	PS_Out pOut;
-	float3 normal = normalize(pIn.normal.xyz);
 	float ao = 1.0;
-	float3 albedo = float3(1,1,1);
 	float3 f0 = float3(0,0,0);
 	float smoothness = 0.0;
 	
-	ShadePixel(albedo, ao, f0, smoothness, normal, pIn.position.xyz, 
+	float4 albedo = float4(0,0,0,0);
+	float4 normal = float4(0,0,0,0);
+	
+	float2 texCoord = pIn.texCoord;
+	
+	uint i =0;
+	
+	float4 splatWeights[MAX_TERRAIN_SPLAT_MAPS];
+	[unroll]
+	for(i = 0; i < MAX_TERRAIN_SPLAT_MAPS; i++)
+		splatWeights[i] = SplatMap.Sample(SplatSampler, float3(texCoord, i));
+		
+		
+	[unroll]
+	for(i = 0; i < MAX_TERRAIN_TEXTURES; i++)
+	{
+		float weight = splatWeights[i / MAX_TERRAIN_TEXTURES][i & MAX_TERRAIN_TEXTURES];
+		float3 coord = float3(texCoord, float(i));
+		albedo += DiffuseMap.Sample(Sampler, coord) * weight;
+		normal += NormalMap.Sample(Sampler, coord) * weight;
+	}
+	
+	float3x3 tbn;
+	tbn[0] = normalize(pIn.tangent.xyz);
+	tbn[2] = normalize(pIn.normal.xyz);
+	tbn[1] = -cross(tbn[2], tbn[0]);
+	
+	float3 n = mul(normal.xyz * 2.0 - 1.0, tbn);	
+	
+	ShadePixel(albedo.rgb, ao, f0, smoothness, n, pIn.position.xyz, 
 		GetScreenTexCoord(pIn.clipPos.xy), pOut);
 	
+	//pOut.color = DiffuseMap.Sample(Sampler, float3(texCoord, 0)) * 1;
 	return pOut;
 }

@@ -17,10 +17,10 @@ namespace SunEngine
 
 	bool D3D11TextureArray::Create(const ITextureArrayCreateInfo & info)
 	{
-		uint width = info.pImages[0].image.Width;
-		uint height = info.pImages[0].image.Height;
-		uint mips = info.pImages[0].mipLevels;
-		uint flags = info.pImages[0].image.Flags;
+		uint width = info.images[0].image.Width;
+		uint height = info.images[0].image.Height;
+		uint mips = info.images[0].mipLevels;
+		uint flags = info.images[0].image.Flags;
 
 		D3D11_TEXTURE2D_DESC desc = {};
 		desc.ArraySize = info.numImages;
@@ -41,14 +41,14 @@ namespace SunEngine
 		for (uint i = 0; i < info.numImages; i++)
 		{
 			D3D11_SUBRESOURCE_DATA subData = {};
-			subData.pSysMem = info.pImages[i].image.Pixels;
+			subData.pSysMem = info.images[i].image.Pixels;
 			subData.SysMemPitch = sizeof(Pixel) * width;
 			subDataArray.push_back(subData);
 
-			for (uint j = 0; j < info.pImages[i].mipLevels; j++)
+			for (uint j = 0; j < info.images[i].mipLevels; j++)
 			{
-				subData.pSysMem = info.pImages[i].pMips[j].Pixels;
-				subData.SysMemPitch = sizeof(Pixel) * info.pImages[i].pMips[j].Width;
+				subData.pSysMem = info.images[i].pMips[j].Pixels;
+				subData.SysMemPitch = sizeof(Pixel) * info.images[i].pMips[j].Width;
 				subDataArray.push_back(subData);
 			}
 		}

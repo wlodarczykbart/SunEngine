@@ -10,6 +10,7 @@
 #include "VulkanUniformBuffer.h"
 #include "VulkanTexture.h"
 #include "VulkanTextureCube.h"
+#include "VulkanTextureArray.h"
 
 #include "GraphicsContext.h"
 #include "Sampler.h"
@@ -527,9 +528,8 @@ namespace SunEngine
 
 	void VulkanShaderBindings::SetTextureArray(ITextureArray * pTextureArray, const String& name)
 	{
-		(void)pTextureArray;
-		(void)name;
-		//TODO:!!!!!!
+		BindImageView(static_cast<VulkanTextureArray*>(pTextureArray)->_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _bindingMap.at(name).first);
+		_bindingMap.at(name).second = static_cast<VulkanTextureArray*>(pTextureArray);
 	}
 
 	void VulkanShaderBindings::BindImageView(VkImageView view, VkImageLayout layout, const uint binding)

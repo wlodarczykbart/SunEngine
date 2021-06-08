@@ -119,6 +119,11 @@ namespace SunEngine
 		glm::vec3 forward = glm::normalize(glm::vec3(_worldMtx[2]));
 		float speed = 0.1f;
 
+		if (pWindow->KeyDown(KEY_LSHIFT))
+		{
+			speed *= 10.0f;
+		}
+
 		if (pWindow->KeyDown(KEY_W))
 		{
 			_position -= forward * speed;

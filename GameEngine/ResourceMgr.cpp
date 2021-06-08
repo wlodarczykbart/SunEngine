@@ -11,6 +11,7 @@ namespace SunEngine
 		DefineStaticStr(Texture, Black);
 		DefineStaticStr(Texture, Zero);
 		DefineStaticStr(Texture, Normal);
+		DefineStaticStr(Texture, Red);
 
 		DefineStaticStr(Mesh, Cube);
 		DefineStaticStr(Mesh, Sphere);
@@ -110,6 +111,7 @@ namespace SunEngine
 			{ DefaultResource::Texture::Black, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), },
 			{ DefaultResource::Texture::Zero, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f), },
 			{ DefaultResource::Texture::Normal, glm::vec4(0.5f, 0.5f, 1.0f, 0.0f), },
+			{ DefaultResource::Texture::Red, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), },
 		};
 
 		for (auto iter = SolidColorDefaults.begin(); iter != SolidColorDefaults.end(); ++iter)
@@ -165,6 +167,13 @@ namespace SunEngine
 		return pRes;
 	}
 
+
+	Texture2DArray* ResourceMgr::AddTexture2DArray(const String& name)
+	{
+		Texture2DArray* pRes = AddResourceToMap(_texture2DArrays, name);
+		return pRes;
+	}
+
 	Asset* ResourceMgr::GetAsset(const String& name) const
 	{
 		auto found = _assets.find(name);
@@ -193,6 +202,12 @@ namespace SunEngine
 	{
 		auto found = _textureCubes.find(name);
 		return found != _textureCubes.end() ? (*found).second.get() : 0;
+	}
+
+	Texture2DArray* ResourceMgr::GetTexture2DArray(const String& name) const
+	{
+		auto found = _texture2DArrays.find(name);
+		return found != _texture2DArrays.end() ? (*found).second.get() : 0;
 	}
 
 	bool ResourceMgr::CloneResource(Resource* pDst, Resource* pSrc) const

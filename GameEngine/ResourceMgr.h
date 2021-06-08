@@ -2,7 +2,7 @@
 
 #include "Mesh.h"
 #include "Material.h"
-#include "Texture2D.h"
+#include "Texture2DArray.h"
 #include "TextureCube.h"
 #include "Shader.h"
 #include "Asset.h"
@@ -22,6 +22,7 @@ namespace SunEngine
 			static const String Black;
 			static const String Zero;
 			static const String Normal;
+			static const String Red;
 		};
 
 		class Mesh
@@ -71,12 +72,14 @@ namespace SunEngine
 		Material* AddMaterial(const String& name);
 		Texture2D* AddTexture2D(const String& name);
 		TextureCube* AddTextureCube(const String& name);
+		Texture2DArray* AddTexture2DArray(const String& name);
 
 		Asset* GetAsset(const String& name) const;
 		Mesh* GetMesh(const String& name) const;
 		Material* GetMaterial(const String& name) const;
 		Texture2D* GetTexture2D(const String& name) const;
 		TextureCube* GetTextureCube(const String& name) const;
+		Texture2DArray* GetTexture2DArray(const String& name) const;
 
 		Iter<Material> IterMaterials() const;
 		Iter<Texture2D> IterTextures2D() const;
@@ -109,6 +112,7 @@ namespace SunEngine
 		StrMap<UniquePtr<Material>> _materials;
 		StrMap<UniquePtr<Texture2D>> _textures2D;
 		StrMap<UniquePtr<TextureCube>> _textureCubes;
+		StrMap<UniquePtr<Texture2DArray>> _texture2DArrays;
 
 		StrMap<UniquePtr<Sampler>> _samplers;
 

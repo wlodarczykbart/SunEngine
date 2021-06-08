@@ -68,7 +68,8 @@ namespace SunEngine
 
 		KEY_CONTROL,
 		KEY_MENU,
-		KEY_SHIFT,
+		KEY_LSHIFT,
+		KEY_RSHIFT,
 
 		KEY_CODE_COUNT
 	};

@@ -17,6 +17,9 @@ namespace SunEngine
 
 	private:
 		friend class VulkanShaderBindings;
+		VkImage _image;
+		VkImageView _view;
+		VulkanDevice::MemoryHandle _memory;
 	};
 
 }

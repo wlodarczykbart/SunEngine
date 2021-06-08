@@ -74,7 +74,8 @@ namespace SunEngine
 
 		VK_CONTROL,
 		VK_MENU,
-		VK_SHIFT,
+		VK_LSHIFT,
+		VK_RSHIFT,
 	};
 
 

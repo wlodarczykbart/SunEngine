@@ -60,10 +60,10 @@ namespace SunEngine
 		if (!_objectBufferGroup.Init(ShaderStrings::ObjectBufferName, SBT_OBJECT, sizeof(ObjectBufferData)))
 			return false;
 
-		const uint MAX_SKINNED_BONES = EngineInfo::GetRenderer().MaxSkinnedBoneMatrices();
-		if (!_skinnedBonesBufferGroup.Init(ShaderStrings::SkinnedBoneBufferName, SBT_BONES, sizeof(glm::mat4) * MAX_SKINNED_BONES))
+		const uint skinnedBoneCount = EngineInfo::GetRenderer().SkinnedBoneMatrices();
+		if (!_skinnedBonesBufferGroup.Init(ShaderStrings::SkinnedBoneBufferName, SBT_BONES, sizeof(glm::mat4) * skinnedBoneCount))
 			return false;
-		_skinnedBoneMatrixBlock.resize(MAX_SKINNED_BONES);
+		_skinnedBoneMatrixBlock.resize(skinnedBoneCount);
 
 		if (EngineInfo::GetRenderer().ShadowsEnabled())
 		{
@@ -90,7 +90,7 @@ namespace SunEngine
 				if (!_depthPasses[i]->ObjectBufferGroup.Init(ShaderStrings::ObjectBufferName, SBT_OBJECT, sizeof(ObjectBufferData)))
 					return false;
 
-				if (!_depthPasses[i]->SkinnedBonesBufferGroup.Init(ShaderStrings::SkinnedBoneBufferName, SBT_BONES, sizeof(glm::mat4) * MAX_SKINNED_BONES))
+				if (!_depthPasses[i]->SkinnedBonesBufferGroup.Init(ShaderStrings::SkinnedBoneBufferName, SBT_BONES, sizeof(glm::mat4) * skinnedBoneCount))
 					return false;
 
 				_depthPasses[i]->Viewport = { vpOffset * (float)_depthTarget.Width(), 0.0f, vpWidth * (float)_depthTarget.Width(), (float)_depthTarget.Height() };

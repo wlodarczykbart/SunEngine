@@ -83,7 +83,12 @@ namespace SunEngine
 
 		if (vkInfo.usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		{
-			if (!_device->TransferImageData(_image, info.image, info.mipLevels, info.pMips)) return false;
+			Vector<ImageData> images;
+			images.push_back(info.image);
+			for (uint i = 0; i < info.mipLevels; i++)
+				images.push_back(info.pMips[i]);
+
+			if (!_device->TransferImageData(_image, images.data(), 1, info.mipLevels)) return false;
 		}
 
 		VkImageViewCreateInfo viewInfo = {};

@@ -369,7 +369,7 @@ namespace SunEngine
 
 		// Read keyboard modifiers inputs
 		io.KeyCtrl = GraphicsWindow::KeyDown(KEY_CONTROL);
-		io.KeyShift = GraphicsWindow::KeyDown(KEY_SHIFT);
+		io.KeyShift = GraphicsWindow::KeyDown(KEY_LSHIFT) || GraphicsWindow::KeyDown(KEY_RSHIFT);
 		io.KeyAlt = GraphicsWindow::KeyDown(KEY_MENU);
 		io.KeySuper = false;
 		// io.KeysDown[], io.MousePos, io.MouseDown[], io.MouseWheel: filled by the WndProc handler below.

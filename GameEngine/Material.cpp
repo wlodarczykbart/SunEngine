@@ -102,6 +102,23 @@ namespace SunEngine
 		}
 	}
 
+	bool Material::SetTexture2DArray(const String& name, Texture2DArray* pTexture)
+	{
+		auto found = _mtlTexture2DArrays.find(name);
+		if (found != _mtlTexture2DArrays.end())
+		{
+			if (!_gpuObject.SetTextureArray(name, pTexture->GetGPUObject()))
+				return false;
+
+			(*found).second.pTextureArray = pTexture;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	bool Material::SetSampler(const String& name, Sampler* pSampler)
 	{
 		auto found = _mtlSamplers.find(name);
@@ -138,6 +155,7 @@ namespace SunEngine
 		_mtlVariables.clear();
 		_mtlTextures2D.clear();
 		_mtlTextureCubes.clear();
+		_mtlTexture2DArrays.clear();
 		_mtlSamplers.clear();
 
 		if (_shader)
@@ -189,6 +207,9 @@ namespace SunEngine
 						case SRD_TEXTURE_CUBE:
 							_mtlTextureCubes[res.name] = data;
 							break;
+						case SRD_TEXTURE_ARRAY:
+							_mtlTexture2DArrays[res.name] = data;
+							break;
 						default:
 							break;
 						}
@@ -219,6 +240,7 @@ namespace SunEngine
 		if (!stream.WriteSimple(_mtlVariables)) return false;
 		if (!stream.WriteSimple(_mtlTextures2D)) return false;
 		if (!stream.WriteSimple(_mtlTextureCubes)) return false;
+		if (!stream.WriteSimple(_mtlTexture2DArrays)) return false;
 		if (!stream.WriteSimple(_mtlSamplers)) return false;
 
 		return true;
@@ -235,6 +257,7 @@ namespace SunEngine
 		if (!stream.ReadSimple(_mtlVariables)) return false;
 		if (!stream.ReadSimple(_mtlTextures2D)) return false;
 		if (!stream.ReadSimple(_mtlTextureCubes)) return false;
+		if (!stream.ReadSimple(_mtlTexture2DArrays)) return false;
 		if (!stream.ReadSimple(_mtlSamplers)) return false;
 
 		return true;
