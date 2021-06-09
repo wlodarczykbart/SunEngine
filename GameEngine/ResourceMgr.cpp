@@ -325,4 +325,9 @@ namespace SunEngine
 	{
 		return RemoveResourceFromMap(_materials, pRes);
 	}
+
+	bool ResourceMgr::Remove(Texture2D* pRes)
+	{
+		return RemoveResourceFromMap(_textures2D, pRes);
+	}
 }

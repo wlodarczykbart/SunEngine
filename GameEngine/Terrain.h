@@ -27,6 +27,7 @@ namespace SunEngine
 			static const String SplatMap;
 			static const String SplatSampler;
 			static const String PosToUV;
+			static const String TextureTiling;
 		};
 
 		class Biome
@@ -58,11 +59,6 @@ namespace SunEngine
 			const glm::ivec2& GetCenter() const { return _center; }
 
 		private:
-			struct Splat
-			{
-				float weights[EngineInfo::Renderer::Limits::MaxTerrainTextures];
-			};
-
 			float GetSmoothHeight(int x, int y) const;
 
 			friend class Terrain;
@@ -102,6 +98,12 @@ namespace SunEngine
 		void UpdateBiomes();
 		void GetBiomes(Vector<Biome*>& biomes) const;
 
+		bool SetDiffuseMap(uint index, Texture2D* pTexture);
+		bool BuildDiffuseMapArray(bool generateMips);
+
+		bool SetNormalMap(uint index, Texture2D* pTexture);
+		bool BuildNormalMapArray(bool generateMips);
+
 	private:
 		struct Slice
 		{
@@ -113,11 +115,26 @@ namespace SunEngine
 			AABB aabb;
 		};
 
+		struct Splat
+		{
+			Splat();
+
+			Splat GetNormalized(uint textureCount) const;
+
+			float weights[EngineInfo::Renderer::Limits::MaxTerrainTextures];
+		};
+
 		RenderComponentData* AllocRenderData(SceneNode* pNode) { return new TerrainComponentData(this, pNode); }
 		bool RequestData(RenderNode* pNode, RenderComponentData* pData, Mesh*& pMesh, Material*& pMaterial, const glm::mat4*& worldMtx, const AABB*& aabb, uint& idxCount, uint& instanceCount, uint& firstIdx, uint& vtxOffset) const override;
 		void BuildSliceIndices(Map<glm::uvec2, Vector<uint>>& sliceTypeIndices, uint& indexCount) const;
 		void BuildPipelineSettings(PipelineSettings& settings) const override;
 		void RecalcNormals();
+
+		const Splat& GetSplat(uint x, uint y) const;
+		float GetSplat(uint x, uint y, uint index) const;
+		void SetSplat(uint x, uint y, uint index, float value);
+		void IncrementSplat(uint x, uint y, uint index, float value);
+		void DecrementSplat(uint x, uint y, uint index, float value);
 
 		uint _resolution;
 		uint _slices;
@@ -129,5 +146,8 @@ namespace SunEngine
 		UniquePtr<Texture2DArray> _diffuseMapArray;
 		UniquePtr<Texture2DArray> _normalMapArray;
 		UniquePtr<Texture2DArray> _splatMapArray;
+
+		Vector<Splat> _splatLookup;
+		float _textureTiling[EngineInfo::Renderer::Limits::MaxTerrainTextures];
 	};
 }

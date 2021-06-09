@@ -21,6 +21,7 @@ struct PS_In
 cbuffer MaterialBuffer
 {
 	float4 PosToUV;
+	float4 TextureTiling[MAX_TERRAIN_SPLAT_MAPS];
 };
 
 PS_In main(VS_In vIn)

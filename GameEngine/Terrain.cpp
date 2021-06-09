@@ -7,6 +7,7 @@
 #include "ThreadPool.h"
 #include "FilePathMgr.h"
 #include "ResourceMgr.h"
+#include "FastNoise.h"
 #include "Terrain.h"
 
 namespace SunEngine
@@ -14,6 +15,7 @@ namespace SunEngine
     const String Terrain::Strings::SplatMap = "SplatMap";
     const String Terrain::Strings::SplatSampler = "SplatSampler";
     const String Terrain::Strings::PosToUV = "PosToUV";
+    const String Terrain::Strings::TextureTiling = "TextureTiling";
 
     Terrain::Terrain() : RenderObject(RO_TERRAIN)
     {
@@ -41,23 +43,22 @@ namespace SunEngine
         {
             _diffuseMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::White));
             _normalMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::Normal));
+            _textureTiling[i] = 64;
         }
 
         _splatMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::Red));
         for(uint i = 1; i < numTextures / 4; i++)
             _splatMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::Black));
 
-        _diffuseMapArray->RegisterToGPU();
-        _normalMapArray->RegisterToGPU();
-        _splatMapArray->RegisterToGPU();
+        BuildDiffuseMapArray(false);
+        BuildNormalMapArray(false);
 
         uint setCount = 0;
-        setCount += _material->SetTexture2DArray(MaterialStrings::DiffuseMap, _diffuseMapArray.get());
-        setCount += _material->SetTexture2DArray(MaterialStrings::NormalMap, _normalMapArray.get());
-        setCount += _material->SetTexture2DArray(Strings::SplatMap, _splatMapArray.get());
         setCount += _material->SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_REPEAT, SE_AM_8));
         setCount += _material->SetSampler(Strings::SplatSampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
         setCount += _material->SetMaterialVar(Strings::PosToUV, glm::vec4(1.0f / _resolution, 1.0f / _resolution, 0.5f, 0.5f));
+        setCount += _material->SetMaterialVar(Strings::TextureTiling, _textureTiling, sizeof(float) * numTextures);
+
 
         BuildMesh();
     }
@@ -75,10 +76,15 @@ namespace SunEngine
 
         uint halfRef = _resolution / 2;
         _mesh->AllocVertices(_resolution * _resolution, TerrainVertex::Definition);
+        _splatLookup.resize(_resolution * _resolution);
+        memset(_splatLookup.data(), 0x0, sizeof(Splat) * _splatLookup.size());
 
         glm::vec4 offset = -glm::vec4(halfRef, 0, halfRef, 0);
         float scaleFactor = _resolution / (float)(_resolution - 1);
         //scaleFactor=1.0f;
+
+        FastNoise noise;
+        noise.SetFrequency(noise.GetFrequency() * 4.0f);
 
         TerrainVertex* pVerts = _mesh->GetVertices<TerrainVertex>();
         for (uint z = 0; z < _resolution; z++)
@@ -89,6 +95,13 @@ namespace SunEngine
 
                 pVerts[vIndex].Position = glm::vec4(x, 0, z, 1) * scaleFactor + offset;
                 //printf("%f %f\n", pVerts[vIndex].Position.x, pVerts[vIndex].Position.z);
+
+                float t = noise.GetPerlinFractal(x, z);
+                t = t * 0.5f + 0.5f;
+                assert(t <= 1.0f);
+                float baseVaue = 100.0f;
+                SetSplat(x, z, 0, baseVaue * t);
+                SetSplat(x, z, 1, baseVaue * (1.0f - t));
             }
         }
 
@@ -146,6 +159,35 @@ namespace SunEngine
         }
 
         _mesh->RegisterToGPU();
+
+        uint texCount = EngineInfo::GetRenderer().TerrainTextures();
+        uint splatCount = texCount / 4;
+        glm::vec4 splatColors[EngineInfo::Renderer::Limits::MaxTerrainTextures / 4];
+        memset(splatColors, 0x0, sizeof(splatColors));
+
+        for (uint z = 0; z < _resolution; z++)
+        {
+            for (uint x = 0; x < _resolution; x++)
+            {
+                Splat splat = GetSplat(x, z).GetNormalized(texCount);
+
+                for (uint i = 0; i < texCount; i++)
+                {
+                    uint r = i / 4;
+                    uint c = i % 4;
+                    splatColors[r][c] = splat.weights[i];
+                }
+
+                for (uint i = 0; i < splatCount; i++)
+                {
+                    _splatMapArray->SetPixel(x, z, i, splatColors[i]);
+                    splatColors[i] = Vec4::Zero;
+                }
+            }
+        }
+
+        _splatMapArray->RegisterToGPU();
+        _material->SetTexture2DArray(Strings::SplatMap, _splatMapArray.get());
     }
 
     void Terrain::BuildSliceIndices(Map<glm::uvec2, Vector<uint>> &sliceTypeIndices, uint& indexCount) const
@@ -289,7 +331,8 @@ namespace SunEngine
                             {
                                 glm::vec2 uv = glm::vec2(x, y) / uvRange;
                                 uv = uv * 2.0f - 1.0f;
-                                float t = 1.0f - glm::min(glm::dot(uv, uv), 1.0f); //TODO: apply some exponential function?
+                                float t = 1.0f - glm::min(glm::length(uv), 1.0f); //TODO: apply some exponential function?
+                                t = t * t;
 
                                 float& height = pVerts[posy * _resolution + posx].Position.y;
                                 height = glm::mix(height, biome->_heights[y * resx + x], t);
@@ -331,6 +374,52 @@ namespace SunEngine
         {
             biomes.push_back(biome.second.get());
         }
+    }
+
+    bool Terrain::SetDiffuseMap(uint index, Texture2D* pTexture)
+    {
+        if (!_diffuseMapArray->SetTexture(index, pTexture))
+            return false;
+
+        return true;
+    }
+
+    bool Terrain::BuildDiffuseMapArray(bool generateMips)
+    {
+        _diffuseMapArray->SetSRGB();
+
+        if (generateMips)
+            _diffuseMapArray->GenerateMips(true);
+
+        if (!_diffuseMapArray->RegisterToGPU())
+            return false;
+
+        if (!_material->SetTexture2DArray(MaterialStrings::DiffuseMap, _diffuseMapArray.get()))
+            return false;
+
+        return true;
+    }
+
+    bool Terrain::SetNormalMap(uint index, Texture2D* pTexture)
+    {
+        if (!_normalMapArray->SetTexture(index, pTexture))
+            return false;
+
+        return true;
+    }
+
+    bool Terrain::BuildNormalMapArray(bool generateMips)
+    {
+        if (generateMips)
+            _diffuseMapArray->GenerateMips(true);
+
+        if (!_normalMapArray->RegisterToGPU())
+            return false;
+
+        if (!_material->SetTexture2DArray(MaterialStrings::NormalMap, _normalMapArray.get()))
+            return false;
+
+        return true;
     }
 
     void Terrain::BuildPipelineSettings(PipelineSettings& settings) const
@@ -491,6 +580,35 @@ namespace SunEngine
 #endif
     }
 
+    const Terrain::Splat& Terrain::GetSplat(uint x, uint y) const
+    {
+        return _splatLookup[y * _resolution + x];
+    }
+
+    float Terrain::GetSplat(uint x, uint y, uint index) const
+    {
+        return GetSplat(x, y).weights[index];
+    }
+
+    void Terrain::SetSplat(uint x, uint y, uint index, float value)
+    {
+        auto& splat = _splatLookup[y * _resolution + x];
+        splat.weights[index] = glm::max(value, 0.0f);
+    }
+
+    void Terrain::IncrementSplat(uint x, uint y, uint index, float value)
+    {
+        auto& splat = _splatLookup[y * _resolution + x];
+        splat.weights[index] += value;
+    }
+
+    void Terrain::DecrementSplat(uint x, uint y, uint index, float value)
+    {
+        auto& splat = _splatLookup[y * _resolution + x];
+        splat.weights[index] -= value;
+        splat.weights[index] = glm::max(splat.weights[index], 0.0f);
+    }
+
     Terrain::Biome::Biome(const String& name)
     {
         _name = name;
@@ -632,5 +750,24 @@ namespace SunEngine
         }
 
         return height / samples;
+    }
+
+    Terrain::Splat::Splat()
+    {
+        for (uint i = 0; i < EngineInfo::Renderer::Limits::MaxTerrainTextures; i++)
+            weights[i] = 0.0f;
+    }
+
+    Terrain::Splat Terrain::Splat::GetNormalized(uint textureCount) const
+    {
+        float sum = 0.0f;
+        for (uint i = 0; i < textureCount; i++)
+            sum += weights[i];
+
+        Splat result;
+        for (uint i = 0; i < textureCount; i++)
+            result.weights[i] = weights[i] / sum;
+
+        return result;
     }
 }

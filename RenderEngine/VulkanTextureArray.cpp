@@ -89,6 +89,14 @@ namespace SunEngine
 		return true;
 	}
 
+	bool VulkanTextureArray::Destroy()
+	{
+		_device->DestroyImageView(_view);
+		_device->FreeMemory(_memory);
+		_device->DestroyImage(_image);
+		return true;
+	}
+
 	void VulkanTextureArray::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		(void)cmdBuffer;

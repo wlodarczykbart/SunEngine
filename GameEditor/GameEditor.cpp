@@ -372,27 +372,52 @@ namespace SunEngine
 			//pTerarinTexArray->SetWidth(512);
 			//pTerarinTexArray->SetHeight(512);
 
-			//String basePath = "F:/Models/TerrainTextures/50-free-textures-4+normalmaps/";
-			//Vector<String> filenames =
-			//{
-			//	"151.JPG",
-			//	"156.JPG",
-			//	"160.JPG",
-			//	"164.JPG",
-			//	"172.JPG",
-			//	"182.JPG",
-			//};
+			String basePath = "F:/Models/TerrainTextures/terrain/";
 
-			//for (uint i = 0; i < filenames.size(); i++) 
-			//{
-			//	Texture2D* pTex = resMgr.AddTexture2D(filenames[i]);
-			//	pTex->SetFilename(basePath + filenames[i]);
-			//	if (!pTex->LoadFromFile())
-			//		return false;
+			Vector<String> grassTextureFilenames =
+			{
+				"grass_rocky_d.jpg",
+				"grass_mix_d.jpg",
+				"grass_ground_d.jpg",
+				"grass_green_d.jpg",
+				"grass_autumn_orn_d.jpg",
+			};
+			Vector<Texture2D*> grassDiffuseTextures;
+			Vector<Texture2D*> grassNormalTextures;
 
-			//	if (!pTerarinTexArray->AddTexture(pTex))
-			//		return false;
-			//}
+			Pair<String, String> diffuseToNormal = { "_d", "_n" };
+
+			for (uint i = 0; i < grassTextureFilenames.size(); i++)
+			{
+				Texture2D* pTex = resMgr.AddTexture2D(grassTextureFilenames[i]);
+				pTex->SetFilename(basePath + grassTextureFilenames[i]);
+				if (!pTex->LoadFromFile())
+					return false;
+				grassDiffuseTextures.push_back(pTex);
+				
+				String normalFilename = grassTextureFilenames[i];
+				normalFilename = normalFilename.replace(normalFilename.find(diffuseToNormal.first), diffuseToNormal.first.length(), diffuseToNormal.second);
+				pTex = resMgr.AddTexture2D(normalFilename);
+				pTex->SetFilename(basePath + normalFilename);
+				if (!pTex->LoadFromFile())
+				{
+					resMgr.Remove(pTex);
+					pTex = resMgr.GetTexture2D(DefaultResource::Texture::Normal);
+				}
+				grassNormalTextures.push_back(pTex);
+			}
+
+			if (!pTerrain->SetDiffuseMap(0, grassDiffuseTextures[0]))
+				return false;
+			if (!pTerrain->SetDiffuseMap(1, grassDiffuseTextures[1]))
+				return false;
+			pTerrain->BuildDiffuseMapArray(true);
+
+			if (!pTerrain->SetNormalMap(0, grassNormalTextures[0]))
+				return false;
+			if (!pTerrain->SetNormalMap(1, grassNormalTextures[1]))
+				return false;
+			pTerrain->BuildNormalMapArray(true);
 
 			//if (!pTerarinTexArray->GenerateMips(true))
 			//	return false;

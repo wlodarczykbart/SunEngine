@@ -77,6 +77,14 @@ namespace SunEngine
 		return true;
 	}
 
+	bool VulkanTextureCube::Destroy()
+	{
+		_device->DestroyImageView(_view);
+		_device->FreeMemory(_memory);
+		_device->DestroyImage(_image);
+		return true;
+	}
+
 	void VulkanTextureCube::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		(void)cmdBuffer;

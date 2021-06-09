@@ -59,35 +59,51 @@ namespace SunEngine
 		//TODO: return on compressed texutre?
 
 		TextureEntry* pEntry = new TextureEntry();
-		pEntry->pSrc = pTexture;
-
 		if (!pEntry->texture.Alloc(_width, _height))
 			return false;
 
-		if (!ResourceMgr::Get().IsDefaultTexture2D(pTexture))
-		{
-			float mapx = (float)pTexture->GetWidth() / _width;
-			float mapy = (float)pTexture->GetHeight() / _height;
+		_textures.push_back(UniquePtr<TextureEntry>(pEntry));
+		if (!SetTexture(_textures.size() - 1, pTexture))
+			return false;
 
-			for (uint y = 0; y < _height; y++)
+		return true;
+	}
+
+	bool Texture2DArray::SetTexture(uint index, Texture2D* pTexture)
+	{
+		if (index < _textures.size())
+		{
+			TextureEntry* pEntry = _textures[index].get();
+			pEntry->pSrc = pTexture;
+
+			if (!ResourceMgr::Get().IsDefaultTexture2D(pTexture))
 			{
-				for (uint x = 0; x < _width; x++)
+				float mapx = (float)pTexture->GetWidth() / _width;
+				float mapy = (float)pTexture->GetHeight() / _height;
+
+				for (uint y = 0; y < _height; y++)
 				{
-					glm::vec4 srcColor;
-					pTexture->GetPixel(uint(x * mapx), uint(y * mapy), srcColor);
-					pEntry->texture.SetPixel(x, y, srcColor);
+					for (uint x = 0; x < _width; x++)
+					{
+						glm::vec4 srcColor;
+						pTexture->GetPixel(uint(x * mapx), uint(y * mapy), srcColor);
+						pEntry->texture.SetPixel(x, y, srcColor);
+					}
 				}
 			}
+			else
+			{
+				glm::vec4 srcColor;
+				pTexture->GetPixel(0, 0, srcColor);
+				pEntry->texture.FillColor(srcColor);
+			}
+
+			return true;
 		}
 		else
 		{
-			glm::vec4 srcColor;
-			pTexture->GetPixel(0, 0, srcColor);
-			pEntry->texture.FillColor(srcColor);
+			return false;
 		}
-
-		_textures.push_back(UniquePtr<TextureEntry>(pEntry));
-		return true;
 	}
 
 	bool Texture2DArray::GenerateMips(bool threaded)
@@ -118,6 +134,16 @@ namespace SunEngine
 	{
 		for (auto& tex : _textures)
 			tex->texture.SetSRGB();
+	}
+
+	void Texture2DArray::SetPixel(uint x, uint y, uint i, const Pixel& color)
+	{
+		_textures[i]->texture.SetPixel(x, y, color);
+	}
+
+	void Texture2DArray::SetPixel(uint x, uint y, uint i, const glm::vec4& color)
+	{
+		_textures[i]->texture.SetPixel(x, y, color);
 	}
 
 }

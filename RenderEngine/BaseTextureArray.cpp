@@ -18,10 +18,10 @@ namespace SunEngine
 
 	bool BaseTextureArray::Create(const CreateInfo & info)
 	{
-		if (info.numImages == 0)
+		if (!Destroy())
 			return false;
 
-		if (!Destroy())
+		if (info.numImages == 0)
 			return false;
 
 		if (!_iTexture)

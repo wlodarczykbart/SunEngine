@@ -113,7 +113,7 @@ namespace SunEngine
 	bool Texture2D::GenerateMips(bool threaded)
 	{
 		if (_mips.size())
-			return true;
+			_mips.clear();
 
 		if (_img.IsCompressed())
 			return true;

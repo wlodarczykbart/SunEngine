@@ -10,6 +10,12 @@ struct PS_In
 	float2 texCoord : TEXCOORD;
 };
 
+cbuffer MaterialBuffer
+{
+	float4 PosToUV;
+	float4 TextureTiling[MAX_TERRAIN_SPLAT_MAPS];
+};
+
 Texture2DArray DiffuseMap;
 Texture2DArray NormalMap;
 SamplerState Sampler;
@@ -40,8 +46,10 @@ PS_Out main(PS_In pIn) : SV_TARGET
 	[unroll]
 	for(i = 0; i < MAX_TERRAIN_TEXTURES; i++)
 	{
-		float weight = splatWeights[i / MAX_TERRAIN_TEXTURES][i & MAX_TERRAIN_TEXTURES];
-		float3 coord = float3(texCoord, float(i));
+		int row = i / 4;
+		int col = i % 4;
+		float weight = splatWeights[row][col];
+		float3 coord = float3(texCoord * TextureTiling[row][col], float(i));
 		albedo += DiffuseMap.Sample(Sampler, coord) * weight;
 		normal += NormalMap.Sample(Sampler, coord) * weight;
 	}
@@ -56,6 +64,6 @@ PS_Out main(PS_In pIn) : SV_TARGET
 	ShadePixel(albedo.rgb, ao, f0, smoothness, n, pIn.position.xyz, 
 		GetScreenTexCoord(pIn.clipPos.xy), pOut);
 	
-	//pOut.color = DiffuseMap.Sample(Sampler, float3(texCoord, 0)) * 1;
+	//pOut.color = splatWeights[0];
 	return pOut;
 }

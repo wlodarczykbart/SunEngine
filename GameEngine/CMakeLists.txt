@@ -72,4 +72,5 @@ target_include_directories(GameEngine PUBLIC
 "${CMAKE_SOURCE_DIR}/External/assimp/include"
 "${CMAKE_SOURCE_DIR}/lib/include"
 "${CMAKE_SOURCE_DIR}/External/HosekWilkie_SkylightModel_C_Source.1.4a"
+"${CMAKE_SOURCE_DIR}/External/FastNoise"
 )

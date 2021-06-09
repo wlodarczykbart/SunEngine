@@ -88,6 +88,7 @@ namespace SunEngine
 
 		bool Remove(Asset* pRes);
 		bool Remove(Material* pRes);
+		bool Remove(Texture2D* pRes);
 
 		Sampler* GetSampler(FilterMode filter, WrapMode wrap);
 		Sampler* GetSampler(FilterMode filter, WrapMode wrap, AnisotropicMode anisotropy);
