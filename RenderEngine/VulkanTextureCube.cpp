@@ -56,7 +56,7 @@ namespace SunEngine
 
 		if (imgInfo.usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		{
-			if (!_device->TransferImageData(_image, info.images, 6, 0)) return false;
+			if (!_device->TransferImageData(_image, info.images, 6, 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)) return false;
 		}
 
 		VkImageViewCreateInfo viewInfo = {};

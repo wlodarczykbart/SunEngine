@@ -10,7 +10,7 @@ namespace SunEngine
 	const uint VertexDef::DEFAULT_TANGENT_INDEX = 3;
 
 	const VertexDef StandardVertex::Definition = VertexDef(4, VertexDef::DEFAULT_TEX_COORD_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_TANGENT_INDEX);
-	const VertexDef TerrainVertex::Definition = VertexDef(2, VertexDef::DEFAULT_INVALID_INDEX, VertexDef::DEFAULT_NORMAL_INDEX, VertexDef::DEFAULT_INVALID_INDEX);
+	const VertexDef TerrainVertex::Definition = VertexDef(2, VertexDef::DEFAULT_INVALID_INDEX, 1, VertexDef::DEFAULT_INVALID_INDEX);
 
 	Mesh::Mesh()
 	{

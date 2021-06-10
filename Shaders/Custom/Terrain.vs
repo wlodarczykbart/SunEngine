@@ -30,7 +30,7 @@ PS_In main(VS_In vIn)
 #ifndef DEPTH		
 	pIn.position = mul(mul(vIn.position, WorldMatrix), ViewMatrix);
 	pIn.normal = mul(mul(float4(vIn.normal.xyz, 0.0), WorldMatrix), ViewMatrix);
-	pIn.tangent = mul(mul(float4(vIn.normal.zxy, 0.0), WorldMatrix), ViewMatrix);
+	pIn.tangent = mul(mul(float4(vIn.normal.yxz * float3(1,-1,1), 0.0), WorldMatrix), ViewMatrix);
 	pIn.clipPos  = mul(pIn.position, ProjectionMatrix);	
 	pIn.texCoord = vIn.position.xz * PosToUV.xy + PosToUV.zw;
 #else

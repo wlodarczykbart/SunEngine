@@ -483,20 +483,7 @@ namespace SunEngine
 	void VulkanShaderBindings::SetTexture(ITexture * pTexture, const String& name)
 	{
 		VulkanTexture* vkTexture = static_cast<VulkanTexture*>(pTexture);
-
-		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
-		switch (vkTexture->GetFormat())
-		{
-		case VK_FORMAT_D24_UNORM_S8_UINT:
-		case VK_FORMAT_D32_SFLOAT:
-			layout = VulkanRenderTarget::GetDepthFinalLayout();
-			break;
-		default:
-			layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			break;
-		}
-
-		BindImageView(vkTexture->_view, layout, _bindingMap.at(name).first);
+		BindImageView(vkTexture->_view, vkTexture->_layout, _bindingMap.at(name).first);
 		_bindingMap.at(name).second = vkTexture;
 	}
 

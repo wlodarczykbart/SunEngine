@@ -65,5 +65,6 @@ PS_Out main(PS_In pIn) : SV_TARGET
 		GetScreenTexCoord(pIn.clipPos.xy), pOut);
 	
 	//pOut.color = splatWeights[0];
+	//pOut.color = float4(n.xyz, 1.0);
 	return pOut;
 }

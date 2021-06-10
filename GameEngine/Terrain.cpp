@@ -43,7 +43,7 @@ namespace SunEngine
         {
             _diffuseMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::White));
             _normalMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::Normal));
-            _textureTiling[i] = 64;
+            _textureTiling[i] = 45 + glm::linearRand(1, 10);
         }
 
         _splatMapArray->AddTexture(ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::Red));
@@ -58,7 +58,6 @@ namespace SunEngine
         setCount += _material->SetSampler(Strings::SplatSampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
         setCount += _material->SetMaterialVar(Strings::PosToUV, glm::vec4(1.0f / _resolution, 1.0f / _resolution, 0.5f, 0.5f));
         setCount += _material->SetMaterialVar(Strings::TextureTiling, _textureTiling, sizeof(float) * numTextures);
-
 
         BuildMesh();
     }
@@ -83,9 +82,6 @@ namespace SunEngine
         float scaleFactor = _resolution / (float)(_resolution - 1);
         //scaleFactor=1.0f;
 
-        FastNoise noise;
-        noise.SetFrequency(noise.GetFrequency() * 4.0f);
-
         TerrainVertex* pVerts = _mesh->GetVertices<TerrainVertex>();
         for (uint z = 0; z < _resolution; z++)
         {
@@ -95,13 +91,6 @@ namespace SunEngine
 
                 pVerts[vIndex].Position = glm::vec4(x, 0, z, 1) * scaleFactor + offset;
                 //printf("%f %f\n", pVerts[vIndex].Position.x, pVerts[vIndex].Position.z);
-
-                float t = noise.GetPerlinFractal(x, z);
-                t = t * 0.5f + 0.5f;
-                assert(t <= 1.0f);
-                float baseVaue = 100.0f;
-                SetSplat(x, z, 0, baseVaue * t);
-                SetSplat(x, z, 1, baseVaue * (1.0f - t));
             }
         }
 
@@ -159,35 +148,7 @@ namespace SunEngine
         }
 
         _mesh->RegisterToGPU();
-
-        uint texCount = EngineInfo::GetRenderer().TerrainTextures();
-        uint splatCount = texCount / 4;
-        glm::vec4 splatColors[EngineInfo::Renderer::Limits::MaxTerrainTextures / 4];
-        memset(splatColors, 0x0, sizeof(splatColors));
-
-        for (uint z = 0; z < _resolution; z++)
-        {
-            for (uint x = 0; x < _resolution; x++)
-            {
-                Splat splat = GetSplat(x, z).GetNormalized(texCount);
-
-                for (uint i = 0; i < texCount; i++)
-                {
-                    uint r = i / 4;
-                    uint c = i % 4;
-                    splatColors[r][c] = splat.weights[i];
-                }
-
-                for (uint i = 0; i < splatCount; i++)
-                {
-                    _splatMapArray->SetPixel(x, z, i, splatColors[i]);
-                    splatColors[i] = Vec4::Zero;
-                }
-            }
-        }
-
-        _splatMapArray->RegisterToGPU();
-        _material->SetTexture2DArray(Strings::SplatMap, _splatMapArray.get());
+        BuildSplatArray();
     }
 
     void Terrain::BuildSliceIndices(Map<glm::uvec2, Vector<uint>> &sliceTypeIndices, uint& indexCount) const
@@ -365,6 +326,8 @@ namespace SunEngine
                 _sliceData[sIndex].aabb.ExpandY(pVerts[vIndex].Position.y);
             }
         }
+
+        BuildSplatArray();
     }
 
     void Terrain::GetBiomes(Vector<Biome*>& biomes) const
@@ -607,6 +570,62 @@ namespace SunEngine
         auto& splat = _splatLookup[y * _resolution + x];
         splat.weights[index] -= value;
         splat.weights[index] = glm::max(splat.weights[index], 0.0f);
+    }
+
+    bool Terrain::BuildSplatArray()
+    {
+        FastNoise noise;
+        noise.SetFrequency(noise.GetFrequency() * 4.0f);
+
+        const float baseGrassValue = 100.0f;
+        const float baseRockValue = 400.0f;
+
+        for (uint z = 0; z < _resolution; z++)
+        {
+            for (uint x = 0; x < _resolution; x++)
+            {
+                float t = noise.GetPerlinFractal(x, z);
+                t = t * 0.5f + 0.5f;
+                assert(t <= 1.0f);
+                SetSplat(x, z, 0, baseGrassValue * t);
+                SetSplat(x, z, 1, baseGrassValue * (1.0f - t));
+
+                uint vIndex = z * _resolution + x;
+                float n = 1.0f - glm::max(_mesh->GetVertexVar(vIndex, TerrainVertex::Definition.NormalIndex).y, 0.0f);
+               // n = n * n;
+                SetSplat(x, z, 2, baseRockValue * n);
+            }
+        }
+
+        uint texCount = EngineInfo::GetRenderer().TerrainTextures();
+        uint splatCount = texCount / 4;
+        glm::vec4 splatColors[EngineInfo::Renderer::Limits::MaxTerrainTextures / 4];
+        memset(splatColors, 0x0, sizeof(splatColors));
+
+        for (uint z = 0; z < _resolution; z++)
+        {
+            for (uint x = 0; x < _resolution; x++)
+            {
+                Splat splat = GetSplat(x, z).GetNormalized(texCount);
+
+                for (uint i = 0; i < texCount; i++)
+                {
+                    uint r = i / 4;
+                    uint c = i % 4;
+                    splatColors[r][c] = splat.weights[i];
+                }
+
+                for (uint i = 0; i < splatCount; i++)
+                {
+                    _splatMapArray->SetPixel(x, z, i, splatColors[i]);
+                    splatColors[i] = Vec4::Zero;
+                }
+            }
+        }
+
+        _splatMapArray->RegisterToGPU();
+        _material->SetTexture2DArray(Strings::SplatMap, _splatMapArray.get());
+        return true;
     }
 
     Terrain::Biome::Biome(const String& name)

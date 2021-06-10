@@ -9,6 +9,7 @@ namespace SunEngine
 		_memory = VK_NULL_HANDLE;
 		_format = VK_FORMAT_UNDEFINED;
 		_sampleMask = VK_SAMPLE_COUNT_1_BIT;
+		_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 	}
 
 
@@ -37,21 +38,26 @@ namespace SunEngine
 		else if (info.image.Flags & ImageData::MULTI_SAMPLES_8) vkInfo.samples = VK_SAMPLE_COUNT_8_BIT;
 		else vkInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
+		_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		
 		if (info.image.Flags & ImageData::COLOR_BUFFER_RGBA8)
 		{
 			vkInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 			vkInfo.format = VK_FORMAT_B8G8R8A8_UNORM;
+			//TODO: should color buffers have VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL?
 		}
 		else if (info.image.Flags & ImageData::COLOR_BUFFER_RGBA16F)
 		{
 			vkInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 			vkInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+			//TODO: should color buffers have VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL?
 		}
 		else if (info.image.Flags & ImageData::DEPTH_BUFFER)
 		{
 			vkInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 			vkInfo.format = VK_FORMAT_D32_SFLOAT;
 			//vkInfo.format = VK_FORMAT_D24_UNORM_S8_UINT;
+			_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 		}
 		else if (info.image.Flags & ImageData::COMPRESSED_BC1)
 		{
@@ -88,7 +94,7 @@ namespace SunEngine
 			for (uint i = 0; i < info.mipLevels; i++)
 				images.push_back(info.pMips[i]);
 
-			if (!_device->TransferImageData(_image, images.data(), 1, info.mipLevels)) return false;
+			if (!_device->TransferImageData(_image, images.data(), 1, info.mipLevels, _layout)) return false;
 		}
 
 		VkImageViewCreateInfo viewInfo = {};

@@ -21,10 +21,6 @@ namespace SunEngine
 		void SetClearColor(const float r, const float g, const float b, const float a) override;
 		void SetClearOnBind(const bool clear) override;
 		void SetViewport(float x, float y, float width, float height) override;
-
-		static VkImageLayout GetColorFinalLayout();
-		static VkImageLayout GetDepthFinalLayout();
-
 	private:
 		friend class VulkanShaderBindings;
 		

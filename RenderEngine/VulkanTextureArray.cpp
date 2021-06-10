@@ -68,7 +68,7 @@ namespace SunEngine
 					images.push_back(info.images[i].pMips[j]);
 			}
 
-			if (!_device->TransferImageData(_image, images.data(), info.numImages, info.images->mipLevels)) return false;
+			if (!_device->TransferImageData(_image, images.data(), info.numImages, info.images->mipLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)) return false;
 		}
 
 		VkImageViewCreateInfo viewInfo = {};

@@ -67,7 +67,8 @@ namespace SunEngine
 
 		OutputDebugString(StrFormat("%s\n", pMessage).data());
 
-		return VK_TRUE;
+		//Returning VK_TRUE could force the returning function to invoke some code that could break the application, not doing that at this point
+		return VK_FALSE;
 	}
 
 	
@@ -363,6 +364,18 @@ namespace SunEngine
 	VulkanDevice::VulkanDevice()
 	{
 		_allocator = UniquePtr<MemoryAllocator>(new MemoryAllocator());
+
+		_instance = VK_NULL_HANDLE;
+		_gpu = VK_NULL_HANDLE;
+		_device = VK_NULL_HANDLE;
+		_cmdPool = VK_NULL_HANDLE;
+		_debugCallback = VK_NULL_HANDLE;
+		_utilCmd = VK_NULL_HANDLE;
+		_utilFence = VK_NULL_HANDLE;
+
+		_gpuMem = {};
+		_gpuProps = {};
+		_queue = {};
 	}
 
 	VulkanDevice::~VulkanDevice()
@@ -372,12 +385,12 @@ namespace SunEngine
 	bool VulkanDevice::Create(const IDeviceCreateInfo& info)
 	{
 		if(!createInstance(info.debugEnabled)) return false;
-		if(!createDebugCallback()) return false;;
-		if(!pickGpu()) return false;;
-		if(!createDevice()) return false;;
-		if(!createCommandPool()) return false;;
-		if(!createDescriptorPool()) return false;;
-		if(!allocCommandBuffers()) return false;;
+		if(!createDebugCallback()) return false;
+		if(!pickGpu()) return false;
+		if(!createDevice()) return false;
+		if(!createCommandPool()) return false;
+		if(!createDescriptorPool()) return false;
+		if(!allocCommandBuffers()) return false;
 
 		return true;
 	}
@@ -743,7 +756,7 @@ namespace SunEngine
 		_allocator->UnmapMemory(memory);
 	}
 
-	bool VulkanDevice::TransferImageData(VkImage image, const ImageData* images, uint arrayCount, uint mipCount)
+	bool VulkanDevice::TransferImageData(VkImage image, const ImageData* images, uint arrayCount, uint mipCount, VkImageLayout endLayout)
 	{
 		uint totalImageCount = arrayCount + (arrayCount * mipCount);
 		uint size = 0;
@@ -819,7 +832,7 @@ namespace SunEngine
 			}
 
 			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			barrier.newLayout = endLayout;
 			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 			vkCmdPipelineBarrier(_utilCmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, 0, 0, 0, 1, &barrier);
@@ -898,8 +911,9 @@ namespace SunEngine
 		return ret;
 	}
 
-	bool VulkanDevice::createInstance(bool debugEnabled)
+	bool VulkanDevice::createInstance(bool debugEnabled, VkResult(*CreateFunc)(const VkInstanceCreateInfo& info, VkInstance* pInstance, void* pData), void* pCreateFuncData)
 	{
+
 		VkApplicationInfo app = {};
 		app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 		app.apiVersion = VK_API_VERSION_1_1;
@@ -911,7 +925,7 @@ namespace SunEngine
 		_instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 		_instanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 
-		if(debugEnabled)
+		if (debugEnabled)
 		{
 			_instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 			_validationLayers.push_back("VK_LAYER_KHRONOS_validation");
@@ -925,7 +939,15 @@ namespace SunEngine
 		info.enabledLayerCount = _validationLayers.size();
 		info.ppEnabledLayerNames = _validationLayers.data();
 
-		CheckVkResult(vkCreateInstance(&info, VK_NULL_HANDLE, &_instance));
+		if (CreateFunc == 0)
+		{
+			CheckVkResult(vkCreateInstance(&info, VK_NULL_HANDLE, &_instance));
+		}
+		else
+		{
+			CheckVkResult(CreateFunc(info, &_instance, pCreateFuncData));
+		}
+
 		return true;
 	}
 
@@ -948,6 +970,8 @@ namespace SunEngine
 			info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
 			info.pUserData = this;
 
+			//info.flags |= VK_DEBUG_REPORT_INFORMATION_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_DEBUG_BIT_EXT;
+
 			PFN_vkCreateDebugReportCallbackEXT createFunc = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(_instance, "vkCreateDebugReportCallbackEXT");
 
 			CheckVkResult(createFunc(_instance, &info, VK_NULL_HANDLE, &_debugCallback));
@@ -956,8 +980,32 @@ namespace SunEngine
 		return true;
 	}
 
-	bool VulkanDevice::createDevice()
+	bool VulkanDevice::createDevice(VkResult(*CreateFunc)(VkPhysicalDevice gpu, const VkDeviceCreateInfo& info, VkDevice* pDevice, void* pData), void* pCreateFuncData)
 	{
+		vkGetPhysicalDeviceProperties(_gpu, &_gpuProps);
+		vkGetPhysicalDeviceMemoryProperties(_gpu, &_gpuMem);
+
+		uint numQueues;
+		vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &numQueues, VK_NULL_HANDLE);
+
+		Vector<VkQueueFamilyProperties> queueProps;
+		queueProps.resize(numQueues);
+		vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &numQueues, queueProps.data());
+
+		for (uint i = 0; i < queueProps.size(); i++)
+		{
+			VkQueueFamilyProperties queue = queueProps[i];
+			if (queue.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			{
+				_queue._familyIndex = i;
+				break;
+			}
+
+			//VkSurfaceCapabilitiesKHR surface;
+			//vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_gpu, VK_NULL_HANDLE, &surface);
+			//surface.
+		}
+
 		VkDeviceQueueCreateInfo queue = {};
 		queue.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		queue.queueFamilyIndex = _queue._familyIndex;
@@ -989,7 +1037,14 @@ namespace SunEngine
 			info.pNext = &descriptorIndexingExt;
 		}
 
-		CheckVkResult(vkCreateDevice(_gpu, &info, VK_NULL_HANDLE, &_device));
+		if (CreateFunc == 0)
+		{
+			CheckVkResult(vkCreateDevice(_gpu, &info, VK_NULL_HANDLE, &_device));
+		}
+		else
+		{
+			CheckVkResult(CreateFunc(_gpu, info, &_device, pCreateFuncData));
+		}
 
 		vkGetDeviceQueue(_device, _queue._familyIndex, 0, &_queue._queue);
 
@@ -1042,34 +1097,9 @@ namespace SunEngine
 			if (score > bestScore)
 			{
 				_gpu = gpu;
-				_gpuProps = props;
 				bestScore = score;
 			}
 		}
-
-		vkGetPhysicalDeviceMemoryProperties(_gpu, &_gpuMem);
-
-		uint numQueues;
-		vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &numQueues, VK_NULL_HANDLE);
-
-		Vector<VkQueueFamilyProperties> queueProps;
-		queueProps.resize(numQueues);
-		vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &numQueues, queueProps.data());
-
-		for (uint i = 0; i < queueProps.size(); i++)
-		{
-			VkQueueFamilyProperties queue = queueProps[i];
-			if (queue.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-			{
-				_queue._familyIndex = i;
-				break;
-			}
-
-			//VkSurfaceCapabilitiesKHR surface;
-			//vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_gpu, VK_NULL_HANDLE, &surface);
-			//surface.
-		}
-
 		return true;
 	}
 

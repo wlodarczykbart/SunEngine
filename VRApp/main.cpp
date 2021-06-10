@@ -6,7 +6,7 @@ using namespace SunEngine;
 
 int main(int argc, const char** argv)
 {
-	SetGraphicsAPI(SE_GFX_D3D11);
+	SetGraphicsAPI(SE_GFX_VULKAN);
 	bool debugEnabled = true;
 
 	GraphicsContext context;

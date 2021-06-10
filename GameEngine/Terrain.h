@@ -135,6 +135,7 @@ namespace SunEngine
 		void SetSplat(uint x, uint y, uint index, float value);
 		void IncrementSplat(uint x, uint y, uint index, float value);
 		void DecrementSplat(uint x, uint y, uint index, float value);
+		bool BuildSplatArray();
 
 		uint _resolution;
 		uint _slices;

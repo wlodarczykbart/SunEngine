@@ -74,7 +74,7 @@ namespace SunEngine
 		bool MapMemory(MemoryHandle memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData);
 		void UnmapMemory(MemoryHandle memory);
 		//bool TransferImageData(VkImage image, const ImageData& baseImg, uint mipCount, const ImageData* pMipData);
-		bool TransferImageData(VkImage image, const ImageData* baseImages, uint arrayCount, uint mipCount);
+		bool TransferImageData(VkImage image, const ImageData* baseImages, uint arrayCount, uint mipCount, VkImageLayout endLayout);
 		void FreeMemory(MemoryHandle memory);
 		void FreeCommandBuffer(VkCommandBuffer cmdBuffer);
 
@@ -101,10 +101,10 @@ namespace SunEngine
 			const char*                                 pMessage,
 			void*                                       pUserData);
 
-		bool createInstance(bool debugEnabled);
+		bool createInstance(bool debugEnabled, VkResult(*CreateFunc)(const VkInstanceCreateInfo& info, VkInstance* pInstance, void* pData) = 0, void* pCreateFuncData = 0);
 		bool createAllocationCallback();
 		bool createDebugCallback();
-		bool createDevice();
+		bool createDevice(VkResult(*CreateFunc)(VkPhysicalDevice gpu, const VkDeviceCreateInfo& info, VkDevice* pDevice, void* pData) = 0, void* pCreateFuncData = 0);
 		bool pickGpu();
 		bool createCommandPool();
 		bool createDescriptorPool();

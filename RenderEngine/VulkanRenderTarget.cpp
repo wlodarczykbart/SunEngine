@@ -112,16 +112,6 @@ namespace SunEngine
 		_viewport.offset.y = (uint)y;
 	}
 
-	VkImageLayout VulkanRenderTarget::GetColorFinalLayout()
-	{
-		return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	}
-
-	VkImageLayout VulkanRenderTarget::GetDepthFinalLayout()
-	{
-		return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-	}
-
 	bool VulkanRenderTarget::createRenderPass(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture)
 	{
 		Vector<VkAttachmentDescription> attachments;
@@ -132,7 +122,7 @@ namespace SunEngine
 		{
 			VkAttachmentDescription desc = {};
 			desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			desc.finalLayout = GetColorFinalLayout();
+			desc.finalLayout = pColorTextures[i]->GetImageLayout();
 			desc.format = pColorTextures[i]->GetFormat();
 			desc.samples = pColorTextures[i]->GetSampleMask();
 			desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -157,7 +147,7 @@ namespace SunEngine
 		{
 			VkAttachmentDescription desc = {};
 			desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			desc.finalLayout = GetDepthFinalLayout();
+			desc.finalLayout = pDepthTexture->GetImageLayout();
 			desc.format = pDepthTexture->GetFormat();
 			desc.samples = pDepthTexture->GetSampleMask();
 			desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;

@@ -380,7 +380,7 @@ namespace SunEngine
 				"grass_mix_d.jpg",
 				"grass_ground_d.jpg",
 				"grass_green_d.jpg",
-				"grass_autumn_orn_d.jpg",
+				"desert_mntn_d.jpg",
 			};
 			Vector<Texture2D*> grassDiffuseTextures;
 			Vector<Texture2D*> grassNormalTextures;
@@ -411,11 +411,15 @@ namespace SunEngine
 				return false;
 			if (!pTerrain->SetDiffuseMap(1, grassDiffuseTextures[1]))
 				return false;
+			if (!pTerrain->SetDiffuseMap(2, grassDiffuseTextures[4]))
+				return false;
 			pTerrain->BuildDiffuseMapArray(true);
 
 			if (!pTerrain->SetNormalMap(0, grassNormalTextures[0]))
 				return false;
 			if (!pTerrain->SetNormalMap(1, grassNormalTextures[1]))
+				return false;
+			if (!pTerrain->SetNormalMap(2, grassNormalTextures[4]))
 				return false;
 			pTerrain->BuildNormalMapArray(true);
 

@@ -20,10 +20,10 @@ namespace SunEngine
 
 		XrInstance instance = (XrInstance)info.inInstance;
 		XrSystemId systemId = (XrSystemId)info.inSystemID;
+		PFN_xrGetInstanceProcAddr GetInstanceProcAddr = (PFN_xrGetInstanceProcAddr)info.inGetInstanceProcAddr;
 
 		XrGraphicsRequirementsD3D11KHR requirements = { XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR };
 		PFN_xrGetD3D11GraphicsRequirementsKHR GetRequirementFunc = 0;
-		PFN_xrGetInstanceProcAddr GetInstanceProcAddr = (PFN_xrGetInstanceProcAddr)info.inGetInstanceProcAddr;
 		XR_RETURN_ON_FAIL(GetInstanceProcAddr(instance, "xrGetD3D11GraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetRequirementFunc));
 		XR_RETURN_ON_FAIL(GetRequirementFunc(instance, systemId, &requirements));
 

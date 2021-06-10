@@ -111,12 +111,6 @@ namespace SunEngine
 			systemInfo.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY; //Should this be configurable?
 			XR_RETURN_ON_FAIL(xrGetSystem(_instance, &systemInfo, &_systemID));
 
-			//left/right eye based headset
-			XrViewConfigurationType viewConfigType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
-
-			uint blendCount;
-			XR_RETURN_ON_FAIL(xrEnumerateEnvironmentBlendModes(_instance, _systemID, viewConfigType, 1, &blendCount, &_blendMode));
-
 			XrBaseInStructure* graphicsBinding = 0;
 			XrSwapchainImageBaseHeader* pImageHeaders = 0;
 
@@ -140,6 +134,12 @@ namespace SunEngine
 			refSpace.poseInReferenceSpace = XR_POSE_IDENTITY;
 			refSpace.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
 			XR_RETURN_ON_FAIL(xrCreateReferenceSpace(_session, &refSpace, &_appSpace));
+
+			//left/right eye based headset
+			XrViewConfigurationType viewConfigType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+
+			uint blendCount;
+			XR_RETURN_ON_FAIL(xrEnumerateEnvironmentBlendModes(_instance, _systemID, viewConfigType, 1, &blendCount, &_blendMode));
 
 			uint viewCount;
 			XR_RETURN_ON_FAIL(xrEnumerateViewConfigurationViews(_instance, _systemID, viewConfigType, 0, &viewCount, 0));
