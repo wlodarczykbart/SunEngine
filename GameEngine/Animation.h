@@ -4,6 +4,8 @@
 
 namespace SunEngine
 {
+	class Mesh;
+
 	class AnimationClip
 	{
 	public:
@@ -13,6 +15,7 @@ namespace SunEngine
 
 		void SetName(const String& name) { _name = name; }
 		void SetKeys(const Vector<float>& keys);
+		void GetKeys(Vector<float>& keys) const { keys = _keys; }
 
 	private:
 		friend class Animator;
@@ -23,6 +26,7 @@ namespace SunEngine
 	};
 
 	class AnimatedBoneComponentData;
+	class SkinnedMeshComponentData;
 
 	class AnimatorComponentData : public ComponentData
 	{
@@ -46,9 +50,15 @@ namespace SunEngine
 
 		bool ShouldUpdate() const { return _playing; }
 
-		void SetBone(uint index, const AnimatedBoneComponentData* pBoneData) { _boneData[index] = pBoneData; }
-		const Vector<const AnimatedBoneComponentData*>& GetBoneData() const { return _boneData; }
+		void RegisterBone(AnimatedBoneComponentData* pBoneData);
 		uint GetBoneCount() const { return _boneData.size(); }
+
+		void IncrementBoneUpdates();
+		uint GetBoneUpdateCount() const { return _boneUpdateCount; }
+
+		void RegisterMesh(SkinnedMeshComponentData* pMeshData) { _meshData.push_back(pMeshData); }
+
+		glm::mat4 CalcSkinnedBoneMatrix(uint skinIndex, uint boneIndex) const;
 
 	private:
 		friend class Animator;
@@ -60,8 +70,10 @@ namespace SunEngine
 		float _speed;
 		bool _playing;
 		bool _loop;
+		uint _boneUpdateCount;
 
-		Vector<const AnimatedBoneComponentData*> _boneData;
+		Vector<AnimatedBoneComponentData*> _boneData;
+		Vector<SkinnedMeshComponentData*> _meshData;
 	};
 
 	class Animator : public Component
@@ -75,7 +87,12 @@ namespace SunEngine
 
 		uint GetClipCount() const { return _clips.size(); }
 		void SetClips(const Vector<AnimationClip>& clips) { _clips = clips; }
+
+		uint GetBoneCount() const { return _boneCount; }
 		void SetBoneCount(uint count) { _boneCount = count; }
+
+		void GetClipKeys(uint clipIndex, Vector<float>& keys) const { if (clipIndex < _clips.size()) _clips[clipIndex].GetKeys(keys); }
+
 		void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override;
 	private:
 		uint _boneCount;
@@ -85,7 +102,7 @@ namespace SunEngine
 	class AnimatedBoneComponentData : public ComponentData
 	{
 	public:
-		AnimatedBoneComponentData(Component* pComponent, SceneNode* pNode, AnimatorComponentData* pAnimatorData) : ComponentData(pComponent, pNode) { _animatorData = pAnimatorData; }
+		AnimatedBoneComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode) { _animatorData = 0; }
 		AnimatorComponentData* GetAnimatorData() const { return _animatorData; }
 
 	private:
@@ -98,6 +115,8 @@ namespace SunEngine
 	public:
 		struct Transform
 		{
+			Transform();
+
 			glm::vec3 position;
 			glm::vec3 scale;
 			glm::quat rotation;
@@ -128,12 +147,18 @@ namespace SunEngine
 	class SkinnedMeshComponentData : public ComponentData
 	{
 	public:
-		SkinnedMeshComponentData(Component* pComponent, SceneNode* pNode, AnimatorComponentData* pAnimatorData) : ComponentData(pComponent, pNode) { _animatorData = pAnimatorData; }
+		SkinnedMeshComponentData(Component* pComponent, SceneNode* pNode);
 		AnimatorComponentData* GetAnimatorData() const { return _animatorData; }
 
+		const glm::mat4* GetMeshBoneMatrices() const { return _meshBoneMatrices.data(); }
+		void UpdateBoneMatrices();
 	private:
+
 		friend class SkinnedMesh;
+		friend class Animator;
 		AnimatorComponentData* _animatorData;
+		Vector<glm::mat4> _meshBoneMatrices;
+		bool _bUpdateCalled;
 	};
 
 	class SkinnedMesh : public Component
@@ -145,10 +170,15 @@ namespace SunEngine
 		ComponentType GetType() const override { return COMPONENT_SKINNED_MESH; }
 		ComponentData* AllocData(SceneNode* pNode) override;
 
+		void SetMesh(Mesh* pMesh) { _mesh = pMesh; }
+		Mesh* GetMesh() const { return _mesh; }
+
 		void SetSkinIndex(uint skinIndex) { _skinIndex = skinIndex; }
 		uint GetSkinIndex() const { return _skinIndex; }
 
+		void Update(SceneNode* pNode, ComponentData* pData, float dt, float et) override;
 	private:
+		Mesh* _mesh;
 		uint _skinIndex;
 	};
 }

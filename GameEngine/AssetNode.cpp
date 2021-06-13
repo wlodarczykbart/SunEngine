@@ -106,6 +106,16 @@ namespace SunEngine
 		return _components[type].size() ? _components[type].front().get() : 0;
 	}
 
+	Component* AssetNode::GetComponentOfType(ComponentType type, bool(*ConditionFunc)(const Component* pComponent, void* pData), void* pData) const
+	{
+		for (uint i = 0; i < _components[type].size(); i++)
+		{
+			if (ConditionFunc(_components[type][i].get(), pData))
+				return _components[type][i].get();
+		}
+		return 0;
+	}
+
 	void Component::Initialize(SceneNode*, ComponentData*)
 	{
 

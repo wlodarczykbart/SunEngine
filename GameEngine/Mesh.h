@@ -45,7 +45,15 @@ namespace SunEngine
 		glm::vec4 TexCoord;
 		glm::vec4 Normal;
 		glm::vec4 Tangent;
+	};
 
+	struct SkinnedVertex
+	{
+		static const VertexDef Definition;
+
+		StandardVertex Standard;
+		glm::vec4 Bones;
+		glm::vec4 Weights;
 	};
 
 	struct TerrainVertex

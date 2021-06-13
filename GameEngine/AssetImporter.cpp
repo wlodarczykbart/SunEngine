@@ -76,7 +76,7 @@ namespace SunEngine
 			auto iMesh = pImporter->GetMeshData(m);
 			auto pMesh = resMgr.AddMesh(iMesh->Name);
 
-			VertexDef vtxDef = VertexDef::POS_TEXCOORD_NORMAL_TANGENT;
+			VertexDef vtxDef = StandardVertex::Definition;
 			Vector<Pair<float, float>> sortedBones;
 			uint skinnedVertexDataStartAttrib = 0;
 			if (iMesh->VertexBones.size())
@@ -267,6 +267,7 @@ namespace SunEngine
 				{
 					SkinnedMesh* pSkinned = pMeshNode->AddComponent(new SkinnedMesh())->As<SkinnedMesh>();
 					pSkinned->SetSkinIndex(iMesh->MeshData->SkinIndex);
+					pSkinned->SetMesh(pRenderer->GetMesh());
 				}
 			}
 			else if (iNode->GetType() == ModelImporter::Importer::BONE)
@@ -303,12 +304,12 @@ namespace SunEngine
 				return false;
 		}
 
-		for (auto& mtl : _materialCache)
+		for (auto& mtl : _materialFixup)
 		{
 			auto& textures = mtl.second.second;
 			for (auto& tex : textures)
 			{
-				mtl.first->SetTexture2D(tex.first, tex.second);
+				mtl.second.first->SetTexture2D(tex.first, tex.second);
 			}
 		}
 
@@ -371,25 +372,13 @@ namespace SunEngine
 			if (pMtl->TransparentMap) importerTextures[MaterialStrings::AlphaMap] = pMtl->TransparentMap;
 		}
 
-		//TODO: need skinned/alpha test variant or assume it wont happen?
-		if (pMesh->MeshData->VertexBones.size())
+		for (auto& cached : _materialFixup)
 		{
-			if (shader == DefaultShaders::Metallic) shader = DefaultShaders::SkinnedMetallic;
-			else if (shader == DefaultShaders::Specular) shader = DefaultShaders::SkinnedSpecular;
-		}
-		else if (pMtl->TransparentMap)
-		{
-			if (shader == DefaultShaders::Metallic) shader = DefaultShaders::MetallicAlphaTest;
-			else if (shader == DefaultShaders::Specular) shader = DefaultShaders::SpecularAlphaTest;
-		}
-
-		for (auto& cached : _materialCache)
-		{
-			bool equalShader = shader == cached.first->GetShader()->GetName();
-			bool equalMaterial = _options.CombineMaterials ? (cached.second.first == pMtl || ImportedMaterialsSame(pMtl, (ModelImporter::Importer::Material*)cached.second.first)) : cached.second.first == pMtl;
+			bool equalShader = shader == cached.second.first->GetShader()->GetName();
+			bool equalMaterial = _options.CombineMaterials ? (cached.first == pMtl || ImportedMaterialsSame(pMtl, (ModelImporter::Importer::Material*)cached.second.first)) : cached.first == pMtl;
 			if (equalShader && equalMaterial)
 			{
-				pOutMtl = cached.first;
+				pOutMtl = cached.second.first;
 				return true;
 			}
 		}
@@ -418,7 +407,7 @@ namespace SunEngine
 				pTex->SetUserDataPtr(this);
 
 				if ((*iter).first == MaterialStrings::DiffuseMap)
-					pTex->SetSRGB(true);
+					pTex->SetSRGB();
 
 				ThreadPool& tp = ThreadPool::Get();
 				tp.AddTask([](uint, void* pData) -> void {
@@ -451,7 +440,7 @@ namespace SunEngine
 			return false;
 
 		pOutMtl->GetShader()->SetDefaults(pOutMtl);
-		_materialCache[pOutMtl] = { pMtl, textures };
+		_materialFixup[pMtl] = { pOutMtl, textures };
 		return true;
 	}
 }
@@ -514,10 +503,10 @@ namespace SunEngine
 			CollectNodes(pNode->mChildren[i], nodes);
 	}
 
-	bool ParseMesh(aiMesh* pSrc, Mesh* pDst, Material* pMtl)
+	bool ParseMesh(aiMesh* pSrc, Mesh* pDst, Material* pMtl, const StrMap<uint>& boneIndexLookup)
 	{
 		pDst->AllocIndices(pSrc->mNumFaces * 3);
-		pDst->AllocVertices(pSrc->mNumVertices, StandardVertex::Definition);
+		pDst->AllocVertices(pSrc->mNumVertices, pSrc->HasBones() ? SkinnedVertex::Definition : StandardVertex::Definition);
 
 		for (uint i = 0; i < pSrc->mNumVertices; i++)
 		{
@@ -532,6 +521,65 @@ namespace SunEngine
 				pDst->SetVertexVar(i, glm::vec4(FromAssimp(pSrc->mNormals[i]), 0.0f), VertexDef::DEFAULT_NORMAL_INDEX);
 			if(pSrc->HasTangentsAndBitangents())
 				pDst->SetVertexVar(i, glm::vec4(FromAssimp(pSrc->mTangents[i]), 0.0f), VertexDef::DEFAULT_TANGENT_INDEX);
+		}
+
+		if (pSrc->HasBones())
+		{
+			struct VertexBoneData
+			{
+				uint bones[4];
+				float weights[4];
+				int minWeightIndex;
+
+				void Normalize()
+				{
+					float sum = 0.0f;
+					for (uint i = 0; i < 4; i++)
+						sum += weights[i];
+
+					for (uint i = 0; i < 4; i++)
+						weights[i] /= sum;
+				}
+			};
+
+			Vector<VertexBoneData> boneDataList;
+			boneDataList.resize(pSrc->mNumVertices);
+			memset(boneDataList.data(), 0x0, sizeof(VertexBoneData) * boneDataList.size());
+
+			for (uint i = 0; i < pSrc->mNumBones; i++)
+			{
+				auto& bone = pSrc->mBones[i];
+				uint boneIndex = boneIndexLookup.at(bone->mName.C_Str());
+				for (uint j = 0; j < bone->mNumWeights; j++)
+				{
+					auto& weight = bone->mWeights[j];
+					auto& boneData = boneDataList[weight.mVertexId];
+					if (weight.mWeight > boneData.weights[boneData.minWeightIndex])
+					{
+						boneData.weights[boneData.minWeightIndex] = weight.mWeight;
+						boneData.bones[boneData.minWeightIndex] = boneIndex;
+
+						float minWeight = FLT_MAX;
+						for (uint k = 0; k < 4; k++)
+						{
+							if (boneData.weights[k] < minWeight)
+							{
+								minWeight = boneData.weights[k];
+								boneData.minWeightIndex = k;
+							}
+						}
+					}
+				}
+			}
+
+			SkinnedVertex* pSkinnedVerts = pDst->GetVertices<SkinnedVertex>();
+			for (uint i = 0; i < boneDataList.size(); i++)
+			{
+				auto& boneData = boneDataList[i];
+				boneData.Normalize();
+				pSkinnedVerts[i].Bones = glm::vec4(boneData.bones[0], boneData.bones[1], boneData.bones[2], boneData.bones[3]);
+				pSkinnedVerts[i].Weights = glm::vec4(boneData.weights[0], boneData.weights[1], boneData.weights[2], boneData.weights[3]);
+			}
 		}
 
 		for (uint i = 0; i < pSrc->mNumFaces; i++)
@@ -552,7 +600,7 @@ namespace SunEngine
 		return true;
 	}
 
-	bool ParseMaterial(aiMaterial* pSrc, Material* pDst, StrMap<Pair<Texture2D*, bool>>& textures, const String& fileDir)
+	bool ParseMaterial(aiMaterial* pSrc, Material* pDst, StrMap<Pair<Texture2D*, bool>>& textures, const String& fileDir, uint64 variantMask)
 	{
 		static const Map<aiTextureType, String> TextureTypeLookup =
 		{
@@ -649,7 +697,7 @@ namespace SunEngine
 		//alphaTest = false; //TODO: enable this again? default to alpha blend
 
 		String strShader = metallic ? DefaultShaders::Metallic : DefaultShaders::Specular;
-		pDst->SetShader(ShaderMgr::Get().GetShader(strShader));
+		pDst->SetShader(ShaderMgr::Get().GetShader(strShader), variantMask);
 		if (!pDst->RegisterToGPU())
 			return false;
 
@@ -729,9 +777,84 @@ namespace SunEngine
 
 		ThreadPool& tp = ThreadPool::Get();
 
+		Animator* pAnimator = 0;
+		StrMap<Map<uint, aiNodeAnim*>> boneMapping;
+		StrMap<uint> boneIndexLookup;
+		Map<aiMesh*, uint> skinnedMeshLookup;
+
+		//NOTE: have seen several fbx models that assimp does not produce correct animation data for when comparing my assimp code
+		//with the assimp project test viewer and getting same incorrect results compared to correct results from my 3DImporter class.
+		if (pScene->HasAnimations())
+		{
+			pAnimator = new Animator();
+			Vector<AnimationClip> clips;
+
+			for (uint i = 0; i < pScene->mNumAnimations; i++)
+			{
+				auto aAnim = pScene->mAnimations[i];
+
+				uint keyCount = 0;
+				double startTime = FLT_MAX;
+				double endTime = -FLT_MAX;
+
+				for (uint j = 0; j < aAnim->mNumChannels; j++)
+				{
+					auto aChannel = aAnim->mChannels[j];
+					keyCount = glm::max(glm::max(glm::max(keyCount, aChannel->mNumPositionKeys), aChannel->mNumRotationKeys), aChannel->mNumScalingKeys);
+
+					startTime = glm::min(glm::min(glm::min(startTime,
+						aChannel->mPositionKeys[0].mTime),
+						aChannel->mRotationKeys[0].mTime),
+						aChannel->mScalingKeys[0].mTime);
+
+					endTime = glm::max(glm::max(glm::max(endTime,
+						aChannel->mPositionKeys[aChannel->mNumPositionKeys - 1].mTime),
+						aChannel->mRotationKeys[aChannel->mNumRotationKeys - 1].mTime),
+						aChannel->mScalingKeys[aChannel->mNumScalingKeys - 1].mTime);
+
+					boneMapping[aChannel->mNodeName.C_Str()][i] = aChannel;
+				}
+
+				if (keyCount > 1)
+				{
+					AnimationClip clip;
+					clip.SetName(aAnim->mName.C_Str());
+
+					Vector<float> keys;
+					keys.resize(keyCount);
+					float keyFactor = (float)1.0f / (keyCount - 1);;
+					for (uint j = 0; j < keyCount; j++)
+					{
+						keys[j] = (float)glm::mix(startTime, endTime, double(j * keyFactor));
+						keys[j] /= (float)aAnim->mTicksPerSecond;
+					}
+
+					clip.SetKeys(keys);
+					clips.push_back(clip);
+				}
+			}
+
+			for (uint i = 0; i < pScene->mNumMeshes; i++)
+			{
+				if (pScene->mMeshes[i]->HasBones())
+				{
+					skinnedMeshLookup[pScene->mMeshes[i]] = skinnedMeshLookup.size();
+					for (uint j = 0; j < pScene->mMeshes[i]->mNumBones; j++)
+					{
+						if (boneIndexLookup.find(pScene->mMeshes[i]->mBones[j]->mName.C_Str()) == boneIndexLookup.end())
+							boneIndexLookup[pScene->mMeshes[i]->mBones[j]->mName.C_Str()] = boneIndexLookup.size();
+					}
+				}
+			}
+
+			pAnimator->SetClips(clips);
+			pAnimator->SetBoneCount(boneIndexLookup.size());
+		}
+
 		for (auto aNode : nodes)
 		{
-			auto pNode = _asset->AddNode(aNode->mName.length ? aNode->mName.C_Str() : StrFormat("%p", aNode));
+			String strName = aNode->mName.length ? aNode->mName.C_Str() : StrFormat("%p", aNode);
+			auto pNode = _asset->AddNode(strName);
 			_nodeFixup[aNode] = pNode;
 
 			glm::mat4 mtxLocal;
@@ -772,7 +895,7 @@ namespace SunEngine
 				{
 					Material* pMaterial = resMgr.AddMaterial(aMaterial->GetName().C_Str());
 					StrMap<Pair<Texture2D*, bool>> textureLoadMap;
-					ParseMaterial(aMaterial, pMaterial, textureLoadMap, fileDir);
+					ParseMaterial(aMaterial, pMaterial, textureLoadMap, fileDir, pAnimator ? ShaderVariant::SKINNED : 0x0);
 
 					StrMap<Texture2D*> textureMap;
 					for (auto& tex : textureLoadMap)
@@ -809,13 +932,12 @@ namespace SunEngine
 					pRenderer->SetMaterial((*foundMaterial).second.first);
 				}
 
-
 				auto foundMesh = _meshFixup.find(aMesh);
 				if (foundMesh == _meshFixup.end())
 				{
 					Material* pMaterial = pRenderer->GetMaterial();
 					Mesh* pMesh = resMgr.AddMesh(aMesh->mName.C_Str());
-					ParseMesh(aMesh, pMesh, pMaterial);
+					ParseMesh(aMesh, pMesh, pMaterial, boneIndexLookup);
 					_meshFixup[aMesh] = pMesh;
 					pRenderer->SetMesh(pMesh);
 				}
@@ -823,6 +945,134 @@ namespace SunEngine
 				{
 					pRenderer->SetMesh((*foundMesh).second);
 				}
+				
+				auto foundSkinned = skinnedMeshLookup.find(aMesh);
+				if (foundSkinned != skinnedMeshLookup.end())
+				{
+					SkinnedMesh* pSkinnedMesh = pNode->AddComponent(new SkinnedMesh())->As<SkinnedMesh>();
+					pSkinnedMesh->SetMesh(_meshFixup[aMesh]);
+					pSkinnedMesh->SetSkinIndex((*foundSkinned).second);
+				}
+			}
+
+			auto foundBone = boneIndexLookup.find(strName);
+			if (pAnimator && foundBone != boneIndexLookup.end())
+			{
+				AnimatedBone* pBone = pNode->AddComponent(new AnimatedBone())->As<AnimatedBone>();
+				pBone->SetBoneIndex((*foundBone).second);
+
+				Vector<Vector<AnimatedBone::Transform>> boneTransforms;
+				boneTransforms.resize(pAnimator->GetClipCount());
+				for (uint anim = 0; anim < boneTransforms.size(); anim++)
+				{
+					Vector<float> keys;
+					pAnimator->GetClipKeys(anim, keys);
+					boneTransforms[anim].resize(keys.size());
+
+					auto foundMapping = boneMapping.find(strName);
+					if (foundMapping != boneMapping.end())
+					{
+						auto& channels = (*foundMapping).second;
+						if (channels.count(anim))
+						{
+							auto channel = channels[anim];
+							for (uint key = 0; key < keys.size(); key++)
+							{
+								double time = (double)keys[key] * pScene->mAnimations[anim]->mTicksPerSecond; //AnimClip will have timings moved to seconds, undo for this since comparing assimp times
+								auto& transform = boneTransforms[anim][key];
+
+								bool foundPos = false;
+								for (uint i = 0; i < channel->mNumPositionKeys - 1; i++)
+								{
+									auto& key0 = channel->mPositionKeys[i + 0];
+									auto& key1 = channel->mPositionKeys[i + 1];
+									if (time >= key0.mTime && time <= key1.mTime)
+									{
+										double t = (time - key0.mTime) / (key1.mTime - key0.mTime);
+										glm::vec3 v0 = glm::vec3(key0.mValue.x, key0.mValue.y, key0.mValue.z);
+										glm::vec3 v1 = glm::vec3(key1.mValue.x, key1.mValue.y, key1.mValue.z);
+										transform.position = glm::mix(v0, v1, (float)t);
+										foundPos = true;
+										break;
+									}
+								}
+
+								if (!foundPos)
+									transform.position = glm::vec3(channel->mPositionKeys[0].mValue.x, channel->mPositionKeys[0].mValue.y, channel->mPositionKeys[0].mValue.z);
+
+								bool foundScale = false;
+								for (uint i = 0; i < channel->mNumScalingKeys - 1; i++)
+								{
+									auto& key0 = channel->mScalingKeys[i + 0];
+									auto& key1 = channel->mScalingKeys[i + 1];
+									if (time >= key0.mTime && time <= key1.mTime)
+									{
+										double t = (time - key0.mTime) / (key1.mTime - key0.mTime);
+										glm::vec3 v0 = glm::vec3(key0.mValue.x, key0.mValue.y, key0.mValue.z);
+										glm::vec3 v1 = glm::vec3(key1.mValue.x, key1.mValue.y, key1.mValue.z);
+										transform.scale = glm::mix(v0, v1, (float)t);
+										foundScale = true;
+										break;
+									}
+								}
+
+								if (!foundScale)
+									transform.scale = glm::vec3(channel->mScalingKeys[0].mValue.x, channel->mScalingKeys[0].mValue.y, channel->mScalingKeys[0].mValue.z);
+
+								bool foundRot = false;
+								for (uint i = 0; i < channel->mNumRotationKeys - 1; i++)
+								{
+									auto& key0 = channel->mRotationKeys[i + 0];
+									auto& key1 = channel->mRotationKeys[i + 1];
+									if (time >= key0.mTime && time <= key1.mTime)
+									{
+										double t = (time - key0.mTime) / (key1.mTime - key0.mTime);
+										glm::quat v0 = glm::quat(key0.mValue.w, key0.mValue.x, key0.mValue.y, key0.mValue.z);
+										glm::quat v1 = glm::quat(key1.mValue.w, key1.mValue.x, key1.mValue.y, key1.mValue.z);
+										transform.rotation = glm::slerp(v0, v1, (float)t);
+										foundRot = true;
+										break;
+									}
+								}
+
+								if (!foundRot)
+									transform.rotation = glm::quat(channel->mRotationKeys[0].mValue.w, channel->mRotationKeys[0].mValue.x, channel->mRotationKeys[0].mValue.y, channel->mRotationKeys[0].mValue.z);
+							}
+						}
+					}
+					else
+					{
+						//fill all keys with currente node transform
+						for (uint key = 0; key < keys.size(); key++)
+						{
+							auto& transform = boneTransforms[anim][key];
+							transform.position = pNode->Position;
+							transform.scale = pNode->Scale;
+							assert(pNode->Orientation.Mode == ORIENT_QUAT);
+							transform.rotation = pNode->Orientation.Quat;
+						}
+					}
+				}
+				pBone->SetTransforms(boneTransforms);
+
+				Vector<glm::mat4> skinMatrices;
+				skinMatrices.resize(skinnedMeshLookup.size());
+				for (uint i = 0; i < skinMatrices.size(); i++)
+					skinMatrices[i] = Mat4::Identity;
+
+				for (auto& sm : skinnedMeshLookup)
+				{
+					for (uint i = 0; i < sm.first->mNumBones; i++)
+					{
+						if (strName == sm.first->mBones[i]->mName.C_Str())
+						{
+							memcpy(&skinMatrices[sm.second], &sm.first->mBones[i]->mOffsetMatrix, sizeof(glm::mat4));
+							skinMatrices[sm.second] = glm::transpose(skinMatrices[sm.second]);
+							break;
+						}
+					}
+				}
+				pBone->SetSkinMatrices(skinMatrices);
 			}
 		}
 
@@ -852,6 +1102,9 @@ namespace SunEngine
 			if (aNode->mParent)
 				_asset->SetParent(node.second->GetName(), _nodeFixup[aNode->mParent]->GetName());
 		}
+
+		if (pAnimator)
+			_asset->GetRoot()->AddComponent(pAnimator);
 
 		aiReleaseImport(pScene);
 

@@ -207,7 +207,22 @@ namespace SunEngine
 
 		if (EngineInfo::GetRenderer().ShadowsEnabled())
 		{
-			UpdateShadowCascades(pScene, cameraDataList);
+			_shadowCasterAABB.Reset();
+			pScene->TraverseRenderNodes(
+				[](const AABB&, void*) -> bool {
+				return true;
+			}, 0,
+				[](RenderNode* pNode, void* pNodeData) -> void {	
+				SceneRenderer* pThis = static_cast<SceneRenderer*>(pNodeData);
+				if (pThis->ShouldRender(pNode))
+				{
+					const AABB& box = pNode->GetWorldAABB();
+					if (pNode->GetMaterial()->GetShader()->ContainsVariants(ShaderVariant::DEPTH) && !glm::epsilonEqual(box.Min.y, box.Max.y, 0.001f))
+						pThis->_shadowCasterAABB.Expand(box);
+				}
+			}, this);
+
+			UpdateShadowCascades(cameraDataList);
 
 			ThreadPool& tp = ThreadPool::Get();
 			struct ThreadData
@@ -268,8 +283,8 @@ namespace SunEngine
 					pass->ObjectBufferGroup.Update(&objBuffer, data.ObjectBufferIndex, &data.ObjectBindings, data.Pipeline->GetShader());
 
 					//TODO skinned shadow objects
-					//if (pSkinnedMesh)
-					//	_depthPasses[i]->SkinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), depthData.SkinnedBoneBufferIndex, &depthData.SkinnedBoneBindings, pDepthShader);
+					if (PerformSkinningCheck(data.RenderNode))
+						pass->SkinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), data.SkinnedBoneBufferIndex, &data.SkinnedBoneBindings, data.Pipeline->GetShader());
 
 					_currentShaders.insert(data.Pipeline->GetShader());
 				}
@@ -470,32 +485,6 @@ namespace SunEngine
 				return;
 		}
 
-		Component* pSMComponent = pSceneNode->GetComponentOfType(COMPONENT_SKINNED_MESH);
-		SkinnedMesh* pSkinnedMesh = 0;
-		if (pSMComponent)
-		{
-			pSkinnedMesh = pSMComponent->As<SkinnedMesh>();
-			SkinnedMeshComponentData* pSkinnedData = pSceneNode->GetComponentData<SkinnedMeshComponentData>(pSMComponent);
-			AnimatorComponentData* pAnimatorData = pSkinnedData->GetAnimatorData();
-
-			if (pAnimatorData->GetPlaying())
-			{
-				auto& boneData = pAnimatorData->GetBoneData();
-				for (uint i = 0; i < boneData.size(); i++)
-				{
-					String name = boneData[i]->GetNode()->GetName();
-					glm::mat4 boneMtx = boneData[i]->GetNode()->GetWorld();
-					boneMtx = glm::inverse(pNode->GetWorld()) * boneMtx * boneData[i]->C()->As<const AnimatedBone>()->GetSkinMatrix(pSkinnedMesh->GetSkinIndex());	//TODO check for correct order...
-					_skinnedBoneMatrixBlock[i].Set(&boneMtx);
-				}
-			}
-			else
-			{
-				static glm::mat4 mtxIden(1.0f);
-				for (uint i = 0; i < pAnimatorData->GetBoneCount(); i++)
-					_skinnedBoneMatrixBlock[i].Set(&mtxIden);
-			}
-		}
 
 		bool sorted = false;
 		RenderNodeData data = {};
@@ -512,7 +501,7 @@ namespace SunEngine
 
 		_objectBufferGroup.Update(&objBuffer, data.ObjectBufferIndex, &data.ObjectBindings, pShader);
 
-		if (pSkinnedMesh)
+		if (PerformSkinningCheck(pNode))
 			_skinnedBonesBufferGroup.Update(_skinnedBoneMatrixBlock.data(), data.SkinnedBoneBufferIndex, &data.SkinnedBoneBindings, pShader);
 
 		_currentShaders.insert(pShader);
@@ -855,7 +844,7 @@ namespace SunEngine
 		return hash;
 	}
 
-	void SceneRenderer::UpdateShadowCascades(Scene* pScene, Vector<CameraBufferData>& cameraBuffersToFill)
+	void SceneRenderer::UpdateShadowCascades(Vector<CameraBufferData>& cameraBuffersToFill)
 	{
 		if (!EngineInfo::GetRenderer().ShadowsEnabled())
 			return;
@@ -875,7 +864,7 @@ namespace SunEngine
 		csmInfo.nearFarFitMode = CascadedShadowMap::FIT_NEARFAR_SCENE_AABB;
 		csmInfo.lightPos = _currentEnvironment->GetSunDirection();
 		csmInfo.pCameraData = _currentCamera;
-		csmInfo.sceneBounds = pScene->GetBoundingBox();
+		csmInfo.sceneBounds = _shadowCasterAABB;
 		csmInfo.cascadeSplitLambda = _cascadeSplitLambda;
 		CascadedShadowMap::Update(csmInfo, lightViewMatrix, shadowCameras, shadowCascadeSplits);
 
@@ -1068,6 +1057,40 @@ namespace SunEngine
 			variantMask = pMaterial->GetShader()->GetBaseVariant(variantMask | ShaderVariant::GBUFFER) ? (variantMask | ShaderVariant::GBUFFER) : variantMask;
 
 		return variantMask;
+	}
+
+	bool SceneRenderer::PerformSkinningCheck(const RenderNode* pNode)
+	{
+		SceneNode* pSceneNode = pNode->GetNode();
+
+		Component* pSMComponent = pSceneNode->GetComponentOfType(COMPONENT_SKINNED_MESH, [](const Component* pComponent, void* pData) -> bool {
+			return pComponent->As<SkinnedMesh>()->GetMesh() == pData;
+		}, pNode->GetMesh());
+
+		if (pSMComponent)
+		{
+			auto pSkinnedMesh = pSMComponent->As<SkinnedMesh>();
+			SkinnedMeshComponentData* pSkinnedData = pSceneNode->GetComponentData<SkinnedMeshComponentData>(pSMComponent);
+			AnimatorComponentData* pAnimatorData = pSkinnedData->GetAnimatorData();
+
+			if (pAnimatorData->GetPlaying())
+			{
+				const glm::mat4* pMatrices = pSkinnedData->GetMeshBoneMatrices();
+				for (uint i = 0; i < pAnimatorData->GetBoneCount(); i++)
+					_skinnedBoneMatrixBlock[i].Set(&pMatrices[i]);
+			}
+			else
+			{
+				for (uint i = 0; i < pAnimatorData->GetBoneCount(); i++)
+					_skinnedBoneMatrixBlock[i].Set(&Mat4::Identity);
+			}
+
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	SceneRenderer::UniformBufferGroup::UniformBufferGroup()

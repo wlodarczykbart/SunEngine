@@ -65,6 +65,7 @@ namespace SunEngine
 		bool GetConfigSection(const String& name, ConfigSection& section) const;
 		bool GetVariantProps(uint64 variantMask, StrMap<ShaderProp>** props) const;
 		//bool GetVariantDefines(uint64 variantMask, Vector<String>& defines) const;
+		bool ContainsVariants(uint64 variantMask) const;
 
 		const String& GetName() const { return _name; }
 

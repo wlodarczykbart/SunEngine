@@ -117,9 +117,10 @@ namespace SunEngine
 		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6);
 		bool CreateDepthMaterial(Material* pMaterial, uint64 variantMask, Material* pEmptyMaterial) const;
 		uint64 CalculateDepthVariantHash(Material* pMaterial, uint64 variantMask) const;
-		void UpdateShadowCascades(Scene* pScene, Vector<CameraBufferData>& cameraBuffersToFill);
+		void UpdateShadowCascades(Vector<CameraBufferData>& cameraBuffersToFill);
 		bool ShouldRender(const RenderNode* pNode) const;
 		uint64 GetVariantMask(const RenderNode* pNode) const;
+		bool PerformSkinningCheck(const RenderNode* pNode);
 
 		bool _bInit;
 		UniquePtr<UniformBufferData> _cameraBuffer;
@@ -146,6 +147,8 @@ namespace SunEngine
 
 		RenderTarget _skyTarget;
 		ShaderBindings _skyBindings;
+
+		AABB _shadowCasterAABB;
 	};
 
 }

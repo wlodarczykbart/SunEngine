@@ -61,6 +61,11 @@ namespace SunEngine
 		static const glm::mat4 Zero;
 	};
 
+	struct Quat
+	{
+		static const glm::quat Identity;
+	};
+
 	struct Ray
 	{
 		glm::vec3 Origin;

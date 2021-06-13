@@ -78,6 +78,9 @@ namespace SunEngine
         _splatLookup.resize(_resolution * _resolution);
         memset(_splatLookup.data(), 0x0, sizeof(Splat) * _splatLookup.size());
 
+        _heights.resize(_resolution * _resolution);
+        memset(_heights.data(), 0x0, sizeof(float) * _heights.size());
+
         glm::vec4 offset = -glm::vec4(halfRef, 0, halfRef, 0);
         float scaleFactor = _resolution / (float)(_resolution - 1);
         //scaleFactor=1.0f;
@@ -229,11 +232,7 @@ namespace SunEngine
 
     void Terrain::UpdateBiomes()
     {
-        TerrainVertex* pVerts = _mesh->GetVertices<TerrainVertex>();
-        for (uint i = 0; i < _mesh->GetVertexCount(); i++)
-        {
-            pVerts[i].Position.y = 0.0f;
-        }
+        memset(_heights.data(), 0x0, sizeof(float) * _heights.size());
 
         //Can this be threaded?
         for (auto& kv : _biomes)
@@ -257,7 +256,7 @@ namespace SunEngine
                         float height = biome->GetSmoothHeight(tx, ty);
                         if (biome->_invert) height = 1.0f - height;
                         height *= biome->_heightScale;
-                        height += biome->_heightOffset;
+                        //height += biome->_heightOffset;
                         int index = y * resx + x;
                         biome->_heights[index] = height;
                     }
@@ -266,6 +265,9 @@ namespace SunEngine
         }
 
         int halfRes = _resolution / 2;
+
+        Vector<Pair<glm::ivec2, float>> smoothLocations;
+        smoothLocations.reserve(halfRes);
 
         for (auto& kv : _biomes)
         {
@@ -279,6 +281,10 @@ namespace SunEngine
                 int halfResy = resy / 2;
 
                 glm::vec2 uvRange = glm::vec2(resx, resy);
+                glm::vec2 halfRange = uvRange / 2.0f;
+
+                int edgeSteps = 100;
+                float stepFactor = 1.0f / edgeSteps;
 
                 for (int y = 0; y < resy; y++)
                 {
@@ -290,18 +296,112 @@ namespace SunEngine
                             int posx = (x - halfResx) + biome->_center.x + halfRes;
                             if (posx >= 0 && posx < _resolution)
                             {
-                                glm::vec2 uv = glm::vec2(x, y) / uvRange;
-                                uv = uv * 2.0f - 1.0f;
-                                float t = 1.0f - glm::min(glm::length(uv), 1.0f); //TODO: apply some exponential function?
-                                t = t * t;
+                                float biomeHeight = biome->_heights[y * resx + x];
 
-                                float& height = pVerts[posy * _resolution + posx].Position.y;
-                                height = glm::mix(height, biome->_heights[y * resx + x], t);
+                                glm::vec2 v = glm::vec2(x, y);
+
+                                int xEdge = (x >= 0 && x < edgeSteps) ? 1 : ((x >= resx - edgeSteps && x < resx) ? 2 : 0);                                
+                                int yEdge = (y >= 0 && y < edgeSteps) ? 1 : ((y >= resy - edgeSteps && y < resy) ? 2 : 0);
+
+                                if (xEdge || yEdge)
+                                {
+                                    if (xEdge == 2)
+                                        v.x = edgeSteps - (resx - v.x);
+                                    else if (xEdge == 0)
+                                        v.x = 0.0f;
+                                    if (yEdge == 2)
+                                        v.y = edgeSteps - (resy - v.y);
+                                    else if (yEdge == 0)
+                                        v.y = 0.0f;
+
+                                    //if (xEdge)
+                                    //    v.y = 0.0f;
+                                    //else
+                                    //    v.x = 0.0f;
+
+
+                                    //v /= edgeSteps;
+                                    //v = v * 2.0f - 1.0f;
+
+                                    //v /= edgeSteps;
+                                    float t = xEdge ? v.x : v.y;
+                                    t /= edgeSteps;
+                                    t = 1.0f - t;
+                                   // t = t * 2.0f - 1.0f;
+                                   // t = sqrtf(t * t);
+
+
+                                    SetHeight(posx, posy, glm::mix(biomeHeight, GetHeight(posx, posy), t));
+                                }
+                                else
+                                {
+                                    float t = glm::min(1.0f, glm::length(v));
+                                    SetHeight(posx, posy, biomeHeight);
+                                }
+
+
+                                //glm::vec2 vabs = glm::abs(v);
+                                //vabs -= edgeSteps;
+                                //if (vabs.x > 0.0f && vabs.y > 0.0f)
+                                //{
+
+                                //}
+
+
+                                //smoothLocations.push_back({ glm::ivec2(posx, posy), 0.0f });
+
+                                //int xEdge = x == 0 ? -1 : (x == resx - 1 ? 1 : 0);
+                                //int yEdge = y == 0 ? -1 : (y == resy - 1 ? 1 : 0);
+
+                                //if (xEdge || yEdge)
+                                //{
+                                //    for (int ey = 0; ey <= edgeSteps * glm::abs(yEdge); ey++)
+                                //    {
+                                //        for (int ex = 0; ex <= edgeSteps * glm::abs(xEdge); ex++)
+                                //        {
+                                //            int stepx = posx + xEdge * ex;
+                                //            int stepy = posy + yEdge * ey;
+                                //            //int s = glm::max(ey, ex);
+
+                                //            if (stepx >= 0 && stepx < _resolution && stepy >= 0 && stepy < _resolution)
+                                //            {
+                                //                biomeHeight = biome->_heights[(y - yEdge * ey) * resx + (x - xEdge * ex)];
+                                //                float t = glm::min(1.0f, glm::length(glm::vec2(ex * stepFactor, ey * stepFactor)));
+
+                                //                t = 1.0f - t;
+                                //                t = t * t;
+                                //                t = 1.0f - t;
+
+                                //                //t = expf(1.0f - (1.0f / t * t));
+                                //                //float a = 2.0f;
+                                //                ////t = t * 2.0f - 1.0f;
+                                //                ////t = glm::abs(t);
+                                //                //t = glm::sin(t * glm::half_pi<float>());
+                                //                //t = (powf(a, 1.0f-t) - 1) / (a - 1);
+                                //                //t = 1.0f - t;
+                                //                SetHeight(stepx, stepy, glm::mix(biomeHeight, GetHeight(stepx, stepy), t));
+                                //                smoothLocations.push_back({ glm::ivec2(stepx, stepy), 0.0f });
+                                //            }
+                                //        }
+                                //    }
+                                //}
                             }
                         }
                     }
                 }
             }
+        }
+
+        for (uint i = 0; i < smoothLocations.size(); i++)
+            smoothLocations[i].second = GetSmoothHeight(smoothLocations[i].first.x, smoothLocations[i].first.y);
+
+        for (uint i = 0; i < smoothLocations.size(); i++)
+            SetHeight(smoothLocations[i].first.x, smoothLocations[i].first.y, smoothLocations[i].second);
+
+        TerrainVertex* pVerts = _mesh->GetVertices<TerrainVertex>();
+        for (uint i = 0; i < _heights.size(); i++)
+        {
+            pVerts[i].Position.y = _heights[i];
         }
 
         RecalcNormals();
@@ -321,9 +421,8 @@ namespace SunEngine
             for (uint x = 0; x < _resolution; x++)
             {
                 uint sliceX = x / sliceResolution;
-                uint vIndex = z * _resolution + x;
                 uint sIndex = sliceY * _slices + sliceX;
-                _sliceData[sIndex].aabb.ExpandY(pVerts[vIndex].Position.y);
+                _sliceData[sIndex].aabb.ExpandY(GetHeight(x, z));
             }
         }
 
@@ -580,6 +679,10 @@ namespace SunEngine
         const float baseGrassValue = 100.0f;
         const float baseRockValue = 400.0f;
 
+        float centerY = _mesh->GetAABB().GetCenter().y;
+        float minY = _mesh->GetAABB().Min.y;
+        float maxY = _mesh->GetAABB().Max.y;
+
         for (uint z = 0; z < _resolution; z++)
         {
             for (uint x = 0; x < _resolution; x++)
@@ -628,6 +731,42 @@ namespace SunEngine
         return true;
     }
 
+    float Terrain::GetSmoothHeight(uint x, uint y) const
+    {
+        float height = 0.0f;
+        int samples = 0;
+
+        for (int i = -1; i <= 1; i++)
+        {
+            int yi = y + i;
+            if (yi >= 0 && yi < _resolution)
+            {
+                for (int j = -1; j <= 1; j++)
+                {
+                    int xj = x + j;
+                    if (xj >= 0 && xj < _resolution)
+                    {
+                        uint index = yi * _resolution + xj;
+                        height += _heights[index];
+                        ++samples;
+                    }
+                }
+            }
+        }
+
+        return height / samples;
+    }
+
+    void Terrain::SetHeight(uint x, uint y, float value)
+    {
+        _heights[y * _resolution + x] = value;
+    }
+
+    float Terrain::GetHeight(uint x, uint y) const
+    {
+        return _heights[y * _resolution + x];
+    }
+
     Terrain::Biome::Biome(const String& name)
     {
         _name = name;
@@ -651,6 +790,7 @@ namespace SunEngine
 
                 bool isFloatTexture = pTexture->GetImageFlags() & ImageData::SAMPLED_TEXTURE_R32F;
                 float maxHeight = -FLT_MAX;
+                float minHeight = FLT_MAX;
 
                 for (uint y = 0; y < pTexture->GetHeight(); y++)
                 {
@@ -668,6 +808,7 @@ namespace SunEngine
                             _normalizedTextureHeights[index] = (float)p.R;
                         }
                         maxHeight = glm::max(maxHeight, _normalizedTextureHeights[index]);
+                        minHeight = glm::min(minHeight, _normalizedTextureHeights[index]);
                     }
                 }
 
@@ -676,6 +817,7 @@ namespace SunEngine
                     for (uint x = 0; x < pTexture->GetWidth(); x++)
                     {
                         uint index = y * pTexture->GetWidth() + x;
+                        _normalizedTextureHeights[index] -= minHeight;
                         _normalizedTextureHeights[index] /= maxHeight;
                     }
                 }

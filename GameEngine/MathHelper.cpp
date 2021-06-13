@@ -29,4 +29,6 @@ namespace SunEngine
 
 	const glm::mat4 Mat4::Identity = glm::mat4(1.0f);
 	const glm::mat4 Mat4::Zero = glm::mat4(0.0f);
+
+	const glm::quat Quat::Identity = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 }

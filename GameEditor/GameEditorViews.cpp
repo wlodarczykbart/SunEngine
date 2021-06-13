@@ -376,7 +376,9 @@ namespace SunEngine
 			return false;
 
 		if (!_fxaaData.bindings.SetTexture(MaterialStrings::DiffuseMap, _toneMapTarget.GetColorTexture()))
-			return false;
+		{
+			//return false;
+		}
 
 		_resizeOccured = true;
 
@@ -623,7 +625,7 @@ namespace SunEngine
 		if (!_bindings.Create(bindingInfo))
 			return false;
 
-		if (!_bindings.SetTexture(MaterialStrings::DiffuseMap, _renderer->GetShadowMapTexture()))
+		if (!_bindings.SetTexture(MaterialStrings::DiffuseMap, _renderer->GetShadowMapTexture() ? _renderer->GetShadowMapTexture() : ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::White)->GetGPUObject()))
 			return false;
 		if (!_bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE)))
 			return false;

@@ -329,9 +329,9 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
-			//SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			//pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
-			//pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
+			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
+			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
+			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
 		int Slices = 4*1;
@@ -356,7 +356,7 @@ namespace SunEngine
 		}
 
 		Asset* pAssetTerrain = resMgr.AddAsset("Terrain");
-		//if(false)
+		if(false)
 		{
 			AssetNode* pRoot = pAssetTerrain->AddNode("Terrain");
 			Terrain* pTerrain = pRoot->AddComponent(new Terrain())->As<Terrain>();
@@ -446,8 +446,12 @@ namespace SunEngine
 		//Asset* pAsset = ImportAsset(strAsset, SunEngine::AssetImporter::Options::Default);
 		////pAsset->GetRoot()->Scale *= 0.01f;
 
-		String strAsset = "F:/Models/FBX/_Animated_/teddy.fbx";
-		strAsset = "F:/Models/Scenes/EmeraldSquare1024/EmeraldSquare.fbx";
+		String strAsset = "F:/Models/FBX/_Animated_/shark/Silvertip+Shark.fbx";
+		//strAsset = "F:/Models/FBX/_Animated_/zombii.fbx";
+		strAsset = "F:/Models/FBX/_Animated_/new/48-cat_rigged/cat_rigged.fbx";
+		//strAsset = "F:/Models/FBX/_Animated_/golem/golem.fbx";
+		//strAsset = "F:/GraphicsSamples/ogldev-source/Content/boblampclean.md5mesh";
+		//strAsset = "F:/Models/Scenes/EmeraldSquare1024/EmeraldSquare.fbx";
 		//strAsset = "F:/Downloads/SunTemple_v3/SunTemple/SunTemple.fbx";
 		//strAsset = "F:/Models/OBJ/Small_Tropical_Island/Small Tropical Island.obj";
 		//strAsset = "F:/Models/FBX/_PHONG_/RuralStallObj/RuralStall_phong.fbx";
@@ -458,10 +462,13 @@ namespace SunEngine
 		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
 		//strAsset = "F:/Models/FBX/_PHONG_/Wooden_barrels__OBJ/Wooden_barrels.FBX";
 
-		//auto options = SunEngine::AssetImporter::Options::Default;
-		//options.MaxTextureSize = 1024;
-		//Asset* pAsset = ImportAsset(strAsset, options);
-		//pAsset->CreateSceneNode(pScene,  200);
+		auto options = SunEngine::AssetImporter::Options::Default;
+		options.MaxTextureSize = 1024;
+		Asset* pAsset = ImportAsset(strAsset, options);
+		if (pAsset)
+			pAsset->CreateSceneNode(pScene, 4);
+		else
+			spdlog::warn("Failed to load {}", strAsset);
 
 		return true;
 	}

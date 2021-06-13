@@ -150,6 +150,7 @@ namespace SunEngine
 
 		uint GetComponentsOfType(ComponentType type, Vector<Component*>& components) const;
 		Component* GetComponentOfType(ComponentType type) const;
+		Component* GetComponentOfType(ComponentType type, bool(*ConditionFunc)(const Component* pComponent, void* pData), void* pData) const;
 
 	protected:
 		void SetParentVisible(bool parentVisible);

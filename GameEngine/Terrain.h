@@ -136,6 +136,10 @@ namespace SunEngine
 		void IncrementSplat(uint x, uint y, uint index, float value);
 		void DecrementSplat(uint x, uint y, uint index, float value);
 		bool BuildSplatArray();
+		float GetSmoothHeight(uint x, uint y) const;
+		void SetHeight(uint x, uint y, float value);
+		float GetHeight(uint x, uint y) const;
+
 
 		uint _resolution;
 		uint _slices;
@@ -147,6 +151,7 @@ namespace SunEngine
 		UniquePtr<Texture2DArray> _diffuseMapArray;
 		UniquePtr<Texture2DArray> _normalMapArray;
 		UniquePtr<Texture2DArray> _splatMapArray;
+		Vector<float> _heights;
 
 		Vector<Splat> _splatLookup;
 		float _textureTiling[EngineInfo::Renderer::Limits::MaxTerrainTextures];

@@ -10,14 +10,44 @@ namespace SunEngine
 		_time = 0.0f;
 		_percent = 0.0f;
 		_speed = 1.0f;
-		_playing = false;
+		_playing = true;
 		_loop = true;
+		_boneUpdateCount = 0;
 		_boneData.resize(boneCount);
 	}
 
 	void AnimatorComponentData::SetClip(uint clip)
 	{
 		_clip = glm::min(clip, C()->As<Animator>()->GetClipCount() - 1);
+	}
+
+	void AnimatorComponentData::RegisterBone(AnimatedBoneComponentData* pBoneData)
+	{
+		_boneData[pBoneData->C()->As<AnimatedBone>()->GetBoneIndex()] = pBoneData;
+	}
+
+	void AnimatorComponentData::IncrementBoneUpdates()
+	{
+		if (_boneUpdateCount < _boneData.size())
+		{
+			++_boneUpdateCount;
+			if (_boneUpdateCount == _boneData.size())
+			{
+				//This call will do nothing if the mesh hasn't been updated yet, but if it has then it will want the mesh bones updated
+				//because it couldn't do so at the point its update was called due to the bones being located after the mesh in the hierarchy
+				for (auto pMesh : _meshData)
+					pMesh->UpdateBoneMatrices();
+			}
+		}
+		else
+		{
+			assert(false);
+		}
+	}
+
+	glm::mat4 AnimatorComponentData::CalcSkinnedBoneMatrix(uint skinIndex, uint boneIndex) const
+	{
+		return _boneData[boneIndex]->GetNode()->GetWorld() * _boneData[boneIndex]->C()->As<AnimatedBone>()->GetSkinMatrix(skinIndex);
 	}
 
 	Animator::Animator()
@@ -32,6 +62,10 @@ namespace SunEngine
 	void Animator::Update(SceneNode*, ComponentData* pData, float dt, float)
 	{
 		auto* data = pData->As<AnimatorComponentData>();
+
+		data->_boneUpdateCount = 0;
+		for (auto pMesh : data->_meshData)
+			pMesh->_bUpdateCalled = false;
 
 		if(!data->ShouldUpdate())
 			return;
@@ -85,7 +119,11 @@ namespace SunEngine
 
 	ComponentData* AnimatedBone::AllocData(SceneNode* pNode)
 	{
-		return new AnimatedBoneComponentData(this, pNode, pNode->GetComponentDataInParent(COMPONENT_ANIMATOR)->As<AnimatorComponentData>());
+		AnimatorComponentData* pAnimData = pNode->GetComponentDataInParent(COMPONENT_ANIMATOR)->As<AnimatorComponentData>();
+		auto* pBoneData = new AnimatedBoneComponentData(this, pNode);
+		pBoneData->_animatorData = pAnimData;
+		pAnimData->RegisterBone(pBoneData);
+		return pBoneData;
 	}
 
 	void AnimatedBone::Update(SceneNode* pNode, ComponentData* pData, float, float)
@@ -110,12 +148,20 @@ namespace SunEngine
 		pNode->Orientation.Mode = ORIENT_QUAT;
 
 		pNode->UpdateTransform();
-		animator->SetBone(_boneIndex, data);
+		animator->IncrementBoneUpdates();
+	}
+
+	AnimatedBone::Transform::Transform()
+	{
+		position = Vec3::Zero;
+		scale = Vec3::One;
+		rotation = Quat::Identity;
 	}
 
 	SkinnedMesh::SkinnedMesh()
 	{
 		_skinIndex = 0;
+		_mesh = 0;
 	}
 
 	SkinnedMesh::~SkinnedMesh()
@@ -124,6 +170,40 @@ namespace SunEngine
 
 	ComponentData* SkinnedMesh::AllocData(SceneNode* pNode)
 	{
-		return new SkinnedMeshComponentData(this, pNode, pNode->GetComponentDataInParent(COMPONENT_ANIMATOR)->As<AnimatorComponentData>());
+		auto pAnimData = pNode->GetComponentDataInParent(COMPONENT_ANIMATOR)->As<AnimatorComponentData>();
+		SkinnedMeshComponentData* pMeshData = new SkinnedMeshComponentData(this, pNode);
+		pMeshData->_animatorData = pAnimData;
+		pAnimData->RegisterMesh(pMeshData);
+		pMeshData->_meshBoneMatrices.resize(pAnimData->C()->As<Animator>()->GetBoneCount());
+		return pMeshData;
+	}
+
+	void SkinnedMesh::Update(SceneNode* pNode, ComponentData* pData, float, float)
+	{
+		auto data = pData->As<SkinnedMeshComponentData>();
+
+		data->_bUpdateCalled = true;
+
+		//The mesh is located after the skeleton hierarchy, need to update toe bones now as the call to UpdateBoneMatrices in the animator wouldn't have done anything
+		//due to the mesh not being updated yet
+		if (data->_animatorData->GetBoneUpdateCount() == data->_meshBoneMatrices.size())
+			data->UpdateBoneMatrices();
+	}
+
+	SkinnedMeshComponentData::SkinnedMeshComponentData(Component* pComponent, SceneNode* pNode) : ComponentData(pComponent, pNode)
+	{
+		_bUpdateCalled = false;
+		_animatorData = 0;
+	}
+
+	void SkinnedMeshComponentData::UpdateBoneMatrices()
+	{
+		if (_bUpdateCalled)
+		{
+			glm::mat4 invMtx = glm::inverse(GetNode()->GetWorld());
+			const SkinnedMesh* pMesh = C()->As <SkinnedMesh>();
+			for (uint i = 0; i < _meshBoneMatrices.size(); i++)
+				_meshBoneMatrices[i] = invMtx * _animatorData->CalcSkinnedBoneMatrix(pMesh->GetSkinIndex(), i);
+		}
 	}
 }

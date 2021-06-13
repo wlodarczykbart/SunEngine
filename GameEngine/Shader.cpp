@@ -257,6 +257,16 @@ namespace SunEngine
 		}
 	}
 
+	bool Shader::ContainsVariants(uint64 variantMask) const
+	{
+		for (auto iter = _variants.begin(); iter != _variants.end(); ++iter)
+		{
+			if ((*iter).first & variantMask)
+				return true;
+		}
+		return false;
+	}
+
 	//bool Shader::GetVariantDefines(uint64 variantMask, Vector<String>& defines) const
 	//{
 	//	auto found = _variants.find(variantMask);

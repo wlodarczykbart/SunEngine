@@ -33,7 +33,9 @@ namespace SunEngine
 		void BuildPipelineSettings(PipelineSettings& settings) const override;
 		
 	protected:
-		RenderComponentData* AllocRenderData(SceneNode* pNode) { return new MeshRendererComponentData(this, pNode); }
+		MeshRenderer(RenderObjectType renderTypeOverride);
+
+		virtual RenderComponentData* AllocRenderData(SceneNode* pNode) override { return new MeshRendererComponentData(this, pNode); }
 		bool RequestData(RenderNode* pNode, RenderComponentData* pData, Mesh*& pMesh, Material*& pMaterial, const glm::mat4*& worldMtx, const AABB*& aabb, uint& idxCount, uint& instanceCount, uint& firstIdx, uint& vtxOffset) const override;
 
 	private:
