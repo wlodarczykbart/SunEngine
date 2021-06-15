@@ -62,6 +62,7 @@ namespace SunEngine
 				bool showRenderer;
 				bool showEnvironments;
 			} gui;
+
 		};
 
 		SceneView(SceneRenderer* pRenderer);
@@ -132,6 +133,21 @@ namespace SunEngine
 		ShaderBindings _bindings;
 		GraphicsPipeline _pipeline;
 		SceneRenderer* _renderer;
+	};
+
+	class Texture2DView : public View
+	{
+	public:
+		Texture2DView();
+
+	private:
+		bool OnCreate(const CreateInfo&) override;
+		bool Render(CommandBuffer* cmdBuffer) override;
+		void RenderGUI(GUIRenderer* pRenderer) override;
+		uint GetGUIColumns() const override { return 2; }
+
+		ShaderBindings _bindings;
+		GraphicsPipeline _pipeline;
 	};
 
 }

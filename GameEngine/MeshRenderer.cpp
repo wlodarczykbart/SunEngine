@@ -35,7 +35,7 @@ namespace SunEngine
 
 	void MeshRenderer::BuildPipelineSettings(PipelineSettings& settings) const
 	{
-		settings.inputAssembly.topology = SE_PT_TRIANGLE_LIST;
+		settings.inputAssembly.topology = _mesh->GetPrimitiveTopology();
 	}
 
 	bool MeshRenderer::RequestData(RenderNode* pNode, RenderComponentData* pData, Mesh*& pMesh, Material*& pMaterial, const glm::mat4*& worldMtx, const AABB*& aabb, uint& idxCount, uint& instanceCount, uint& firstIdx, uint& vtxOffset) const

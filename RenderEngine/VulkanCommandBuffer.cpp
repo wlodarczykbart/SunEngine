@@ -84,21 +84,23 @@ namespace SunEngine
 
 		_currentRenderPass = {};
 		_currentPipeline = VK_NULL_HANDLE;
+		_currentPipelineLayout = VK_NULL_HANDLE;
 		_currentNumTargets = 0;
 		_currentMSAAMode = SE_MSAA_OFF;
 	}
 
-	void VulkanCommandBuffer::BindPipeline(VkPipelineBindPoint bindPoint, VkPipeline pipeline)
+	void VulkanCommandBuffer::BindPipeline(VkPipelineBindPoint bindPoint, VkPipeline pipeline, VkPipelineLayout layout)
 	{
 		vkCmdBindPipeline(_cmdBuffer, bindPoint, pipeline);
 		_currentPipeline = pipeline;
+		_currentPipelineLayout = layout;
 	}
 
-	void VulkanCommandBuffer::BindDescriptorSets(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets)
+	void VulkanCommandBuffer::BindDescriptorSets(VkPipelineBindPoint bindPoint, uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets)
 	{
 		(void)dynamicOffsetCount;
 		(void)pDynamicOffsets;
-		vkCmdBindDescriptorSets(_cmdBuffer, bindPoint, layout, firstSet, setCount, pSets, dynamicOffsetCount, pDynamicOffsets);
+		vkCmdBindDescriptorSets(_cmdBuffer, bindPoint, _currentPipelineLayout, firstSet, setCount, pSets, dynamicOffsetCount, pDynamicOffsets);
 	}
 
 	void VulkanCommandBuffer::BindVertexBuffer(VkBuffer buffer, VkDeviceSize offset)

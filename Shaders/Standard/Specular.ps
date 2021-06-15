@@ -4,8 +4,9 @@
 
 Texture2D DiffuseMap;
 Texture2D SpecularMap;
+//TODO add GlossMap
 Texture2D NormalMap;
-Texture2D AOMap;
+Texture2D AmbientOcclusionMap;
 Texture2D AlphaMap;
 SamplerState Sampler;
 
@@ -32,92 +33,31 @@ struct PS_In
 #endif	
 };
 
-#ifdef ALPHA_TEST
-float hash( float2 inCoord ) {
-return frac( 1.0e4 * sin( 17.0*inCoord.x + 0.1*inCoord.y ) *
-( 0.1 + abs( sin( 13.0*inCoord.y + inCoord.x )))
-);
-}
 
-float hash3D( float3 inCoord ) {
-return hash( float2( hash( inCoord.xy ), inCoord.z ) );
-}
-
-float CalcAlphaThreshold(float3 objCoord)
-{
-	float g_HashScale = 1.0;
-	
-	// Find the discretized derivatives of our coordinates
-	float maxDeriv = max( length(ddy(objCoord.xyz)),
-	length(ddy(objCoord.xyz)) );
-	float pixScale = 1.0/(g_HashScale*maxDeriv);
-	// Find two nearest log-discretized noise scales
-	float2 pixScales = float2( exp2(floor(log2(pixScale))),
-	exp2(ceil(log2(pixScale))) );
-	// Compute alpha thresholds at our two noise scales
-	float2 alpha=float2(hash3D(floor(pixScales.x*objCoord.xyz)),
-	hash3D(floor(pixScales.y*objCoord.xyz)));
-	// Factor to interpolate lerp with
-	float lerpFactor = frac( log2(pixScale) );
-	// Interpolate alpha threshold from noise at two scales
-	float x = (1-lerpFactor)*alpha.x + lerpFactor*alpha.y;
-	// Pass into CDF to compute uniformly distrib threshold
-	float a = min( lerpFactor, 1-lerpFactor );
-	float3 cases = float3( x*x/(2*a*(1-a)),
-	(x-0.5*a)/(1-a),
-	1.0-((1-x)*(1-x)/(2*a*(1-a))) );
-	// Find our final, uniformly distributed alpha threshold
-	float t = (x < (1-a)) ?
-	((x < a) ? cases.x : cases.y) :
-	cases.z;
-	// Avoids t == 0. Could also do t =1-t
-	return clamp( t , 1.0e-6, 1.0 );
-}
-
-float CalcMipLevel(float2 texture_coord)
-{
-	float2 dx = ddx(texture_coord);
-	float2 dy = ddy(texture_coord);
-	float delta_max_sqr = max(dot(dx, dx), dot(dy, dy));
-	
-	return max(0.0, 0.5 * log2(delta_max_sqr));
-}
-#endif
-
+#ifndef DEPTH
 PS_Out main(PS_In pIn)
 {	
 	PS_Out pOut;
-	
-#if defined(DEPTH) && !defined(ALPHA_TEST)	
-	pOut.color = float4(0,0,0,1);
-	return pOut;
-#else	
 	float2 texCoord = pIn.texCoord.xy;
 
 	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * DiffuseColor;
 	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
-#ifdef ALPHA_TEST
-	//float2 alphaTexSize;
-	//AlphaMap.GetDimensions(alphaTexSize.x, alphaTexSize.y);
-	//diffuse.a *= 1 + max(0, CalcMipLevel(texCoord * alphaTexSize)) * 0.25;
-	//diffuse.a = (diffuse.a - 0.5) / max(fwidth(diffuse.a), 0.0001) + 0.5;
-	
-	diffuse.a *= 2.0;
+#ifdef ALPHA_TEST	
+	//diffuse.a *= 2.0;
 	float threshold = CalcAlphaThreshold(pIn.objectCoord.xyz);	
 	//float threshold = 0.5;
 	clip(diffuse.a - threshold);
 #endif
 
-#if defined(DEPTH) && defined(ALPHA_TEST)	
-	pOut.color = float4(0,0,0,1);
-	return pOut;
-#endif
-
-#ifndef DEPTH
 	float3 albedo = diffuse.rgb;
 	float3 f0 = SpecularColor * SpecularMap.Sample(Sampler, texCoord).r;
 	float smoothness = Smoothness;
-	float ao = AOMap.Sample(Sampler, texCoord).r;
+	float ao = AmbientOcclusionMap.Sample(Sampler, texCoord).r;
+	
+//HACK: to get the AlphaMap to not be optimized from the shader... Solution could be to pack one channel textures into one texture
+#ifdef GBUFFER
+	ao = lerp(ao, diffuse.a, pIn.normal.w);
+#endif		
 		
 	float3x3 tbn;
 	tbn[0] = normalize(pIn.tangent.xyz);
@@ -131,6 +71,19 @@ PS_Out main(PS_In pIn)
 	pOut.color.a = diffuse.a;
 #endif
 	return pOut;
-#endif
-#endif
 }
+
+#else
+
+void main(PS_In pIn)
+{
+#ifdef ALPHA_TEST
+	float2 texCoord = pIn.texCoord.xy;
+	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * DiffuseColor;
+	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
+	float threshold = 0.5;
+	clip(diffuse.a - threshold);	
+#endif
+};
+
+#endif

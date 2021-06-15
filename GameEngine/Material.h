@@ -18,9 +18,10 @@ namespace SunEngine
 		static const String DiffuseMap;
 		static const String NormalMap;
 		static const String SpecularMap;
-		static const String MetalMap;
+		static const String GlossMap;
+		static const String MetallicMap;
 		static const String AmbientOcclusionMap;
-		static const String SmoothnessMap;
+		static const String RoughnessMap;
 		static const String DiffuseColor;
 		static const String SpecularColor;
 		static const String Smoothness;

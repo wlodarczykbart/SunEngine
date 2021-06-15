@@ -31,6 +31,17 @@ namespace SunEngine
 			float color[4];
 		};
 
+		class UpdateCommand
+		{
+		public:
+			UpdateCommand() {};
+			virtual ~UpdateCommand() {};
+
+			virtual bool Execute() = 0;
+		};
+
+		void PushUpdateCommand(UpdateCommand* cmd) { _updateCommands.push(UniquePtr<UpdateCommand>(cmd)); }
+
 		GUIRenderer();
 		GUIRenderer(const GUIRenderer&) = delete;
 		GUIRenderer& operator = (const GUIRenderer&) = delete;
@@ -44,19 +55,6 @@ namespace SunEngine
 		bool UpdateView(View* pView);
 
 		Editor* GetEditor() const { return _pEditor; }
-
-	protected:
-		class UpdateCommand
-		{
-		public:
-			UpdateCommand() {};
-			virtual ~UpdateCommand() {};
-
-			virtual bool Execute() = 0;
-		};
-
-		void PushUpdateCommand(UpdateCommand* cmd) { _updateCommands.push(UniquePtr<UpdateCommand>(cmd)); }
-
 	private:
 		bool SetupPlatform();
 		bool SetupGraphics();

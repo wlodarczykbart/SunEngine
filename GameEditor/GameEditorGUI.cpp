@@ -10,6 +10,7 @@
 #include "SceneMgr.h"
 #include "Environment.h"
 #include "ShaderMgr.h"
+#include "FilePathMgr.h"
 #include "GameEditorGUI.h"
 
 //#define TEST_IMGUI_BASIC
@@ -403,6 +404,25 @@ namespace SunEngine
 		bool& showRenderer = settings.gui.showRenderer;
 		if (showRenderer && ImGui::Begin("Renderer", &showRenderer))
 		{
+			if (ImGui::TreeNode("RenderMode"))
+			{
+				auto renderMode = EngineInfo::GetRenderer().RenderMode();
+
+				bool renderModes[4] = {};
+				renderModes[renderMode] = true;
+
+				ImGui::Checkbox("Forward", &renderModes[EngineInfo::Renderer::Forward]);
+				ImGui::Checkbox("Deferred", &renderModes[EngineInfo::Renderer::Deferred]);
+
+				for (uint i = 0; i < SE_ARR_SIZE(renderModes); i++)
+				{
+					if (renderModes[i] && i != renderMode)
+						EngineInfo::GetRenderer().SetRenderMode(EngineInfo::Renderer::ERenderMode(i));
+				}
+
+				ImGui::TreePop();
+			}
+
 			if (ImGui::TreeNode("FXAA"))
 			{
 				ImGui::Checkbox("Enabled", &settings.fxaa.enabled);

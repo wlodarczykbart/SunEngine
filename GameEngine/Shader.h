@@ -76,7 +76,7 @@ namespace SunEngine
 		void ParseSamplerAnisotropy(const String& str, FilterMode& fm, WrapMode& wm, AnisotropicMode& am) const;
 		void ParseFloats(const String& str, uint maxComponents, float* pData) const;
 
-		struct ShaderVariant
+		struct ShaderVariantData
 		{
 			BaseShader shader;
 			StrMap<ShaderProp> defaults;
@@ -85,6 +85,6 @@ namespace SunEngine
 
 		String _name;
 		ConfigFile _config;
-		Map<uint64, UniquePtr<ShaderVariant>> _variants;
+		Map<uint64, UniquePtr<ShaderVariantData>> _variants;
 	};
 }

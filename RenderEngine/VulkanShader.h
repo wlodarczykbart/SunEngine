@@ -39,7 +39,6 @@ namespace SunEngine
 		VkDescriptorSet GetCurrentSet() const;
 
 		uint _setNumber;
-		VulkanShader* _shader;
 		Vector<VkDescriptorSet> _sets;
 		VkDescriptorSetLayout _layout;
 		StrMap<Pair<uint, VulkanObject*>> _bindingMap;

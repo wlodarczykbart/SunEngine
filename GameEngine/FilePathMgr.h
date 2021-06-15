@@ -51,6 +51,8 @@ namespace SunEngine
 			bool ShadowsEnabled() const { return _shadowsEnabled; }
 			MSAAMode GetMSAAMode() const { return _msaaMode; }
 
+			void SetRenderMode(ERenderMode mode) { _renderMode = mode; }
+
 		private:
 			friend class EngineInfo;
 			Renderer() = default;
@@ -90,7 +92,7 @@ namespace SunEngine
 			StrMap<String> _paths;
 		};
 
-		static const Renderer& GetRenderer()  { return Get()._renderer; }
+		static Renderer& GetRenderer() { return Get()._renderer; }
 		static const Paths& GetPaths() { return Get()._paths; }
 
 	private:

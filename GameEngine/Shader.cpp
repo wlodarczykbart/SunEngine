@@ -101,8 +101,8 @@ namespace SunEngine
 			return false;
 		}
 
-		ShaderVariant* pBase = new ShaderVariant();
-		_variants[0] = UniquePtr<ShaderVariant>(pBase);
+		ShaderVariantData* pBase = new ShaderVariantData();
+		_variants[0] = UniquePtr<ShaderVariantData>(pBase);
 		if (!pBase->shader.Create(baseCompiler.GetCreateInfo()))
 		{
 			if (pErrStr)
@@ -165,8 +165,8 @@ namespace SunEngine
 					return false;
 				}
 
-				ShaderVariant* pVariant = new ShaderVariant();
-				_variants[variantMask] = UniquePtr<ShaderVariant>(pVariant);
+				ShaderVariantData* pVariant = new ShaderVariantData();
+				_variants[variantMask] = UniquePtr<ShaderVariantData>(pVariant);
 				if (!pVariant->shader.Create(variantCompiler.GetCreateInfo()))
 				{
 					if (pErrStr)

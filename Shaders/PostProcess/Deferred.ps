@@ -34,10 +34,10 @@ float4 main(PS_In pIn) : SV_TARGET
 	}
 	
 	float4 specular = SpecularMap.Sample(Sampler, pIn.texCoord);
-	float4 normal = NormalMap.Sample(Sampler, pIn.texCoord);
-	float4 position = PositionMap.Sample(Sampler, pIn.texCoord);
+	float3 normal = decode(NormalMap.Sample(Sampler, pIn.texCoord).xy);
+	float3 position = PositionMap.Sample(Sampler, pIn.texCoord).xyz;
 	
 	PS_Out pOut;
-	ShadePixel(albedo.rgb, albedo.a, specular.rgb, specular.a, normal.xyz, position.xyz, pIn.texCoord, pOut);
+	ShadePixel(albedo.rgb, albedo.a, specular.rgb, specular.a, normal, position, pIn.texCoord, pOut);
 	return float4(pOut.color.rgb, 1.0);
 }

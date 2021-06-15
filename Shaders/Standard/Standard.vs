@@ -50,17 +50,15 @@ PS_In main(VS_In vIn)
 	SkinnedWorldMatrix = mul(SkinnedWorldMatrix, WorldMatrix);
 #endif	
 	
-	pIn.clipPos = mul(mul(vIn.position, WORLD_MATRIX), ViewProjectionMatrix);
+	float4 worldPos = mul(vIn.position, WORLD_MATRIX);
+	pIn.clipPos = mul(worldPos, ViewProjectionMatrix);
 	
 #if !defined(DEPTH) || (defined(DEPTH) && defined(ALPHA_TEST))	
 	pIn.texCoord = vIn.texCoord;
 #endif
 	
 #ifndef DEPTH	
-	pIn.position = mul(vIn.position, WORLD_MATRIX);
-#ifdef ALPHA_TEST
-	pIn.objectCoord = pIn.position;
-#endif		
+	pIn.position = worldPos;	
 	pIn.normal = mul(float4(vIn.normal.xyz, 0.0), WORLD_MATRIX);
 	pIn.tangent = mul(float4(vIn.tangent.xyz, 0.0), WORLD_MATRIX);
 	
@@ -69,7 +67,12 @@ PS_In main(VS_In vIn)
 	pIn.normal = mul(pIn.normal, ViewMatrix);
 	pIn.tangent = mul(pIn.tangent, ViewMatrix);
 #endif
+
 #endif
+
+#ifdef ALPHA_TEST
+	pIn.objectCoord = worldPos;
+#endif	
 	
 	return pIn;
 }

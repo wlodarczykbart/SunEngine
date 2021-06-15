@@ -83,13 +83,10 @@ namespace SunEngine
 
 		uint GetVertexCount() const { return _vertices.size() / _vertexDef.NumVars; }
 		uint GetIndexCount() const { return _indices.size(); }
-		uint GetTriCount() const { return _indices.size() / 3; }
 		uint GetVertexStride() const { return sizeof(glm::vec4) * _vertexDef.NumVars; }
 
 		void SetVertexVar(uint vertexIndex, const glm::vec4& value, uint varIndex = 0);
-		void SetTri(uint triIndex, uint t0, uint t1, uint t2);
-		void GetTri(uint triIndex, uint& t0, uint& t1, uint& t2) const;
-		
+
 		template<typename T>
 		T* GetVertices()
 		{
@@ -118,11 +115,15 @@ namespace SunEngine
 
 		bool UpdateVertices();
 
+		void SetPrimitiveToplogy(PrimitiveTopology topology) { _primitiveTopology = topology; }
+		PrimitiveTopology GetPrimitiveTopology() const { return _primitiveTopology; }
+
 	private:
 		VertexDef _vertexDef;
 		Vector<glm::vec4> _vertices;
 		Vector<uint> _indices;
 		AABB _aabb;
 		Sphere _sphere;
+		PrimitiveTopology _primitiveTopology;
 	};
 }

@@ -346,8 +346,8 @@ namespace SunEngine
 
 			if (pMtl->DiffuseMap) importerTextures[MaterialStrings::DiffuseMap] = pMtl->DiffuseMap;
 
-			if (pMtl->SpecularFactorMap) importerTextures[MaterialStrings::MetalMap] = pMtl->SpecularFactorMap;
-			else if (pMtl->SpecularMap) importerTextures[MaterialStrings::MetalMap] = pMtl->SpecularMap;
+			if (pMtl->SpecularFactorMap) importerTextures[MaterialStrings::MetallicMap] = pMtl->SpecularFactorMap;
+			else if (pMtl->SpecularMap) importerTextures[MaterialStrings::MetallicMap] = pMtl->SpecularMap;
 
 			if (pMtl->NormalMap) importerTextures[MaterialStrings::NormalMap] = pMtl->NormalMap;
 			else if (pMtl->BumpMap) importerTextures[MaterialStrings::NormalMap] = pMtl->BumpMap;
@@ -470,6 +470,17 @@ namespace SunEngine
 
 namespace SunEngine
 {
+	namespace CustomTextureTypes
+	{
+		const String Roughness = "Roughness";
+		const String DiffuseRoughness = "DiffuseRoughness";
+		const String RoughnessMetallic = "RoughnessMetallic";
+		const String OcclusionRoughnessMetallic = "OcclusionRoughnessMetallic";
+		const String SpecularGlossiness = "SpecularGlossiness";
+		const String MetallicRoughness = "MetallicRoughness";
+		const String Invalid = "Invalid";
+	}
+
 	AssetImporter::Options MakeDefaultImporterOptions()
 	{
 		AssetImporter::Options opt;
@@ -505,8 +516,8 @@ namespace SunEngine
 
 	bool ParseMesh(aiMesh* pSrc, Mesh* pDst, Material* pMtl, const StrMap<uint>& boneIndexLookup)
 	{
-		pDst->AllocIndices(pSrc->mNumFaces * 3);
-		pDst->AllocVertices(pSrc->mNumVertices, pSrc->HasBones() ? SkinnedVertex::Definition : StandardVertex::Definition);
+		bool skinSupport = boneIndexLookup.size() > 0;
+		pDst->AllocVertices(pSrc->mNumVertices, pSrc->HasBones() && skinSupport ? SkinnedVertex::Definition : StandardVertex::Definition);
 
 		for (uint i = 0; i < pSrc->mNumVertices; i++)
 		{
@@ -517,13 +528,23 @@ namespace SunEngine
 				uv.y = 1.0f - uv.y;
 				pDst->SetVertexVar(i, uv, VertexDef::DEFAULT_TEX_COORD_INDEX);
 			}
+			else
+			{
+				pDst->SetVertexVar(i, Vec4::Zero, VertexDef::DEFAULT_TEX_COORD_INDEX);
+			}
+
 			if(pSrc->HasNormals())
 				pDst->SetVertexVar(i, glm::vec4(FromAssimp(pSrc->mNormals[i]), 0.0f), VertexDef::DEFAULT_NORMAL_INDEX);
+			else
+				pDst->SetVertexVar(i, Vec4::Up, VertexDef::DEFAULT_NORMAL_INDEX);
+
 			if(pSrc->HasTangentsAndBitangents())
 				pDst->SetVertexVar(i, glm::vec4(FromAssimp(pSrc->mTangents[i]), 0.0f), VertexDef::DEFAULT_TANGENT_INDEX);
+			else
+				pDst->SetVertexVar(i, Vec4::Right, VertexDef::DEFAULT_TANGENT_INDEX);
 		}
 
-		if (pSrc->HasBones())
+		if (pSrc->HasBones() && skinSupport)
 		{
 			struct VertexBoneData
 			{
@@ -582,11 +603,35 @@ namespace SunEngine
 			}
 		}
 
+		Vector<uint> indexBuffer;
+
+		switch (pSrc->mPrimitiveTypes)
+		{
+		case aiPrimitiveType_POINT:
+			pDst->SetPrimitiveToplogy(SE_PT_POINT_LIST);
+			indexBuffer.reserve(pSrc->mNumFaces);
+			break;
+		case aiPrimitiveType_LINE:
+			pDst->SetPrimitiveToplogy(SE_PT_LINE_LIST);
+			indexBuffer.reserve(pSrc->mNumFaces * 2);
+			break;
+		case aiPrimitiveType_TRIANGLE:
+			pDst->SetPrimitiveToplogy(SE_PT_TRIANGLE_LIST);
+			indexBuffer.reserve(pSrc->mNumFaces * 3);
+			break;
+		default:
+			return false;
+		}
+
 		for (uint i = 0; i < pSrc->mNumFaces; i++)
 		{
-			auto& tri = pSrc->mFaces[i];
-			pDst->SetTri(i, tri.mIndices[0], tri.mIndices[1], tri.mIndices[2]);
+			auto& face = pSrc->mFaces[i];
+			for (uint j = 0; j < face.mNumIndices; j++)
+				indexBuffer.push_back(face.mIndices[j]);
 		}
+
+		pDst->AllocIndices(indexBuffer.size());
+		pDst->SetIndices(indexBuffer.data(), 0, indexBuffer.size());
 
 		pDst->UpdateBoundingVolume();
 
@@ -600,58 +645,83 @@ namespace SunEngine
 		return true;
 	}
 
-	bool ParseMaterial(aiMaterial* pSrc, Material* pDst, StrMap<Pair<Texture2D*, bool>>& textures, const String& fileDir, uint64 variantMask)
+	void ClearPixelGBA(Pixel& p)
 	{
-		static const Map<aiTextureType, String> TextureTypeLookup =
+		p.G = 0;
+		p.B = 0;
+		p.A = 255;
+	}
+
+	void ClearPixelA(Pixel& p)
+	{
+		p.A = 255;
+	}
+
+	bool AssetImporter::ChooseMaterial(void* pSrcPtr, Material*& pDst)
+	{
+		aiMaterial* pSrc = (aiMaterial*)pSrcPtr;
+
+		unsigned int iUV;
+		float fBlend;
+		aiTextureOp eOp;
+		aiString szPath;
+		Map<aiTextureType, Vector<String>> textureMap;
+		HashSet<String> foundTextures;
+		for (unsigned int i = 0; i <= AI_TEXTURE_TYPE_MAX; ++i)
+		{
+			unsigned int iNum = 0;
+			while (true)
+			{
+				if (AI_SUCCESS != aiGetMaterialTexture(pSrc, (aiTextureType)i, iNum,
+					&szPath, nullptr, &iUV, &fBlend, &eOp))
+				{
+					break;
+				}
+
+				if (foundTextures.count(szPath.C_Str()) == 0)
+				{
+					textureMap[aiTextureType(i)].push_back(szPath.C_Str());
+					foundTextures.insert(szPath.C_Str());
+				}
+				++iNum;
+			}
+		}
+
+		static const Map<aiTextureType, String> CommonTextureTypes =
 		{
 			{ aiTextureType_DIFFUSE, MaterialStrings::DiffuseMap },
 			{ aiTextureType_SPECULAR, MaterialStrings::SpecularMap },
 			{ aiTextureType_NORMALS, MaterialStrings::NormalMap },
 			{ aiTextureType_OPACITY, MaterialStrings::AlphaMap },
-			{ aiTextureType_SHININESS, MaterialStrings::SmoothnessMap },
+			{ aiTextureType_SHININESS, MaterialStrings::GlossMap }, //need some conversion from shininess to a value to be used in pbr? as of this comment specular shader doesnt take smoothness texture
 			{ aiTextureType_BASE_COLOR, MaterialStrings::DiffuseMap },
-			{ aiTextureType_METALNESS, MaterialStrings::MetalMap },
-			{ aiTextureType_DIFFUSE_ROUGHNESS, MaterialStrings::Smoothness },
+			{ aiTextureType_METALNESS, MaterialStrings::MetallicMap },
 			{ aiTextureType_AMBIENT_OCCLUSION, MaterialStrings::AmbientOcclusionMap },
 			{ aiTextureType_LIGHTMAP, MaterialStrings::AmbientOcclusionMap },
+			{ aiTextureType_DIFFUSE_ROUGHNESS, CustomTextureTypes::DiffuseRoughness },
 		};
 
-		StrMap<aiTextureType> allTextures;
-		for (uint i = aiTextureType_NONE + 1; i < aiTextureType_UNKNOWN; i++)
-		{
-			uint texCount = pSrc->GetTextureCount(aiTextureType(i));
-			for (uint j = 0; j < texCount; j++)
-			{
-				aiString path;
-				if (pSrc->GetTexture((aiTextureType)i, j, &path) == aiReturn_SUCCESS)
-					allTextures[path.C_Str()] = (aiTextureType)i;
-			}
-		}
+		String fileDir = GetDirectory(_path) + "/";
 
-		Map<aiTextureType, bool> usedTextureTypes;
-		for (auto& texType : TextureTypeLookup)
+		for (auto& texMapping : textureMap)
 		{
-			uint texCount = pSrc->GetTextureCount(texType.first);
-			if (texCount)
+			for (auto& path : texMapping.second)
 			{
 				String strPath;
-
-				aiString path;
-				pSrc->GetTexture(texType.first, 0, &path);
 				FileStream fs;
-				if (fs.OpenForRead(path.C_Str())) //easiest case if file path is correct
+				if (fs.OpenForRead(path.c_str())) //easiest case if file path is correct
 				{
-					strPath = path.C_Str();
+					strPath = path;
 					fs.Close();
 				}
-				else if (fs.OpenForRead((fileDir + path.C_Str()).c_str())) //second easiest case if the file is relative to the input file directory
+				else if (fs.OpenForRead((fileDir + path).c_str())) //second easiest case if the file is relative to the input file directory
 				{
-					strPath = fileDir + path.C_Str();
+					strPath = fileDir + path;
 					fs.Close();
 				}
 				else //try to find the file somewhere in the input file directory
 				{
-					String filename = StrToLower(GetFileName(path.C_Str()));
+					String filename = StrToLower(GetFileName(path));
 					for (auto& fsiter : std::filesystem::recursive_directory_iterator(fileDir))
 					{
 						if (fsiter.path().has_filename())
@@ -675,29 +745,169 @@ namespace SunEngine
 					{
 						pTexture = resMgr.AddTexture2D(strPath);
 						pTexture->SetFilename(strPath);
-
-						if (texType.second == MaterialStrings::DiffuseMap)
-							pTexture->SetSRGB();
-
 						needsLoad = true;
 					}
 
-					usedTextureTypes[texType.first] = true;
-					textures[texType.second] = { pTexture, needsLoad };
-					allTextures.erase(path.C_Str());
+					String texType;
+					auto foundType = CommonTextureTypes.find(texMapping.first);
+					if (foundType != CommonTextureTypes.end())
+					{
+						texType = (*foundType).second;
+					}
+					else
+					{
+						//namespace CustomTextureTypes
+						//{
+						//	const String Roughness = "Roughness";
+						//	const String DiffuseRoughness = "DiffuseRoughness";
+						//	const String RoughnessMetallic = "RoughnessMetallic";
+						//	const String OcclusionRoughnessMetallic = "OcclusionRoughnessMetallic";
+						//	const String SpecularGlossiness = "SpecularGlossiness";
+						//	const String MetallicRoughness = "MetallicRoughness";
+						//}
+
+						//try to determine
+						String texName = StrToLower(GetFileNameNoExt(strPath));
+
+						usize posDiffuse = texName.find("diffuse");
+						usize posSpec = texName.find("spec");
+						usize posGloss = texName.find("gloss");
+						usize posRough = texName.find("rough");
+						usize posMetal = texName.find("metal");
+						usize posAO = texName.find("ambient");
+						if (posAO == String::npos) posAO = texName.find("occlusion");
+
+						if (posAO != String::npos && posRough != String::npos && posMetal != String::npos)
+						{
+							texType = CustomTextureTypes::OcclusionRoughnessMetallic; //TODO: add other ordering?
+						}
+						else if (posRough != String::npos && posMetal != String::npos)
+						{
+							texType = posRough < posMetal ? CustomTextureTypes::RoughnessMetallic : CustomTextureTypes::MetallicRoughness;
+						}
+						else if (posDiffuse != String::npos && posRough != String::npos)
+						{
+							texType = CustomTextureTypes::DiffuseRoughness;
+						}
+						else if (posRough != String::npos)
+						{
+							texType = CustomTextureTypes::Roughness;
+						}
+						else if (posSpec != String::npos && posGloss != String::npos)
+						{
+							texType = CustomTextureTypes::SpecularGlossiness;
+						}
+						else
+						{
+							texType = CustomTextureTypes::Invalid;
+						}
+					}
+
+					Vector<TextureLoadTask> tasks;
+
+					if (texType == CustomTextureTypes::OcclusionRoughnessMetallic)
+					{
+						Texture2D* pTextureAO = needsLoad ? resMgr.AddTexture2D(strPath + ".OCCLUSION") : resMgr.GetTexture2D(strPath + ".OCCLUSION");
+						Texture2D* pTextureRough = needsLoad ? resMgr.AddTexture2D(strPath + ".ROUGHNESS") : resMgr.GetTexture2D(strPath + ".ROUGHNESS");
+						Texture2D* pTextureMetal = needsLoad ? resMgr.AddTexture2D(strPath + ".METAL") : resMgr.GetTexture2D(strPath + ".METAL");
+						if (needsLoad)
+						{
+							tasks.push_back(TextureLoadTask(pTextureAO, TC_RED, TC_RED, TC_RED, TC_RED, true, false, ClearPixelA));
+							tasks.push_back(TextureLoadTask(pTextureRough, TC_GREEN, TC_GREEN, TC_GREEN, TC_GREEN, true, false, ClearPixelA));
+							tasks.push_back(TextureLoadTask(pTextureMetal, TC_BLUE, TC_BLUE, TC_BLUE, TC_BLUE, true, false, ClearPixelA));
+						}
+						_materialMapping[pDst].push_back({ MaterialStrings::AmbientOcclusionMap, pTextureAO });
+						_materialMapping[pDst].push_back({ MaterialStrings::RoughnessMap, pTextureRough });
+						_materialMapping[pDst].push_back({ MaterialStrings::MetallicMap, pTextureMetal });
+					}
+					else if (texType == CustomTextureTypes::RoughnessMetallic)
+					{
+						Texture2D* pTextureRough = needsLoad ? resMgr.AddTexture2D(strPath + ".ROUGHNESS") : resMgr.GetTexture2D(strPath + ".ROUGHNESS");
+						Texture2D* pTextureMetal = needsLoad ? resMgr.AddTexture2D(strPath + ".METAL") : resMgr.GetTexture2D(strPath + ".METAL");
+						if (needsLoad)
+						{
+							tasks.push_back(TextureLoadTask(pTextureRough, TC_RED, TC_RED, TC_RED, TC_RED, true, false, ClearPixelA));
+							tasks.push_back(TextureLoadTask(pTextureMetal, TC_GREEN, TC_GREEN, TC_GREEN, TC_GREEN, true, false, ClearPixelA));
+						}
+						_materialMapping[pDst].push_back({ MaterialStrings::RoughnessMap, pTextureRough });
+						_materialMapping[pDst].push_back({ MaterialStrings::MetallicMap, pTextureMetal });
+					}
+					else if (texType == CustomTextureTypes::MetallicRoughness)
+					{
+						Texture2D* pTextureMetal = needsLoad ? resMgr.AddTexture2D(strPath + ".METAL") : resMgr.GetTexture2D(strPath + ".METAL");
+						Texture2D* pTextureRough = needsLoad ? resMgr.AddTexture2D(strPath + ".ROUGHNESS") : resMgr.GetTexture2D(strPath + ".ROUGHNESS");
+						if (needsLoad)
+						{
+							tasks.push_back(TextureLoadTask(pTextureMetal, TC_RED, TC_RED, TC_RED, TC_RED, true, false, ClearPixelA));
+							tasks.push_back(TextureLoadTask(pTextureRough, TC_GREEN, TC_GREEN, TC_GREEN, TC_GREEN, true, false, ClearPixelA));
+						}
+						_materialMapping[pDst].push_back({ MaterialStrings::MetallicMap, pTextureMetal });
+						_materialMapping[pDst].push_back({ MaterialStrings::RoughnessMap, pTextureRough });
+					}
+					else if (texType == CustomTextureTypes::DiffuseRoughness)
+					{
+						Texture2D* pTextureDiffue = needsLoad ? resMgr.AddTexture2D(strPath + ".DIFFUSE") : resMgr.GetTexture2D(strPath + ".DIFFUSE");
+						Texture2D* pTextureRough = needsLoad ? resMgr.AddTexture2D(strPath + ".ROUGHNESS") : resMgr.GetTexture2D(strPath + ".ROUGHNESS");
+						if (needsLoad)
+						{
+							tasks.push_back(TextureLoadTask(pTextureDiffue, TC_RED, TC_GREEN, TC_BLUE, TC_ALPHA, true, true, ClearPixelA));
+							tasks.push_back(TextureLoadTask(pTextureRough, TC_ALPHA, TC_ALPHA, TC_ALPHA, TC_ALPHA, true, false, ClearPixelA));
+						}
+						_materialMapping[pDst].push_back({ MaterialStrings::DiffuseMap, pTextureDiffue });
+						_materialMapping[pDst].push_back({ MaterialStrings::RoughnessMap, pTextureRough });
+					}
+					else if (texType == CustomTextureTypes::Roughness)
+					{
+						Texture2D* pTextureRough = pTexture;
+						if (needsLoad)
+						{
+							tasks.push_back(TextureLoadTask(pTextureRough, TC_RED, TC_GREEN, TC_BLUE, TC_ALPHA, true, false));
+						}
+						_materialMapping[pDst].push_back({ MaterialStrings::RoughnessMap, pTextureRough });
+					}
+					else if (texType == CustomTextureTypes::SpecularGlossiness)
+					{
+						Texture2D* pTextureSpecular = needsLoad ? resMgr.AddTexture2D(strPath + ".SPECULAR") : resMgr.GetTexture2D(strPath + ".SPECULAR");
+						Texture2D* pTextureGloss = needsLoad ? resMgr.AddTexture2D(strPath + ".GLOSS") : resMgr.GetTexture2D(strPath + ".GLOSS");
+						if (needsLoad)
+						{
+							tasks.push_back(TextureLoadTask(pTextureSpecular, TC_RED, TC_RED, TC_RED, TC_RED, true, false, ClearPixelA));
+							tasks.push_back(TextureLoadTask(pTextureGloss, TC_GREEN, TC_GREEN, TC_GREEN, TC_GREEN, true, false, ClearPixelA));
+						}
+						_materialMapping[pDst].push_back({ MaterialStrings::SpecularMap, pTextureSpecular });
+						_materialMapping[pDst].push_back({ MaterialStrings::GlossMap, pTextureGloss });
+					}
+					else if(texType != CustomTextureTypes::Invalid)
+					{
+						if (needsLoad)
+						{
+							tasks.push_back(TextureLoadTask(pTexture, TC_RED, TC_GREEN, TC_BLUE, TC_ALPHA, texType != MaterialStrings::NormalMap, texType == MaterialStrings::DiffuseMap));
+						}
+						_materialMapping[pDst].push_back({ texType, pTexture });
+					}
+
+					if (needsLoad)
+					{
+						_textureLoadList[pTexture] = strPath;
+						_textureLoadTasks[pTexture] = tasks;
+					}
 				}
 			}
 		}
 
-		bool metallic =
-			usedTextureTypes.find(aiTextureType_DIFFUSE_ROUGHNESS) != usedTextureTypes.end() ||
-			usedTextureTypes.find(aiTextureType_METALNESS) != usedTextureTypes.end();
-
-		bool alphaTest = usedTextureTypes.find(aiTextureType_OPACITY) != usedTextureTypes.end();
-		//alphaTest = false; //TODO: enable this again? default to alpha blend
+		//TODO: better way to determine if metal shader?
+		bool metallic = false;
+		bool alphaTest = false;
+		for (auto& texType : _materialMapping[pDst])
+		{
+			if (texType.first == MaterialStrings::MetallicMap || texType.first == MaterialStrings::RoughnessMap)
+				metallic = true;
+			if (texType.first == MaterialStrings::AlphaMap)
+				alphaTest = true;
+		}
 
 		String strShader = metallic ? DefaultShaders::Metallic : DefaultShaders::Specular;
-		pDst->SetShader(ShaderMgr::Get().GetShader(strShader), variantMask);
+		pDst->SetShader(ShaderMgr::Get().GetShader(strShader));
 		if (!pDst->RegisterToGPU())
 			return false;
 
@@ -739,9 +949,17 @@ namespace SunEngine
 		if (smoothness.r > 1.0f)
 			smoothness.r = 1.0f - expf(-smoothness.r * 0.008f);
 
-		//pDst->SetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor);
+		//pDst->SetMaterialVar(MaterialStrings::DiffuseColor, Vec4::Zero);
 		//pDst->SetMaterialVar(MaterialStrings::SpecularColor, specularColor);
 		//pDst->SetMaterialVar(MaterialStrings::Smoothness, smoothness);
+
+		if (alphaTest)
+		{
+			glm::vec4 diffuse;
+			pDst->GetMaterialVar(MaterialStrings::DiffuseColor, diffuse);
+			diffuse.a *= 2.0f;
+			pDst->SetMaterialVar(MaterialStrings::DiffuseColor, diffuse);
+		}
 
 		return true;
 	}
@@ -768,14 +986,13 @@ namespace SunEngine
 
 		auto& resMgr = ResourceMgr::Get();
 
+		_path = filename;
 		_asset = resMgr.AddAsset(GetFileNameNoExt(filename));
 
 		Vector<aiNode*> nodes;
 		CollectNodes(pScene->mRootNode, nodes);
 
 		String fileDir = GetDirectory(filename) + "/";
-
-		ThreadPool& tp = ThreadPool::Get();
 
 		Animator* pAnimator = 0;
 		StrMap<Map<uint, aiNodeAnim*>> boneMapping;
@@ -881,6 +1098,7 @@ namespace SunEngine
 			if (aNode == pScene->mRootNode)
 			{
 				glm::extractEulerAngleXYZ(mtxLocal, pNode->Orientation.Angles.x, pNode->Orientation.Angles.y, pNode->Orientation.Angles.z);
+				pNode->Orientation.Angles = glm::degrees(pNode->Orientation.Angles);
 				pNode->Orientation.Mode = ORIENT_XYZ;
 			}
 
@@ -894,37 +1112,8 @@ namespace SunEngine
 				if (foundMaterial == _materialFixup.end())
 				{
 					Material* pMaterial = resMgr.AddMaterial(aMaterial->GetName().C_Str());
-					StrMap<Pair<Texture2D*, bool>> textureLoadMap;
-					ParseMaterial(aMaterial, pMaterial, textureLoadMap, fileDir, pAnimator ? ShaderVariant::SKINNED : 0x0);
-
-					StrMap<Texture2D*> textureMap;
-					for (auto& tex : textureLoadMap)
-					{
-						if (tex.second.second)
-						{
-							Texture2D* pTexture = tex.second.first;
-							pTexture->SetUserDataPtr(this);
-							tp.AddTask([](uint, void* pData) -> void {
-								Texture2D* pTexture = static_cast<Texture2D*>(pData);
-								AssetImporter* pThis = static_cast<AssetImporter*>(pTexture->GetUserDataPtr());
-								if (pTexture->LoadFromFile())
-								{
-									uint maxSize = pThis->_options.MaxTextureSize;
-									if (pTexture->GetWidth() > maxSize || pTexture->GetHeight() > maxSize)
-									{
-										pTexture->Resize(glm::min(pTexture->GetWidth(), maxSize), glm::min(pTexture->GetHeight(), maxSize));
-									}
-									pTexture->GenerateMips(false);
-
-									if ((*pThis->_textureLoadList.find(pTexture)).second != MaterialStrings::NormalMap)
-										pTexture->Compress();
-								}
-							}, pTexture);
-							_textureLoadList[pTexture] = tex.first;
-						}
-						textureMap[tex.first] = tex.second.first;
-					}
-					_materialFixup[aMaterial] = { pMaterial, textureMap };
+					ChooseMaterial(aMaterial, pMaterial);
+					_materialFixup[aMaterial].first = pMaterial;
 					pRenderer->SetMaterial(pMaterial);
 				}
 				else
@@ -953,6 +1142,8 @@ namespace SunEngine
 					pSkinnedMesh->SetMesh(_meshFixup[aMesh]);
 					pSkinnedMesh->SetSkinIndex((*foundSkinned).second);
 				}
+
+				//break;
 			}
 
 			auto foundBone = boneIndexLookup.find(strName);
@@ -1076,23 +1267,85 @@ namespace SunEngine
 			}
 		}
 
-		tp.Wait();
-
-		for (auto& pTexture : _textureLoadList)
+		ThreadPool& tp = ThreadPool::Get();
 		{
-			if (!pTexture.first->RegisterToGPU())
+			for (auto& texData : _textureLoadList)
 			{
-				aiReleaseImport(pScene);
-				return false;
+				Texture2D* pTexture = texData.first;
+				pTexture->SetUserDataPtr(this);
+				tp.AddTask([](uint, void* pData) -> void 
+				{
+					Texture2D* pTexture = static_cast<Texture2D*>(pData);
+					AssetImporter* pThis = static_cast<AssetImporter*>(pTexture->GetUserDataPtr());
+					if (pTexture->LoadFromFile())
+					{
+						uint maxSize = pThis->_options.MaxTextureSize;
+						if (pTexture->GetWidth() > maxSize || pTexture->GetHeight() > maxSize)
+						{
+							pTexture->Resize(glm::min(pTexture->GetWidth(), maxSize), glm::min(pTexture->GetHeight(), maxSize));
+						}
+
+						auto& tasks = pThis->_textureLoadTasks.at(pTexture);
+
+						for (uint i = 0; i < tasks.size(); i++)
+						{
+							auto& task = tasks[i];
+							if (task.Texture != pTexture)
+							{
+								Texture2D* pSubTexture = task.Texture;
+								pSubTexture->Alloc(pTexture->GetWidth(), pTexture->GetHeight());
+
+								for (uint y = 0; y < pTexture->GetHeight(); y++)
+								{
+									for (uint x = 0; x < pTexture->GetWidth(); x++)
+									{
+										Pixel srcPixel;
+										pTexture->GetPixel(x, y, srcPixel);
+										uchar* pSrcPixel = &srcPixel.R;
+										Pixel dstPixel;
+										dstPixel.R = pSrcPixel[task.R];
+										dstPixel.G = pSrcPixel[task.G];
+										dstPixel.B = pSrcPixel[task.B];
+										dstPixel.A = pSrcPixel[task.A];
+										if (task.TransformFunc) 
+											task.TransformFunc(dstPixel);
+
+										pSubTexture->SetPixel(x, y, dstPixel);
+									}
+								}
+
+								pSubTexture->GenerateMips(false);
+							}
+							else
+							{
+								pTexture->GenerateMips(false);
+							}
+
+							//if (task.Compress)
+							//	task.Texture->Compress();
+
+							if (task.SRGB)
+								task.Texture->SetSRGB();
+						}
+					}
+				}, pTexture);
 			}
 		}
+		tp.Wait();
 
-		for (auto& mtl : _materialFixup)
+		HashSet<Texture2D*> registeredTextures;
+		for (auto& mtlMap : _materialMapping)
 		{
-			auto& textures = mtl.second.second;
+			auto pMaterial = mtlMap.first;
+			auto& textures = mtlMap.second;
 			for (auto& tex : textures)
 			{
-				mtl.second.first->SetTexture2D(tex.first, tex.second);
+				if (registeredTextures.count(tex.second) == 0)
+				{
+					tex.second->RegisterToGPU();
+					registeredTextures.insert(tex.second);
+				}
+				pMaterial->SetTexture2D(tex.first, tex.second);
 			}
 		}
 
@@ -1109,11 +1362,6 @@ namespace SunEngine
 		aiReleaseImport(pScene);
 
 		return true;
-	}
-
-	bool AssetImporter::ChooseMaterial(void*, Material*&)
-	{
-		return false;
 	}
 }
 #endif

@@ -9,9 +9,10 @@ namespace SunEngine
 	DefineStaticStr(MaterialStrings, DiffuseMap);
 	DefineStaticStr(MaterialStrings, NormalMap);
 	DefineStaticStr(MaterialStrings, SpecularMap);
-	DefineStaticStr(MaterialStrings, MetalMap);
+	DefineStaticStr(MaterialStrings, GlossMap);
+	DefineStaticStr(MaterialStrings, MetallicMap);
 	DefineStaticStr(MaterialStrings, AmbientOcclusionMap);
-	DefineStaticStr(MaterialStrings, SmoothnessMap);
+	DefineStaticStr(MaterialStrings, RoughnessMap);
 	DefineStaticStr(MaterialStrings, DiffuseColor);
 	DefineStaticStr(MaterialStrings, SpecularColor);
 	DefineStaticStr(MaterialStrings, Smoothness);

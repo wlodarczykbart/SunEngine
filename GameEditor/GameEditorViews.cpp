@@ -286,21 +286,16 @@ namespace SunEngine
 		if (!CreateRenderPassData(DefaultShaders::MSAAResolve, _msaaResolveData))
 			return false;
 
-		//TODO lots of duplicate code basically
-		bool bDeferred = EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred;
-		if (bDeferred)
-		{
-			if (!CreateRenderPassData(DefaultShaders::Deferred, _deferredData))
-				return false;
+		if (!CreateRenderPassData(DefaultShaders::Deferred, _deferredData))
+			return false;
 
-			if (!CreateRenderPassData(DefaultShaders::SceneCopy, _deferredCopyData))
-				return false;
+		if (!CreateRenderPassData(DefaultShaders::SceneCopy, _deferredCopyData))
+			return false;
 
 #ifdef SUPPORT_SSR
-			if (!CreateRenderPassData(DefaultShaders::ScreenSpaceReflection, _ssrData))
-				return false;
+		if (!CreateRenderPassData(DefaultShaders::ScreenSpaceReflection, _ssrData))
+			return false;
 #endif
-		}
 
 		_settings.shadows.enabled = EngineInfo::GetRenderer().ShadowsEnabled();
 
@@ -341,33 +336,30 @@ namespace SunEngine
 		}
 		rtInfo.msaa = SE_MSAA_OFF;
 
-		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
-		{
-			rtInfo.hasDepthBuffer = false;
-			if (!_deferredResolveTarget.Create(rtInfo))
-				return false;
+		rtInfo.hasDepthBuffer = false;
+		if (!_deferredResolveTarget.Create(rtInfo))
+			return false;
 
-			rtInfo.hasDepthBuffer = true;
-			rtInfo.numTargets = 4;
-			if (!_deferredTarget.Create(rtInfo))
-				return false;
+		rtInfo.hasDepthBuffer = true;
+		rtInfo.numTargets = 4;
+		if (!_deferredTarget.Create(rtInfo))
+			return false;
 
-			_deferredData.bindings.SetTexture(MaterialStrings::DiffuseMap, _deferredTarget.GetColorTexture(0));
-			_deferredData.bindings.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1));
-			_deferredData.bindings.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
-			_deferredData.bindings.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
-			_deferredData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture());
+		_deferredData.bindings.SetTexture(MaterialStrings::DiffuseMap, _deferredTarget.GetColorTexture(0));
+		_deferredData.bindings.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1));
+		_deferredData.bindings.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
+		_deferredData.bindings.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
+		_deferredData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture());
 
-			_deferredCopyData.bindings.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
-			_deferredCopyData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture()); //used for blend factor blend
+		_deferredCopyData.bindings.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
+		_deferredCopyData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture()); //used for blend factor blend
 
 #ifdef SUPPORT_SSR
-			_ssrData.second.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
-			_ssrData.second.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1)); //used for blend factor blend
-			_ssrData.second.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
-			_ssrData.second.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
+		_ssrData.second.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
+		_ssrData.second.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1)); //used for blend factor blend
+		_ssrData.second.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
+		_ssrData.second.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
 #endif
-		}
 
 		rtInfo.numTargets = 1;
 		rtInfo.hasDepthBuffer = false;
@@ -650,4 +642,88 @@ namespace SunEngine
 		return true;
 	}
 
+
+	Texture2DView::Texture2DView() : View("TextureView")
+	{
+		SetCameraMode(CM_STATIC);
+	}
+
+	bool Texture2DView::OnCreate(const CreateInfo&)
+	{
+		Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureCopy);
+
+		GraphicsPipeline::CreateInfo pipelineInfo = {};
+		pipelineInfo.pShader = pShader->GetBase();
+		pipelineInfo.settings.rasterizer.cullMode = SE_CM_NONE;
+		if (!_pipeline.Create(pipelineInfo))
+			return false;
+
+		ShaderBindings::CreateInfo bindingInfo = {};
+		bindingInfo.pShader = pipelineInfo.pShader;
+		bindingInfo.type = SBT_MATERIAL;
+		if (!_bindings.Create(bindingInfo))
+			return false;
+
+		if (!_bindings.SetTexture(MaterialStrings::DiffuseMap, ResourceMgr::Get().GetTexture2D(DefaultResource::Texture::White)->GetGPUObject()))
+			return false;
+		if (!_bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE)))
+			return false;
+
+		return true;
+	}
+
+	bool Texture2DView::Render(CommandBuffer* cmdBuffer)
+	{
+		_target.SetClearColor(0, 1, 0, 1);
+		_target.Bind(cmdBuffer);
+		BaseShader* pShader = _pipeline.GetShader();
+		pShader->Bind(cmdBuffer);
+		_pipeline.Bind(cmdBuffer);
+		_bindings.Bind(cmdBuffer);
+		cmdBuffer->Draw(6, 1, 0, 0);
+		_bindings.Unbind(cmdBuffer);
+		_pipeline.Unbind(cmdBuffer);
+		pShader->Unbind(cmdBuffer);
+		_target.Unbind(cmdBuffer);
+
+		return true;
+	}
+
+	void Texture2DView::RenderGUI(GUIRenderer* pRenderer)
+	{
+		class Texture2DViewUpdateCommand : public GUIRenderer::UpdateCommand
+		{
+		public:
+			Texture2DViewUpdateCommand(Texture2D* pTex, ShaderBindings* pBindings)
+			{
+				_tex = pTex;
+				_bindings = pBindings;
+			}
+
+			bool Execute() override
+			{
+				_bindings->SetTexture(MaterialStrings::DiffuseMap, _tex->GetGPUObject());
+				return true;
+			}
+
+		private:
+			Texture2D* _tex;
+			ShaderBindings* _bindings;
+		};
+
+		ImGui::TableNextColumn();	
+		ResourceMgr& resMgr = ResourceMgr::Get();
+
+		auto iter = resMgr.IterTextures2D();
+		while (!iter.End())
+		{
+			Texture2D* pTexture = *iter;
+			if (pTexture->GetGPUObject()->GetAPIHandle() && ImGui::Button(GetFileName(pTexture->GetName().c_str()).c_str()))
+			{
+				Texture2DViewUpdateCommand* cmd = new Texture2DViewUpdateCommand(pTexture, &_bindings);
+				pRenderer->PushUpdateCommand(cmd);
+			}
+			++iter;
+		}
+	}
 }

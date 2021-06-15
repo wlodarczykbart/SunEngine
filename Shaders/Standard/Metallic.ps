@@ -3,9 +3,9 @@
 
 Texture2D DiffuseMap;
 Texture2D MetallicMap;
-Texture2D SmoothnessMap;
+Texture2D RoughnessMap;
 Texture2D NormalMap;
-Texture2D AOMap;
+Texture2D AmbientOcclusionMap;
 Texture2D AlphaMap;
 SamplerState Sampler;
 
@@ -32,36 +32,33 @@ struct PS_In
 #endif	
 };
 
+#ifndef DEPTH
 PS_Out main(PS_In pIn)
 {	
 	PS_Out pOut;
 	
-#if defined(DEPTH) && !defined(ALPHA_TEST)	
-	pOut.color = float4(0,0,0,1);
-	return pOut;
-#else
-
 	float2 texCoord = pIn.texCoord.xy;
 
 	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * DiffuseColor;
 	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
 #ifdef ALPHA_TEST
-	if(diffuse.a < 0.5)
-		discard;
+	//diffuse.a *= 2.0;
+	float threshold = CalcAlphaThreshold(pIn.objectCoord.xyz);	
+	//float threshold = 0.5;
+	clip(diffuse.a - threshold);
 #endif
 
-#if defined(DEPTH) && defined(ALPHA_TEST)	
-	pOut.color = float4(0,0,0,1);
-	return pOut;
-#endif
-
-#ifndef DEPTH
 	float3 albedo = diffuse.rgb;
 	float metallic = saturate(MetallicMap.Sample(Sampler, texCoord).r * Metallic);
-	float smoothness = SmoothnessMap.Sample(Sampler, texCoord).r * Smoothness;
+	float smoothness = (1.0 - RoughnessMap.Sample(Sampler, texCoord).r) * Smoothness;
 	float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
 	albedo *= (1.0 - metallic);
-	float ao = AOMap.Sample(Sampler, texCoord).r;
+	float ao = AmbientOcclusionMap.Sample(Sampler, texCoord).r;
+	
+//HACK: to get the AlphaMap to not be optimized from the shader... Solution could be to pack one channel textures into one texture
+#ifdef GBUFFER
+	ao = lerp(ao, diffuse.a, pIn.normal.w);
+#endif	
 		
 	float3x3 tbn;
 	tbn[0] = normalize(pIn.tangent.xyz);
@@ -75,6 +72,19 @@ PS_Out main(PS_In pIn)
 	pOut.color.a = diffuse.a;
 #endif
 	return pOut;
-#endif
-#endif
 }
+
+#else
+
+void main(PS_In pIn)
+{
+#ifdef ALPHA_TEST
+	float2 texCoord = pIn.texCoord.xy;
+	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * DiffuseColor;
+	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
+	float threshold = 0.5;
+	clip(diffuse.a - threshold);	
+#endif
+};
+
+#endif

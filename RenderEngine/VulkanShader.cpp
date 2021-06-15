@@ -349,7 +349,6 @@ namespace SunEngine
 
 	bool VulkanShaderBindings::Create(const IShaderBindingCreateInfo& createInfo)
 	{
-		_shader = static_cast<VulkanShader*>(createInfo.pShader);
 		_setNumber = createInfo.type;
 
 		Vector<VkDescriptorSetLayoutBinding> layoutBindings;
@@ -445,7 +444,7 @@ namespace SunEngine
 			}
 
 			VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(pCmdBuffer);
-			vkCmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, _shader->GetPipelineLayout(), _setNumber, 1, &set, _dynamicOffsets.size(), _dynamicOffsets.data());
+			vkCmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, _setNumber, 1, &set, _dynamicOffsets.size(), _dynamicOffsets.data());
 
 			if (_dynamicOffsets.size())
 				memset(_dynamicOffsets.data(), 0x0, sizeof(uint) * _dynamicOffsets.size());

@@ -127,7 +127,7 @@ namespace SunEngine
 		}
 
 		assert(pipeline != VK_NULL_HANDLE);
-		vkCmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		vkCmd->BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline, _shader->GetPipelineLayout());
 	}
 
 	void VulkanGraphicsPipeline::Unbind(ICommandBuffer * cmdBuffer)

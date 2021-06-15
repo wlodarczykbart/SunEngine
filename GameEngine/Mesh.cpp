@@ -15,6 +15,7 @@ namespace SunEngine
 
 	Mesh::Mesh()
 	{
+		_primitiveTopology = SE_PT_TRIANGLE_LIST;
 	}
 
 	Mesh::~Mesh()
@@ -335,23 +336,9 @@ namespace SunEngine
 		}
 	}
 
-	void Mesh::SetTri(uint triIndex, uint t0, uint t1, uint t2)
-	{
-		_indices[triIndex * 3 + 0] = t0;
-		_indices[triIndex * 3 + 1] = t1;
-		_indices[triIndex * 3 + 2] = t2;
-	}
-
 	void Mesh::SetIndices(const uint* pIndices, uint indexOffset, uint indexCount)
 	{
 		memcpy(_indices.data() + indexOffset, pIndices, indexCount * sizeof(uint));
-	}
-
-	void Mesh::GetTri(uint triIndex, uint& t0, uint& t1, uint& t2) const
-	{
-		t0 = _indices[triIndex * 3 + 0];
-		t1 = _indices[triIndex * 3 + 1];
-		t2 = _indices[triIndex * 3 + 2];
 	}
 
 	glm::vec4 Mesh::GetVertexVar(uint vertexIndex, uint varIndex) const

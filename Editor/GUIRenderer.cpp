@@ -10,6 +10,7 @@
 
 #include "spdlog/spdlog.h"
 #include "ShaderCompiler.h"
+#include "IDevice.h"
 #include "GUIRenderer.h"
 
 //#define TEST_IMGUI_BASIC
@@ -404,10 +405,15 @@ namespace SunEngine
 		//// Update game controllers (if enabled and available)
 		//ImGui_ImplWin32_UpdateGamepads();
 
-		while (!_updateCommands.empty())
+		if (_updateCommands.size())
 		{
-			_updateCommands.front()->Execute();
-			_updateCommands.pop();
+			GraphicsContext::GetDevice()->WaitIdle();
+
+			while (!_updateCommands.empty())
+			{
+				_updateCommands.front()->Execute();
+				_updateCommands.pop();
+			}
 		}
 	}
 

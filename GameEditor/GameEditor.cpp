@@ -96,14 +96,19 @@ namespace SunEngine
 			return false;
 		}
 
+		View::CreateInfo debugViewInfo = {};
+		debugViewInfo.floatingPointColorBuffer = false;
+		debugViewInfo.visible = false;
+		debugViewInfo.height = 256;
+		debugViewInfo.width = 256;
+
 		auto pShadowView = new ShadowMapView(&_sceneRenderer);
-		View::CreateInfo shadowViewInfo = {};
-		shadowViewInfo.floatingPointColorBuffer = false;
-		shadowViewInfo.visible = true;
-		shadowViewInfo.height = 256;
-		shadowViewInfo.width = 256;
-		pShadowView->Create(shadowViewInfo);
+		pShadowView->Create(debugViewInfo);
 		AddView(pShadowView);
+
+		auto pTexture2DView = new Texture2DView();
+		pTexture2DView->Create(debugViewInfo);
+		AddView(pTexture2DView);
 
 		GameEditorGUI* gui = new GameEditorGUI();
 		gui->RegisterSceneView(pView);
@@ -330,11 +335,11 @@ namespace SunEngine
 			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
 			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(0.0f, 0.0f, 0.0f);
+			pSceneNode->Position = glm::vec3(0.0f, -2.0f, 0.0f);
 			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
-		int Slices = 4*1;
+		int Slices = 4*0;
 		float Offset = 3.0f;
 		float ZStart = -(Slices * Slices * 2.0f);
 		float XStart = -(Slices * Slices * 0.5f);
@@ -447,11 +452,11 @@ namespace SunEngine
 		////pAsset->GetRoot()->Scale *= 0.01f;
 
 		String strAsset = "F:/Models/FBX/_Animated_/shark/Silvertip+Shark.fbx";
-		//strAsset = "F:/Models/FBX/_Animated_/zombii.fbx";
-		strAsset = "F:/Models/FBX/_Animated_/new/48-cat_rigged/cat_rigged.fbx";
-		//strAsset = "F:/Models/FBX/_Animated_/golem/golem.fbx";
+		strAsset = "F:/Models/FBX/_Animated_/shark/Silvertip+Shark.fbx";
+		//strAsset = "F:/Models/FBX/_Animated_/new/48-cat_rigged/cat_rigged.fbx";
+		strAsset = "F:/Models/FBX/_Animated_/81881_Elf__game-ready_and_animated/Elf-Final.fbx";
 		//strAsset = "F:/GraphicsSamples/ogldev-source/Content/boblampclean.md5mesh";
-		//strAsset = "F:/Models/Scenes/EmeraldSquare1024/EmeraldSquare.fbx";
+		strAsset = "F:/Models/Scenes/EmeraldSquare1024/EmeraldSquare.fbx";
 		//strAsset = "F:/Downloads/SunTemple_v3/SunTemple/SunTemple.fbx";
 		//strAsset = "F:/Models/OBJ/Small_Tropical_Island/Small Tropical Island.obj";
 		//strAsset = "F:/Models/FBX/_PHONG_/RuralStallObj/RuralStall_phong.fbx";
@@ -461,6 +466,7 @@ namespace SunEngine
 		//strAsset = "F:/Models/Scenes/sibenik/sibenik.obj";
 		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
 		//strAsset = "F:/Models/FBX/_PHONG_/Wooden_barrels__OBJ/Wooden_barrels.FBX";
+		strAsset = "F:/Models/glTF-Sample-Models-master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf";
 
 		auto options = SunEngine::AssetImporter::Options::Default;
 		options.MaxTextureSize = 1024;

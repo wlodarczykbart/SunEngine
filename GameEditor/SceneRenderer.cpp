@@ -217,7 +217,7 @@ namespace SunEngine
 				if (pThis->ShouldRender(pNode))
 				{
 					const AABB& box = pNode->GetWorldAABB();
-					if (pNode->GetMaterial()->GetShader()->ContainsVariants(ShaderVariant::DEPTH) && !glm::epsilonEqual(box.Min.y, box.Max.y, 0.001f))
+					if (pNode->GetMaterial()->GetShader()->ContainsVariants(ShaderVariant::DEPTH) /*&& !glm::epsilonEqual(box.Min.y, box.Max.y, 0.001f)*/)
 						pThis->_shadowCasterAABB.Expand(box);
 				}
 			}, this);
@@ -625,7 +625,7 @@ namespace SunEngine
 		else if (variantMask & ShaderVariant::ALPHA_TEST)
 		{
 			settings.rasterizer.cullMode = SE_CM_NONE; //TODO: should this be set somehow else
-			settings.mulitSampleState.enableAlphaToCoverage = true; //TODO: only do this if multi sampling is occuring in the renderer this frame?
+			settings.mulitSampleState.enableAlphaToCoverage = (isDepth || isShadow) ? false : true; //TODO: only do this if multi sampling is occuring in the renderer this frame?
 		}
 
 		if (isShadow) ShaderMgr::Get().BuildPipelineSettings(DefaultPipelines::ShadowDepth, settings);
@@ -1069,7 +1069,6 @@ namespace SunEngine
 
 		if (pSMComponent)
 		{
-			auto pSkinnedMesh = pSMComponent->As<SkinnedMesh>();
 			SkinnedMeshComponentData* pSkinnedData = pSceneNode->GetComponentData<SkinnedMeshComponentData>(pSMComponent);
 			AnimatorComponentData* pAnimatorData = pSkinnedData->GetAnimatorData();
 

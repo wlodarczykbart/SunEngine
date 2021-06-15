@@ -341,6 +341,9 @@ namespace SunEngine
 			//because the tMin value is messed up when the ray is in object space, need to figure out how to resolve this
 
 			Mesh* pMesh = pRenderNode->GetMesh();
+			if (pMesh->GetPrimitiveTopology() != SE_PT_TRIANGLE_LIST)
+				continue;
+
 			auto& vtxDef = pMesh->GetVertexDef();
 			uint nIndex = vtxDef.NormalIndex;
 
@@ -349,8 +352,10 @@ namespace SunEngine
 
 			for (uint i = 0; i < pRenderNode->GetIndexCount() / 3; i++)
 			{
-				uint t0, t1, t2;
-				pMesh->GetTri(i + firstIndex, t0, t1, t2);
+				//uint t0, t1, t2;
+				uint t0 = pMesh->GetIndex(i + firstIndex + 0);
+				uint t1 = pMesh->GetIndex(i + firstIndex + 1);
+				uint t2 = pMesh->GetIndex(i + firstIndex + 2);
 				t0 += vertexOffset;
 				t1 += vertexOffset;
 				t2 += vertexOffset;

@@ -20,8 +20,8 @@ namespace SunEngine
 
 		void BeginRenderPass(const VkRenderPassBeginInfo &info, uint numTargets, MSAAMode msaaMode);
 		void EndRenderPass();
-		void BindPipeline(VkPipelineBindPoint bindPoint, VkPipeline pipeline);
-		void BindDescriptorSets(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets);
+		void BindPipeline(VkPipelineBindPoint bindPoint, VkPipeline pipeline, VkPipelineLayout layout);
+		void BindDescriptorSets(VkPipelineBindPoint bindPoint, uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets);
 
 		void BindVertexBuffer(VkBuffer buffer, VkDeviceSize offset);
 		void BindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
@@ -47,6 +47,7 @@ namespace SunEngine
 	
 		VkRenderPassBeginInfo _currentRenderPass;
 		VkPipeline _currentPipeline;
+		VkPipelineLayout _currentPipelineLayout;
 		uint _currentNumTargets;
 		MSAAMode _currentMSAAMode;
 	};

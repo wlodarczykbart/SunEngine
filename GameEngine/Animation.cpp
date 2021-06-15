@@ -10,7 +10,7 @@ namespace SunEngine
 		_time = 0.0f;
 		_percent = 0.0f;
 		_speed = 1.0f;
-		_playing = true;
+		_playing = false;
 		_loop = true;
 		_boneUpdateCount = 0;
 		_boneData.resize(boneCount);
