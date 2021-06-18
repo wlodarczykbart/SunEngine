@@ -52,7 +52,7 @@ namespace SunEngine
 		ShaderMat4 InvViewMatrix;
 		ShaderMat4 InvProjectionMatrix;
 		ShaderMat4 InvViewProjectionMatrix;
-		ShaderMat4 CameraData; //0 = viewport(x,y,width,height) 
+		ShaderMat4 CameraData; //0 = viewport(x,y,width,height)  //1 = (near,far,0,0)
 	};
 
 	struct ObjectBufferData

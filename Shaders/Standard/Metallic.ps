@@ -6,12 +6,15 @@ Texture2D MetallicMap;
 Texture2D RoughnessMap;
 Texture2D NormalMap;
 Texture2D AmbientOcclusionMap;
+Texture2D EmissiveMap;
 Texture2D AlphaMap;
 SamplerState Sampler;
 
 cbuffer MaterialBuffer
 {
-	float4 DiffuseColor;
+	float3 DiffuseColor;
+	float Opacity;
+	float3 EmissiveColor;
 	float Metallic;
 	float Smoothness;
 };
@@ -39,7 +42,7 @@ PS_Out main(PS_In pIn)
 	
 	float2 texCoord = pIn.texCoord.xy;
 
-	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * DiffuseColor;
+	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * float4(DiffuseColor, Opacity);
 	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
 #ifdef ALPHA_TEST
 	//diffuse.a *= 2.0;
@@ -54,6 +57,7 @@ PS_Out main(PS_In pIn)
 	float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
 	albedo *= (1.0 - metallic);
 	float ao = AmbientOcclusionMap.Sample(Sampler, texCoord).r;
+	float3 emissive = EmissiveMap.Sample(Sampler, texCoord).rgb * EmissiveColor;
 	
 //HACK: to get the AlphaMap to not be optimized from the shader... Solution could be to pack one channel textures into one texture
 #ifdef GBUFFER
@@ -67,7 +71,17 @@ PS_Out main(PS_In pIn)
 	
 	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
 		
-	ShadePixel(albedo, ao, f0, smoothness, n, pIn.position.xyz, GetScreenTexCoord(pIn.clipPos.xy), pOut);
+	ShadePixel(
+		albedo, 
+		ao, 
+		f0, 
+		smoothness, 
+		emissive, 
+		n, 
+		pIn.position.xyz, 
+		GetScreenTexCoord(pIn.clipPos.xy), 
+		pOut);
+		
 #ifndef GBUFFER
 	pOut.color.a = diffuse.a;
 #endif
@@ -80,7 +94,7 @@ void main(PS_In pIn)
 {
 #ifdef ALPHA_TEST
 	float2 texCoord = pIn.texCoord.xy;
-	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * DiffuseColor;
+	float4 diffuse = DiffuseMap.Sample(Sampler, texCoord) * float4(DiffuseColor, Opacity);
 	diffuse.a *= AlphaMap.Sample(Sampler, texCoord).r;
 	float threshold = 0.5;
 	clip(diffuse.a - threshold);	

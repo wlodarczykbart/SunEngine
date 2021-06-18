@@ -1,5 +1,6 @@
 add_executable(TestApp
-main.cpp
+ShadowMap.cpp
+ScreenSpaceReflection.cpp
 )
 
 target_include_directories(TestApp PUBLIC 
@@ -7,4 +8,4 @@ target_include_directories(TestApp PUBLIC
 "${CMAKE_SOURCE_DIR}/External/glm"
 "${CMAKE_SOURCE_DIR}/External/imgui/${IMGUI_VER}")
 
-target_link_libraries(TestApp EngineTools RenderEngine d3d11)
+target_link_libraries(TestApp EngineTools RenderEngine d3d11 dxgi)

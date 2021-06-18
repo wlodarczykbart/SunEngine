@@ -4,7 +4,7 @@
 #include "GraphicsPipeline.h"
 #include "Shader.h"
 
-//#define SUPPORT_SSR
+#define SUPPORT_SSR
 
 namespace SunEngine
 {
@@ -109,7 +109,7 @@ namespace SunEngine
 		RenderPassData _deferredCopyData;
 		RenderPassData _msaaResolveData;
 #ifdef SUPPORT_SSR
-		Pair<GraphicsPipeline, ShaderBindings> _ssrData;
+		RenderPassData _ssrData;
 #endif
 		UniformBuffer _shaderBuffer;
 		int _shaderBufferUsageCount;

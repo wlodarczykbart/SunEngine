@@ -133,8 +133,7 @@ namespace SunEngine
 	void GameEditor::CustomUpdate()
 	{
 		Scene* pScene = SceneMgr::Get().GetActiveScene();
-		for (SceneNode* node : TEST_NODES)
-			node->Orientation.Angles.y += 5.0f;
+		//for (SceneNode* node : TEST_NODES) node->Orientation.Angles.y += 5.0f;
 
 		static Timer timer(true);
 
@@ -339,7 +338,7 @@ namespace SunEngine
 			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
 		}
 
-		int Slices = 4*0;
+		int Slices = 4*1;
 		float Offset = 3.0f;
 		float ZStart = -(Slices * Slices * 2.0f);
 		float XStart = -(Slices * Slices * 0.5f);
@@ -351,7 +350,7 @@ namespace SunEngine
 			for (int j = 0; j < Slices; j++)
 			{
 				SceneNode* pCubeSceneNode = pAssetStandard->CreateSceneNode(pScene);
-				pCubeSceneNode->Position = glm::vec3(i * Offset - halfOffset, 1.0f, j * Offset - halfOffset);
+				pCubeSceneNode->Position = glm::vec3(i * Offset - halfOffset, -1.5f, j * Offset - halfOffset);
 				//pCubeSceneNode->Position.z += ZStart;
 				//pCubeSceneNode->Position.x += XStart;
 				//pCubeSceneNode->Scale = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
@@ -466,13 +465,57 @@ namespace SunEngine
 		//strAsset = "F:/Models/Scenes/sibenik/sibenik.obj";
 		//strAsset = "F:/Models/FBX/_PBR_/MP44_fbx/MP44/MP44.FBX";
 		//strAsset = "F:/Models/FBX/_PHONG_/Wooden_barrels__OBJ/Wooden_barrels.FBX";
-		strAsset = "F:/Models/glTF-Sample-Models-master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf";
+		//strAsset = "F:/Models/glTF-Sample-Models-master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf";
+		//strAsset = "F:/Code/Vulkan-master/data/models/cerberus/cerberus.gltf";
 
 		auto options = SunEngine::AssetImporter::Options::Default;
-		options.MaxTextureSize = 1024;
+		options.MaxTextureSize = 4096;
 		Asset* pAsset = ImportAsset(strAsset, options);
 		if (pAsset)
-			pAsset->CreateSceneNode(pScene, 4);
+		{
+			//auto node = pAsset->GetNodeByName("Cerberus00_Fixed.001");
+			//auto renderer = node->GetComponentOfType(COMPONENT_RENDER_OBJECT)->As<MeshRenderer>();
+
+			//Material* pMaterial = resMgr.Clone(pMetalMaterial);
+			//renderer->SetMaterial(pMaterial);
+			//pMaterial->RegisterToGPU();
+
+			//Texture2D* pTex = 0;
+			//String dir = GetDirectory(strAsset) + "/";
+
+			//pTex = resMgr.AddTexture2D("albedo");
+			//pTex->SetFilename(dir + "albedo.jpg");
+			//pTex->LoadFromFile();
+			//pTex->SetSRGB();
+			//pTex->RegisterToGPU();
+			//pMaterial->SetTexture2D(MaterialStrings::DiffuseMap, pTex);
+
+			//pTex = resMgr.AddTexture2D("normal");
+			//pTex->SetFilename(dir + "normal.jpg");
+			//pTex->LoadFromFile();
+			//pTex->RegisterToGPU();
+			//pMaterial->SetTexture2D(MaterialStrings::NormalMap, pTex);
+
+			//pTex = resMgr.AddTexture2D("ao");
+			//pTex->SetFilename(dir + "ao.jpg");
+			//pTex->LoadFromFile();
+			//pTex->RegisterToGPU();
+			//pMaterial->SetTexture2D(MaterialStrings::AmbientOcclusionMap, pTex);
+
+			//pTex = resMgr.AddTexture2D("metallic");
+			//pTex->SetFilename(dir + "metallic.jpg");
+			//pTex->LoadFromFile();
+			//pTex->RegisterToGPU();
+			//pMaterial->SetTexture2D(MaterialStrings::MetallicMap, pTex);
+
+			//pTex = resMgr.AddTexture2D("roughness");
+			//pTex->SetFilename(dir + "roughness.jpg");
+			//pTex->LoadFromFile();
+			//pTex->RegisterToGPU();
+			//pMaterial->SetTexture2D(MaterialStrings::RoughnessMap, pTex);
+
+			pAsset->CreateSceneNode(pScene, 300);
+		}
 		else
 			spdlog::warn("Failed to load {}", strAsset);
 

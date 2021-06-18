@@ -20,6 +20,9 @@ namespace SunEngine
 	DefineStaticStr(MaterialStrings, PositionMap);
 	DefineStaticStr(MaterialStrings, DepthMap);
 	DefineStaticStr(MaterialStrings, AlphaMap);
+	DefineStaticStr(MaterialStrings, Opacity);
+	DefineStaticStr(MaterialStrings, EmissiveMap);
+	DefineStaticStr(MaterialStrings, EmissiveColor);
 
 	Material::Material()
 	{
@@ -41,7 +44,7 @@ namespace SunEngine
 	bool Material::SetMaterialVar(const String& name, const void* pData, uint size)
 	{
 		auto found = _mtlVariables.find(name);
-		if (found != _mtlVariables.end() && size <= (*found).second.size)
+		if (found != _mtlVariables.end())
 		{
 			_memBuffer.SetData(pData, glm::min(size, (*found).second.size), (*found).second.offset);
 			if (!_mtlBuffer.Update(_memBuffer.GetData()))
@@ -58,7 +61,7 @@ namespace SunEngine
 	bool Material::GetMaterialVar(const String& name, void* pData, uint size) const
 	{
 		auto found = _mtlVariables.find(name);
-		if (found != _mtlVariables.end() && size <= (*found).second.size)
+		if (found != _mtlVariables.end())
 		{
 			memcpy(pData, _memBuffer.GetData((*found).second.offset), glm::min(size, (*found).second.size));
 			return true;

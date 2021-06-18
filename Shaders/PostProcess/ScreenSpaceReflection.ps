@@ -1,4 +1,6 @@
 #include "CameraBuffer.hlsl"
+#include "PostProcess/screenSpaceRayTrace.hlsl"
+#include "Utility.hlsl"
 
 struct PS_In
 {
@@ -10,29 +12,100 @@ Texture2D DiffuseMap;
 Texture2D SpecularMap;
 Texture2D NormalMap;
 Texture2D PositionMap;
+Texture2D DepthMap;
 SamplerState Sampler;
 
-float4 textureGL(Texture2D tex, float2 texCoord)
-{
-	return tex.Sample(Sampler, texCoord);
-}
+#define MAX_STEPS 225.0
+#define MAX_DISTANCE 80.0
 
-float2 textureSizeGL(Texture2D tex, int tmp)
+float calculateAlphaForIntersection(
+   float iterationCount, 
+   float specularStrength,
+   float2 hitPixel,
+   float3 hitPoint,
+   float3 vsRayOrigin,
+   float3 vsRayDirection)
 {
-	float w, h;
-	tex.GetDimensions(w, h);
-	return float2(w, h);
+	float alpha = min( 1.0, specularStrength * 1.0);
+	
+	// Fade ray hits that approach the maximum iterations
+	alpha *= 1.0 - (iterationCount / MAX_STEPS);
+	
+	// Fade ray hits that approach the screen edge
+	float screenFade = 0.75;
+	float2 hitPixelNDC = (hitPixel * 2.0 - 1.0);
+	float maxDimension = min( 1.0, max( abs( hitPixelNDC.x), abs( hitPixelNDC.y)));
+	alpha *= 1.0 - (max( 0.0, maxDimension - screenFade) / (1.0 - screenFade));
+	
+	// Fade ray hits base on how much they face the camera
+	float eyeFadeStart = 0.74;
+	float eyeFadeEnd = 1.0;
+	if(eyeFadeStart >  eyeFadeEnd) swap( eyeFadeStart, eyeFadeEnd);
+	
+	float eyeDirection = clamp( vsRayDirection.z, eyeFadeStart, eyeFadeEnd);
+	alpha *= 1.0 - ((eyeDirection - eyeFadeStart) / (eyeFadeEnd - eyeFadeStart));
+	
+	// Fade ray hits based on distance from ray origin
+	alpha *= 1.0 - clamp( distance( vsRayOrigin, hitPoint) / MAX_DISTANCE, 0.0, 1.0);
+	
+	return alpha;
 }
 
 float4 main(PS_In pIn) : SV_TARGET
 {
-	float2 texCoord = pIn.texCoord;
+	float4 gSpecular = SpecularMap.Sample(Sampler, pIn.texCoord);
+	if(gSpecular.a < 0.005)
+		return float4(0,0,0,0);
 
-	float3 p = PositionMap.Sample(Sampler, texCoord).xyz;
-	float3 n = normalize(NormalMap.Sample(Sampler, texCoord)).xyz;	
-	float3 v = -normalize(p);
-	float3 r = reflect(v, n);
+	float2 texSize;
+    DiffuseMap.GetDimensions(texSize.x, texSize.y);
+
+    float3 eyePos = PositionMap.Sample(Sampler, pIn.texCoord).xyz;
+	float3 eyeDir = normalize(eyePos);
+    float3 eyeNormal = normalize(decodeNormal(NormalMap.Sample(Sampler, pIn.texCoord).xy));
+    float3 rayDir = normalize(reflect(eyeDir, eyeNormal));
+
+	float t = max(dot(eyeNormal, -eyeDir), 0.0);
+	//return float4(t,t,t, 1);
 	
-	//return float4(DiffuseMap.Sample(Sampler, texCoord).xyz, length(r));
-	return float4(1, 0, 0, 0.6);
+
+    float2 hitPixel;
+    float3 csHitPoint;
+	float iterations;
+
+	float4x4 ProjPixelMatrix = float4x4(
+		texSize.x*0.5, 0.0, 0.0, 0.0,
+		0.0, texSize.y*-0.5, 0.0, 0.0,
+		0.0, 0.0, 1.0, 0.0,
+		texSize.x*0.5, texSize.y*0.5, 0.0, 1.0
+	);
+	ProjPixelMatrix = mul(ProjectionMatrix, ProjPixelMatrix);
+
+    bool hit = traceScreenSpaceRay2(
+        eyePos,
+        rayDir,
+        ProjPixelMatrix,
+        PositionMap,
+        texSize,
+        0.5f, //  csZThickness, expected thickness of objects in scene (e.g. pillars)
+        -0.5f, //camera.nearPlaneZ,
+        2.0f, //stride,
+        1 + float((int(pIn.clipPos.x) + int(pIn.clipPos.y)) & 1) * 0.5,
+        MAX_STEPS, //maxSteps,
+        MAX_DISTANCE, //maxRayTraceDistance,
+        hitPixel,
+        csHitPoint,
+		iterations
+    );
+
+    if (hit)
+    {
+        hitPixel /= texSize;
+		float alpha = calculateAlphaForIntersection(iterations, gSpecular.a, hitPixel, csHitPoint, eyePos, rayDir);
+        return float4(DiffuseMap.Sample(Sampler, hitPixel).rgb, alpha);
+    }
+    else
+    {
+        return float4(0,0,0,0);
+    }
 }

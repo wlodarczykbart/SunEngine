@@ -24,20 +24,27 @@ float4 main(PS_In pIn) : SV_TARGET
 {
 	DeferredOut dOut;
 
-	float4 albedo = DiffuseMap.Sample(Sampler, pIn.texCoord);
+	float4 gAlbedo = DiffuseMap.Sample(Sampler, pIn.texCoord);
 	float depth = DepthMap.Sample(Sampler, pIn.texCoord).r;
 	
 	//dont shade things that are the background
 	if(depth == 1.0)
-	{
-		return float4(albedo.rgb, 1.0);
-	}
+		return float4(gAlbedo.rgb, 1.0);
 	
-	float4 specular = SpecularMap.Sample(Sampler, pIn.texCoord);
-	float3 normal = decode(NormalMap.Sample(Sampler, pIn.texCoord).xy);
-	float3 position = PositionMap.Sample(Sampler, pIn.texCoord).xyz;
+	float4 gSpecular = SpecularMap.Sample(Sampler, pIn.texCoord);
+	float4 gNormal = NormalMap.Sample(Sampler, pIn.texCoord);
+	float4 gPosition = PositionMap.Sample(Sampler, pIn.texCoord);
 	
 	PS_Out pOut;
-	ShadePixel(albedo.rgb, albedo.a, specular.rgb, specular.a, normal, position, pIn.texCoord, pOut);
+	ShadePixel(
+		gAlbedo.rgb, 
+		gAlbedo.a,
+		gSpecular.rgb, 
+		gSpecular.a, 
+		float3(gNormal.zw, gPosition.w),
+		decodeNormal(gNormal.xy), 
+		gPosition.xyz, 
+		pIn.texCoord, 
+		pOut);
 	return float4(pOut.color.rgb, 1.0);
 }

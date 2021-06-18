@@ -93,8 +93,8 @@ namespace SunEngine
 			deferredInfo.pDeferredCopyBindings = &_deferredCopyData.bindings;
 
 #ifdef SUPPORT_SSR
-			deferredInfo.pSSRPipeline = &_ssrData.first;
-			deferredInfo.pSSRBindings = &_ssrData.second;
+			deferredInfo.pSSRPipeline = &_ssrData.pipeline;
+			deferredInfo.pSSRBindings = &_ssrData.bindings;
 #endif
 		}
 
@@ -355,10 +355,11 @@ namespace SunEngine
 		_deferredCopyData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture()); //used for blend factor blend
 
 #ifdef SUPPORT_SSR
-		_ssrData.second.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
-		_ssrData.second.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1)); //used for blend factor blend
-		_ssrData.second.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
-		_ssrData.second.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
+		_ssrData.bindings.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
+		_ssrData.bindings.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1)); //used for blend factor blend
+		_ssrData.bindings.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
+		_ssrData.bindings.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
+		_ssrData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture());
 #endif
 
 		rtInfo.numTargets = 1;
@@ -539,7 +540,7 @@ namespace SunEngine
 		if (!data.bindings.Create(bindingInfo))
 			return false;
 
-		data.bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
+		FilterMode filter = SE_FM_NEAREST;
 
 		if (data.bindings.SetUniformBuffer(ShaderStrings::MaterialBufferName, &_shaderBuffer))
 			data.bufferIndex = _shaderBufferUsageCount++;
@@ -556,8 +557,8 @@ namespace SunEngine
 		if (shader == DefaultShaders::ScreenSpaceReflection)
 		{
 			pipelineInfo.settings.EnableAlphaBlend();
-			pipelineInfo.settings.blendState.srcAlphaBlendFactor = SE_BF_ONE;
-			pipelineInfo.settings.blendState.dstAlphaBlendFactor = SE_BF_ZERO;
+			//pipelineInfo.settings.blendState.srcAlphaBlendFactor = SE_BF_ONE;
+			//pipelineInfo.settings.blendState.dstAlphaBlendFactor = SE_BF_ZERO;
 			//pipelineInfo.settings.blendState.srcColorBlendFactor = SE_BF_SRC_ALPHA;
 			//pipelineInfo.settings.blendState.dstColorBlendFactor = SE_BF_ONE_MINUS_SRC_ALPHA;
 			//pipelineInfo.settings.depthStencil.depthCompareOp = se; //we only want to test pixels which have depths < 1, the quad will have depth == 1, so pixels which are the background wont be tested
@@ -572,10 +573,17 @@ namespace SunEngine
 			//this pipeline writes to depth buffer in pixel shader
 			pipelineInfo.settings.depthStencil.enableDepthWrite = true;
 		}
+		else if (shader == DefaultShaders::FXAA)
+		{
+			//fxaa needs linear filter for pixel averaging
+			filter = SE_FM_LINEAR;
+		}
 
 		pipelineInfo.pShader = pShader;
 		if (!data.pipeline.Create(pipelineInfo))
 			return false;
+
+		data.bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(filter, SE_WM_CLAMP_TO_EDGE));
 
 		return true;
 	}

@@ -232,7 +232,7 @@ namespace SunEngine
 						if (lines[k].find('(') != String::npos || lines[k].find(')') != String::npos || lines[k].find("struct") != String::npos)
 							valid = false;
 
-						if (lines[k].find(';'))
+						if (lines[k].find(';') != String::npos)
 							break;
 					}
 

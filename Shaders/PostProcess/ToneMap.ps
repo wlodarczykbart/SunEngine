@@ -12,14 +12,28 @@ float3 reinhard(float3 v)
     return v / (1.0f + v);
 }
 
+float3 Uncharted2Tonemap(float3 x)
+{
+	float A = 0.15;
+	float B = 0.50;
+	float C = 0.10;
+	float D = 0.20;
+	float E = 0.02;
+	float F = 0.30;
+	return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
+}
+
 float4 main(PS_In pIn) : SV_TARGET
 {
-	float4 color = DiffuseMap.Sample(Sampler, pIn.texCoord);
-	color.rgb = reinhard(color.rgb);
-	color.rgb = sqrt(color.rgb);
-	color.a = dot(color.rgb, float3(0.299, 0.587, 0.114));
+	float3 color = DiffuseMap.Sample(Sampler, pIn.texCoord).rgb;
+	color = reinhard(color);
+	
+	//color = Uncharted2Tonemap(color * 4.5);
+	//color = color * (1.0f / Uncharted2Tonemap(float3(1,1,1)*11.2f));
+	
+	//color = sqrt(color);
+	color = pow(color, 1.0 / 2.2);
+	return float4(color, dot(color, float3(0.299, 0.587, 0.114)));
 	//color.a = 1.0;
 	//return float4(pow(color.rgb, float3(1,1,1) * (1.0 / 2.2)), color.a);
-	
-	return color;
 }

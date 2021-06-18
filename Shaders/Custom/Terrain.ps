@@ -61,8 +61,16 @@ PS_Out main(PS_In pIn) : SV_TARGET
 	
 	float3 n = mul(normal.xyz * 2.0 - 1.0, tbn);	
 	
-	ShadePixel(albedo.rgb, ao, f0, smoothness, n, pIn.position.xyz, 
-		GetScreenTexCoord(pIn.clipPos.xy), pOut);
+	ShadePixel(
+		albedo.rgb, 
+		ao, 
+		f0, 
+		smoothness, 
+		float3(0,0,0), 
+		n, 
+		pIn.position.xyz, 
+		GetScreenTexCoord(pIn.clipPos.xy), 
+		pOut);
 	
 	//pOut.color = splatWeights[0];
 	//pOut.color = float4(n.xyz, 1.0);

@@ -1,3 +1,5 @@
+#ifdef TEST_SHADOW_MAP
+
 #include "FileBase.h"
 #include "GraphicsContext.h"
 #include "GraphicsWindow.h"
@@ -2647,4 +2649,6 @@ void UpdateShadows(FLOAT nearClip, FLOAT farClip, const XMMATRIX& matViewCameraP
 		m_fCascadePartitionsFrustum[iCascadeIndex] = fFrustumIntervalEnd;
 	}
 }
+#endif
+
 #endif

@@ -39,6 +39,15 @@ float G_Smith(float nDotV, float nDotL, float a)
 	return G_GGX(nDotV, a) * G_GGX(nDotL, a);
 }
 
+float G_SchlicksmithGGX(float nDotV, float nDotL, float a)
+{
+	float r = (a + 1.0);
+	float k = (r*r) / 8.0;
+	float GL = nDotL / (nDotL * (1.0 - k) + k);
+	float GV = nDotV / (nDotV * (1.0 - k) + k);
+	return GL * GV;
+}
+
 
 float3 F_Schlick(float vDotH, float3 f0)
 {
@@ -63,16 +72,20 @@ float3 BRDF_CookTorrance(float3 l, float3 n, float3 v, float3 lightColor, float3
 	
 	float3 F = F_Schlick(vDotH, f0);
 	float D = D_GGX(nDotH, a);
-	float G = G_Smith(nDotV, nDotL, a);
+	float G = G_SchlicksmithGGX(nDotV, nDotL, a);
 	
 	float3 specular = (D * G * F) / (4.0 * nDotL * nDotV);
 	float3 diffuse = albedo / PI;
 	
-	float3 kS = F;
-	kS = float3(1,1,1) * dot(kS, float3(0.2126, 0.7152, 0.0722));
-	float3 kD = float3(1,1,1) - kS;
+	float3 kD = float3(1, 1, 1) - F; //metallic is handled in the albedo calculation 
+	return (kD * albedo / PI + specular) * nDotL * lightColor;
 	
-	float3 brdf = lightColor * nDotL * (diffuse * kD + specular);
-	//brdf = lightColor * nDotL * (diffuse * (1.0f - specular) + specular);
-	return brdf;
+	
+	//float3 kS = F;
+	//kS = float3(1,1,1) * dot(kS, float3(0.2126, 0.7152, 0.0722));
+	//float3 kD = float3(1,1,1) - kS;
+	
+	//return specular * nDotL * lightColor;
+	//return lightColor * nDotL * (diffuse * kD + specular);
+	//return lightColor * nDotL * (diffuse * (1.0f - specular) + specular);
 }

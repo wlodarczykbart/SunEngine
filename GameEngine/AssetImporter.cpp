@@ -506,6 +506,11 @@ namespace SunEngine
 		return glm::vec3(v.x, v.y, v.z);
 	}
 
+	bool IsMaterialKey(const aiString& str, const char* pKeyName, int, int)
+	{
+		return strcmp(str.C_Str(), pKeyName) == 0;
+	}
+
 	void CollectNodes(aiNode* pNode, Vector<aiNode*>& nodes)
 	{
 		nodes.push_back(pNode);
@@ -698,6 +703,8 @@ namespace SunEngine
 			{ aiTextureType_METALNESS, MaterialStrings::MetallicMap },
 			{ aiTextureType_AMBIENT_OCCLUSION, MaterialStrings::AmbientOcclusionMap },
 			{ aiTextureType_LIGHTMAP, MaterialStrings::AmbientOcclusionMap },
+			{ aiTextureType_EMISSION_COLOR, MaterialStrings::EmissiveMap },
+			{ aiTextureType_EMISSIVE, MaterialStrings::EmissiveMap },
 			{ aiTextureType_DIFFUSE_ROUGHNESS, CustomTextureTypes::DiffuseRoughness },
 		};
 
@@ -749,58 +756,55 @@ namespace SunEngine
 					}
 
 					String texType;
-					auto foundType = CommonTextureTypes.find(texMapping.first);
-					if (foundType != CommonTextureTypes.end())
+
+					//namespace CustomTextureTypes
+					//{
+					//	const String Roughness = "Roughness";
+					//	const String DiffuseRoughness = "DiffuseRoughness";
+					//	const String RoughnessMetallic = "RoughnessMetallic";
+					//	const String OcclusionRoughnessMetallic = "OcclusionRoughnessMetallic";
+					//	const String SpecularGlossiness = "SpecularGlossiness";
+					//	const String MetallicRoughness = "MetallicRoughness";
+					//}
+
+					//try to determine
+					String texName = StrToLower(GetFileNameNoExt(strPath));
+
+					usize posDiffuse = texName.find("diffuse");
+					usize posSpec = texName.find("spec");
+					usize posGloss = texName.find("gloss");
+					usize posRough = texName.find("rough");
+					usize posMetal = texName.find("metal");
+					usize posAO = texName.find("ambient");
+					if (posAO == String::npos) posAO = texName.find("occlusion");
+
+					if (posAO != String::npos && posRough != String::npos && posMetal != String::npos)
 					{
-						texType = (*foundType).second;
+						texType = CustomTextureTypes::OcclusionRoughnessMetallic; //TODO: add other ordering?
+					}
+					else if (posRough != String::npos && posMetal != String::npos)
+					{
+						texType = posRough < posMetal ? CustomTextureTypes::RoughnessMetallic : CustomTextureTypes::MetallicRoughness;
+					}
+					else if (posDiffuse != String::npos && posRough != String::npos)
+					{
+						texType = CustomTextureTypes::DiffuseRoughness;
+					}
+					else if (posRough != String::npos)
+					{
+						texType = CustomTextureTypes::Roughness;
+					}
+					else if (posSpec != String::npos && posGloss != String::npos)
+					{
+						texType = CustomTextureTypes::SpecularGlossiness;
+					}
+					else if (CommonTextureTypes.count(texMapping.first))
+					{
+						texType = CommonTextureTypes.at(texMapping.first);
 					}
 					else
 					{
-						//namespace CustomTextureTypes
-						//{
-						//	const String Roughness = "Roughness";
-						//	const String DiffuseRoughness = "DiffuseRoughness";
-						//	const String RoughnessMetallic = "RoughnessMetallic";
-						//	const String OcclusionRoughnessMetallic = "OcclusionRoughnessMetallic";
-						//	const String SpecularGlossiness = "SpecularGlossiness";
-						//	const String MetallicRoughness = "MetallicRoughness";
-						//}
-
-						//try to determine
-						String texName = StrToLower(GetFileNameNoExt(strPath));
-
-						usize posDiffuse = texName.find("diffuse");
-						usize posSpec = texName.find("spec");
-						usize posGloss = texName.find("gloss");
-						usize posRough = texName.find("rough");
-						usize posMetal = texName.find("metal");
-						usize posAO = texName.find("ambient");
-						if (posAO == String::npos) posAO = texName.find("occlusion");
-
-						if (posAO != String::npos && posRough != String::npos && posMetal != String::npos)
-						{
-							texType = CustomTextureTypes::OcclusionRoughnessMetallic; //TODO: add other ordering?
-						}
-						else if (posRough != String::npos && posMetal != String::npos)
-						{
-							texType = posRough < posMetal ? CustomTextureTypes::RoughnessMetallic : CustomTextureTypes::MetallicRoughness;
-						}
-						else if (posDiffuse != String::npos && posRough != String::npos)
-						{
-							texType = CustomTextureTypes::DiffuseRoughness;
-						}
-						else if (posRough != String::npos)
-						{
-							texType = CustomTextureTypes::Roughness;
-						}
-						else if (posSpec != String::npos && posGloss != String::npos)
-						{
-							texType = CustomTextureTypes::SpecularGlossiness;
-						}
-						else
-						{
-							texType = CustomTextureTypes::Invalid;
-						}
+						texType = CustomTextureTypes::Invalid;
 					}
 
 					Vector<TextureLoadTask> tasks;
@@ -898,12 +902,15 @@ namespace SunEngine
 		//TODO: better way to determine if metal shader?
 		bool metallic = false;
 		bool alphaTest = false;
+		bool emissive = false;
 		for (auto& texType : _materialMapping[pDst])
 		{
 			if (texType.first == MaterialStrings::MetallicMap || texType.first == MaterialStrings::RoughnessMap)
 				metallic = true;
 			if (texType.first == MaterialStrings::AlphaMap)
 				alphaTest = true;
+			if (texType.first == MaterialStrings::EmissiveMap)
+				emissive = true;
 		}
 
 		String strShader = metallic ? DefaultShaders::Metallic : DefaultShaders::Specular;
@@ -913,41 +920,43 @@ namespace SunEngine
 
 		pDst->GetShader()->SetDefaults(pDst);
 
-		//values that are in shader material buffer
-		aiColor4D diffuseColor;
-		aiColor4D transparencyFactor;
-		aiColor4D transparentColor;
+		for (uint i = 0; i < pSrc->mNumProperties; i++)
+		{
+			auto prop = pSrc->mProperties[i];
+			//printf("%s\t", prop->mKey.C_Str());		
 
-		aiColor4D specularColor;
-		aiColor4D smoothness;
-		aiColor4D shininessStrength;
+			switch (prop->mType)
+			{
+				//only supporting int or float types...
+			case aiPTI_Float:
+			case aiPTI_Integer:
+				break;
+			default:
+				continue;
+			}
 
-		aiColor4D twoSided;
-		aiColor4D ambientColor;
-		aiColor4D emissiveColor;
+			//if(IsMaterialKey(prop->mKey, AI_MATKEY_COLOR_DIFFUSE))
+			//	pDst->SetMaterialVar(MaterialStrings::DiffuseColor, prop->mData, prop->mDataLength);
 
-		pDst->GetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor);
-		pDst->GetMaterialVar(MaterialStrings::SpecularColor, specularColor);
-		pDst->GetMaterialVar(MaterialStrings::Smoothness, smoothness);
+			//else if (IsMaterialKey(prop->mKey, AI_MATKEY_COLOR_SPECULAR))
+			//	pDst->SetMaterialVar(MaterialStrings::SpecularColor, prop->mData, prop->mDataLength);
 
-		pSrc->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor);
-		pSrc->Get(AI_MATKEY_OPACITY, diffuseColor.a);
-		//if(pSrc->Get(AI_MATKEY_TRANSPARENCYFACTOR, transparencyFactor) == aiReturn_SUCCESS) diffuseColor.a *= transparencyFactor.r;
-		if(pSrc->Get(AI_MATKEY_COLOR_TRANSPARENT, transparentColor) == aiReturn_SUCCESS && transparentColor.a != 0.0f)  
-			diffuseColor.a *= transparentColor.r;
+			//else if (IsMaterialKey(prop->mKey, AI_MATKEY_OPACITY))
+			//	pDst->SetMaterialVar(MaterialStrings::Opaqueness, prop->mData, prop->mDataLength);
 
-		pSrc->Get(AI_MATKEY_COLOR_SPECULAR, specularColor);
-		pSrc->Get(AI_MATKEY_SHININESS, smoothness);
-		pSrc->Get(AI_MATKEY_SHININESS_STRENGTH, shininessStrength);
+			//else if (IsMaterialKey(prop->mKey, AI_MATKEY_COLOR_TRANSPARENT))
+			//	pDst->SetMaterialVar(MaterialStrings::Opaqueness, prop->mData, prop->mDataLength);
 
-		//Not sure if these are of any use to me
-		pSrc->Get(AI_MATKEY_TWOSIDED, twoSided);
-		pSrc->Get(AI_MATKEY_COLOR_AMBIENT, ambientColor);
-		pSrc->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor);
+			//else if (IsMaterialKey(prop->mKey, AI_MATKEY_SHININESS))
+			//	pDst->SetMaterialVar(MaterialStrings::Smoothness, prop->mData, prop->mDataLength);
 
-		//handle phong specualar exponent this way for now...
-		if (smoothness.r > 1.0f)
-			smoothness.r = 1.0f - expf(-smoothness.r * 0.008f);
+			//else if (IsMaterialKey(prop->mKey, AI_MATKEY_SHININESS_STRENGTH))
+			//	pDst->SetMaterialVar(MaterialStrings::Smoothness, prop->mData, prop->mDataLength);
+		}
+
+		////handle phong specualar exponent this way for now...
+		//if (smoothness.r > 1.0f)
+		//	smoothness.r = 1.0f - expf(-smoothness.r * 0.008f);
 
 		//pDst->SetMaterialVar(MaterialStrings::DiffuseColor, Vec4::Zero);
 		//pDst->SetMaterialVar(MaterialStrings::SpecularColor, specularColor);
@@ -955,10 +964,10 @@ namespace SunEngine
 
 		if (alphaTest)
 		{
-			glm::vec4 diffuse;
-			pDst->GetMaterialVar(MaterialStrings::DiffuseColor, diffuse);
-			diffuse.a *= 2.0f;
-			pDst->SetMaterialVar(MaterialStrings::DiffuseColor, diffuse);
+			float opacity;
+			pDst->GetMaterialVar(MaterialStrings::Opacity, opacity);
+			opacity *= 2.0f;
+			pDst->SetMaterialVar(MaterialStrings::Opacity, opacity);
 		}
 
 		return true;
@@ -1321,8 +1330,8 @@ namespace SunEngine
 								pTexture->GenerateMips(false);
 							}
 
-							//if (task.Compress)
-							//	task.Texture->Compress();
+							if (task.Compress)
+								task.Texture->Compress();
 
 							if (task.SRGB)
 								task.Texture->SetSRGB();
@@ -1342,7 +1351,11 @@ namespace SunEngine
 			{
 				if (registeredTextures.count(tex.second) == 0)
 				{
-					tex.second->RegisterToGPU();
+					if (!tex.second->RegisterToGPU())
+					{
+						aiReleaseImport(pScene);
+						return false;
+					}
 					registeredTextures.insert(tex.second);
 				}
 				pMaterial->SetTexture2D(tex.first, tex.second);

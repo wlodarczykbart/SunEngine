@@ -5,6 +5,7 @@ struct PS_In
 	float4 clipPos : SV_POSITION;
 	float4 worldPos : WORLDPOSITION;
 	float4 eyePos : EYEPOSITION;
+	float4 eyeNormal : EYENORMAL;
 	float4 color : COLOR;
 };
 
@@ -26,6 +27,7 @@ PS_In main(float4 position : POSITION)
 	pIn.clipPos = mul(worldPos, ViewProjMatrix);
 	pIn.worldPos = worldPos;
 	pIn.eyePos = mul(worldPos, ViewMatrix);
+	pIn.eyeNormal = mul(float4(0, 1, 0, 0), ViewMatrix);
 	pIn.color = position * 0.5 + 0.5;
 	return pIn;
 };

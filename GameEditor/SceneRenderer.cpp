@@ -203,7 +203,18 @@ namespace SunEngine
 		//proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
 		Shader::FillMatrices(view, proj, camData);
 		camData.CameraData.row0.Set(0.0f, 0.0f, (float)pOutputTexture->GetWidth(), (float)pOutputTexture->GetHeight());
+		camData.CameraData.row1.Set(_currentCamera->C()->As<Camera>()->GetNearZ(), _currentCamera->C()->As<Camera>()->GetFarZ(), 0.0f, 0.0f);
 		cameraDataList.push_back(camData);
+
+		//glm::vec4 pos = glm::vec4(-1, 1, 0.99, 1);
+		//glm::mat4 pixelMtx = Mat4::Identity;
+		//pixelMtx[0][0] = pOutputTexture->GetWidth() / 2;
+		//pixelMtx[1][1] = pOutputTexture->GetHeight() / 2;
+		//pixelMtx[3][0] = pOutputTexture->GetWidth() / 2;
+		//pixelMtx[3][1] = pOutputTexture->GetHeight() / 2;
+		////pixelMtx = pixelMtx * proj;
+		//pos = pixelMtx * pos;
+		//pos /= pos.w;
 
 		if (EngineInfo::GetRenderer().ShadowsEnabled())
 		{
@@ -417,6 +428,7 @@ namespace SunEngine
 
 		if (pDeferredInfo)
 		{
+			pDeferredInfo->pTarget->SetClearColor(0, 0, 0, 0);
 			pDeferredInfo->pTarget->Bind(cmdBuffer);
 			ProcessRenderList(cmdBuffer, _gbufferRenderList);
 			pDeferredInfo->pTarget->Unbind(cmdBuffer);
@@ -616,8 +628,8 @@ namespace SunEngine
 
 		BaseShader* pShader = data.RenderNode->GetMaterial()->GetShader()->GetBaseVariant(variantMask);
 
-		glm::vec4 diffuseColor;
-		if (!isDepth && data.RenderNode->GetMaterial()->GetMaterialVar(MaterialStrings::DiffuseColor, diffuseColor) && diffuseColor.a < 1.0f)
+		float opacity = 1.0f;
+		if (!isDepth && data.RenderNode->GetMaterial()->GetMaterialVar(MaterialStrings::Opacity, opacity) && opacity < 1.0f)
 		{
 			settings.EnableAlphaBlend();
 			sorted = true;
