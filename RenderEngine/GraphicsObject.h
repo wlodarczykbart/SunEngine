@@ -37,8 +37,8 @@ namespace SunEngine
 		virtual IObject* GetAPIHandle() const = 0;
 		virtual bool Destroy();
 		const String& GetErrStr() const;
-		bool Bind(CommandBuffer* cmdBuffer, IBindState* pBindState = 0);
-		bool Unbind(CommandBuffer* cmdBuffer);
+		virtual bool Bind(CommandBuffer* cmdBuffer, IBindState* pBindState = 0);
+		virtual bool Unbind(CommandBuffer* cmdBuffer);
 
 	protected:
 		String _errStr;

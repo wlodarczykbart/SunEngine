@@ -72,17 +72,15 @@ namespace SunEngine
 
 			RenderTarget::CreateInfo depthTargetInfo = {};
 			depthTargetInfo.hasDepthBuffer = true;
-			depthTargetInfo.width = depthSliceSize * _depthPasses.size();
+			depthTargetInfo.width = depthSliceSize;
 			depthTargetInfo.height = depthSliceSize;
+			depthTargetInfo.numLayers =_depthPasses.size();
 
 			//depthTargetInfo.floatingPointColorBuffer = false;
 			depthTargetInfo.numTargets = 0;
 
 			if (!_depthTarget.Create(depthTargetInfo))
 				return false;
-
-			float vpWidth = (float)depthSliceSize / depthTargetInfo.width;
-			float vpOffset = 0.0f;
 
 			for (uint i = 0; i < _depthPasses.size(); i++)
 			{
@@ -92,9 +90,6 @@ namespace SunEngine
 
 				if (!_depthPasses[i]->SkinnedBonesBufferGroup.Init(ShaderStrings::SkinnedBoneBufferName, SBT_BONES, sizeof(glm::mat4) * skinnedBoneCount))
 					return false;
-
-				_depthPasses[i]->Viewport = { vpOffset * (float)_depthTarget.Width(), 0.0f, vpWidth * (float)_depthTarget.Width(), (float)_depthTarget.Height() };
-				vpOffset += vpWidth;
 			}
 
 		}
@@ -402,17 +397,13 @@ namespace SunEngine
 		if (!_currentEnvironment)
 			return false;
 
-		_depthTarget.Bind(cmdBuffer);
-
 		for (uint i = 0; i < _depthPasses.size(); i++)
 		{
-			auto& vp = _depthPasses[i]->Viewport;
-			cmdBuffer->SetViewport(vp.x, vp.y, vp.width, vp.height);
-			cmdBuffer->SetScissor(vp.x, vp.y, vp.width, vp.height);
+			_depthTarget.BindLayer(cmdBuffer, i);
 			ProcessRenderList(cmdBuffer, _depthPasses[i]->RenderList, i+1, true);
 			_depthPasses[i]->RenderList.clear();
+			_depthTarget.Unbind(cmdBuffer);
 		}
-		_depthTarget.Unbind(cmdBuffer);
 
 		_envTarget.Bind(cmdBuffer);
 		RenderEnvironment(cmdBuffer);

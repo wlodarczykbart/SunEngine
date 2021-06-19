@@ -102,7 +102,6 @@ namespace SunEngine
 			UniformBufferGroup ObjectBufferGroup;
 			UniformBufferGroup SkinnedBonesBufferGroup;
 			LinkedList<RenderNodeData> RenderList;
-			Viewport Viewport;
 			AABB FrustumBox;
 			UniquePtr<CameraComponentData> CameraData;
 		};

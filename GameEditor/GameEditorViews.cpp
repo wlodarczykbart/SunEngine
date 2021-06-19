@@ -637,14 +637,15 @@ namespace SunEngine
 	{
 		_target.SetClearColor(0, 1, 0, 1);
 		_target.Bind(cmdBuffer);
-		BaseShader* pShader = _pipeline.GetShader();
-		pShader->Bind(cmdBuffer);
-		_pipeline.Bind(cmdBuffer);
-		_bindings.Bind(cmdBuffer);
-		cmdBuffer->Draw(6, 1, 0, 0);
-		_bindings.Unbind(cmdBuffer);
-		_pipeline.Unbind(cmdBuffer);
-		pShader->Unbind(cmdBuffer);
+		//TODO BROKEN SINCE USING TEXTURE ARRAYS NOW...
+		//BaseShader* pShader = _pipeline.GetShader();
+		//pShader->Bind(cmdBuffer);
+		//_pipeline.Bind(cmdBuffer);
+		//_bindings.Bind(cmdBuffer);
+		//cmdBuffer->Draw(6, 1, 0, 0);
+		//_bindings.Unbind(cmdBuffer);
+		//_pipeline.Unbind(cmdBuffer);
+		//pShader->Unbind(cmdBuffer);
 		_target.Unbind(cmdBuffer);
 
 		return true;

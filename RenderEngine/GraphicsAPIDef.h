@@ -68,6 +68,7 @@ namespace SunEngine
 		MSAAMode msaa;
 		ITexture* colorBuffers[MAX_SUPPORTED_RENDER_TARGETS];
 		ITexture* depthBuffer;
+		uint numLayers;
 	};
 
 	struct ISamplerCreateInfo
@@ -85,6 +86,14 @@ namespace SunEngine
 		VRHandle outBinding;
 		VRHandle outImageHeaders;
 		Vector<int64> outSupportedSwapchainFormats;
+	};
+
+	struct Viewport
+	{
+		float x;
+		float y;
+		float width;
+		float height;
 	};
 
 	enum ShaderStage
@@ -256,6 +265,7 @@ namespace SunEngine
 	enum ObjectBindType
 	{
 		IOBT_SHADER_BINDINGS,
+		IOBT_RENDER_TARGET,
 	};
 
 	struct IBindState
@@ -268,5 +278,14 @@ namespace SunEngine
 		ObjectBindType GetType() const override { return IOBT_SHADER_BINDINGS; }
 
 		Pair<String, uint> DynamicIndices[8];
+	};
+
+	struct IRenderTargetBindState : public IBindState
+	{
+		ObjectBindType GetType() const override { return IOBT_RENDER_TARGET; }
+
+		float clearColor[4];
+		bool clearOnBind;
+		uint layer;
 	};
 }

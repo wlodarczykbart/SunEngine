@@ -20,12 +20,14 @@ namespace SunEngine
 		inline VkFormat GetFormat() const { return _format; }
 		inline VkSampleCountFlagBits GetSampleMask() const { return _sampleMask; }
 		inline VkImageLayout GetImageLayout() const { return _layout; }
+		VkImageView GetLayerView(uint layer) const;
 	protected:
 		friend class VulkanShaderBindings;
 		friend class VulkanVRInterface;
 
 		VkImage _image;
 		VkImageView _view;
+		Vector<VkImageView> _layerViews;
 		VulkanDevice::MemoryHandle _memory;
 		VkFormat _format;
 		VkSampleCountFlagBits _sampleMask;

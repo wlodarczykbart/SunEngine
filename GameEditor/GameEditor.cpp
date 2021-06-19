@@ -339,7 +339,7 @@ namespace SunEngine
 			pSceneNode->Scale = glm::vec3(testWorldSize, 1.0f, testWorldSize);
 		}
 
-		int Slices = 0*1;
+		int Slices = 4*1;
 		float Offset = 3.0f;
 		float ZStart = -(Slices * Slices * 2.0f);
 		float XStart = -(Slices * Slices * 0.5f);
@@ -484,7 +484,7 @@ namespace SunEngine
 		auto options = SunEngine::AssetImporter::Options::Default;
 		options.MaxTextureSize = 4096;
 		Asset* pAsset = 0;
-		pAsset = ImportAsset(strAsset, options);
+		//pAsset = ImportAsset(strAsset, options);
 		if (pAsset)
 		{
 			//auto node = pAsset->GetNodeByName("Cerberus00_Fixed.001");

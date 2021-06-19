@@ -9,15 +9,6 @@ namespace SunEngine
 	{
 		_renderPass = VK_NULL_HANDLE;
 		_noClearRenderPass = VK_NULL_HANDLE;
-		_framebuffer = VK_NULL_HANDLE;
-
-		_clearColor.color.float32[0] = 0.5f;
-		_clearColor.color.float32[1] = 0.5f;
-		_clearColor.color.float32[2] = 0.5f;
-		_clearColor.color.float32[3] = 0.5f;
-		_clearDepth = {};
-
-		_clearOnBind = true;
 		_numTargets = 0;
 		_hasDepth = false;
 		_msaaMode = SE_MSAA_OFF;
@@ -43,6 +34,8 @@ namespace SunEngine
 		for (uint i = 0; i < info.numTargets; i++)
 			vkColorTextures[i] = static_cast<VulkanTexture*>(info.colorBuffers[i]);
 
+		_framebuffers.resize(info.numLayers);
+
 		if (!createRenderPass(vkColorTextures, static_cast<VulkanTexture*>(info.depthBuffer))) return false;
 		if (!createFramebuffer(vkColorTextures, static_cast<VulkanTexture*>(info.depthBuffer))) return false;
 
@@ -56,24 +49,42 @@ namespace SunEngine
 	{
 		_device->DestroyRenderPass(_renderPass);
 		_device->DestroyRenderPass(_noClearRenderPass);
-		_device->DestroyFramebuffer(_framebuffer);
+		for(uint i = 0; i < _framebuffers.size(); i++)
+			_device->DestroyFramebuffer(_framebuffers[i]);
+		_framebuffers.clear();
 		return true;
 	}
 
-	void VulkanRenderTarget::Bind(ICommandBuffer* cmdBuffer, IBindState*)
+	void VulkanRenderTarget::Bind(ICommandBuffer* cmdBuffer, IBindState* pBindState)
 	{
 		uint clearValueCount = 0;
 		VkClearValue clearValues[MAX_SUPPORTED_RENDER_TARGETS + 1];
 
+		bool clearOnBind = true;
+		VkClearValue clearColor = { 0.5f, 1.0f, 0.5f, 1.0f };
+		uint layer = 0;
+
+		VkClearValue clearDepth;
+		clearDepth.depthStencil.depth = 1.0f;
+		clearDepth.depthStencil.stencil = 0xff;
+
+		if (pBindState)
+		{
+			IRenderTargetBindState* state = static_cast<IRenderTargetBindState*>(pBindState);
+			clearOnBind = state->clearOnBind;
+			memcpy(clearColor.color.float32, state->clearColor, sizeof(state->clearColor));
+			layer = state->layer;
+		}
+
 		VkRenderPass renderpass;
 
-		if (_clearOnBind)
+		if (clearOnBind)
 		{
 			for (uint i = 0; i < _numTargets; i++)
-				clearValues[clearValueCount++] = _clearColor;
+				clearValues[clearValueCount++] = clearColor;
 
 			if (_hasDepth)
-				clearValues[clearValueCount++] = _clearDepth;
+				clearValues[clearValueCount++] = clearDepth;
 
 			renderpass = _renderPass;
 		}
@@ -84,7 +95,7 @@ namespace SunEngine
 
 		VkRenderPassBeginInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		info.framebuffer = _framebuffer;
+		info.framebuffer = _framebuffers[layer];
 		info.renderPass = renderpass;
 		info.renderArea = _viewport;
 		info.clearValueCount = clearValueCount;
@@ -97,27 +108,6 @@ namespace SunEngine
 	void VulkanRenderTarget::Unbind(ICommandBuffer * cmdBuffer)
 	{
 		static_cast<VulkanCommandBuffer*>(cmdBuffer)->EndRenderPass();
-	}
-
-	void VulkanRenderTarget::SetClearColor(const float r, const float g, const float b, const float a)
-	{
-		_clearColor.color.float32[0] = r;
-		_clearColor.color.float32[1] = g;
-		_clearColor.color.float32[2] = b;
-		_clearColor.color.float32[3] = a;
-	}
-
-	void VulkanRenderTarget::SetClearOnBind(const bool clear)
-	{
-		_clearOnBind = clear;
-	}
-
-	void VulkanRenderTarget::SetViewport(float x, float y, float width, float height)
-	{
-		_viewport.extent.width = (uint)width;
-		_viewport.extent.height = (uint)height;
-		_viewport.offset.x = (uint)x;
-		_viewport.offset.y = (uint)y;
 	}
 
 	bool VulkanRenderTarget::createRenderPass(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture)
@@ -143,11 +133,6 @@ namespace SunEngine
 			ref.attachment = i;
 			ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			colorRefAttachments.push_back(ref);
-
-			_clearColor.color.float32[0] = 0.5f;
-			_clearColor.color.float32[1] = 1.0f;
-			_clearColor.color.float32[2] = 0.5f;
-			_clearColor.color.float32[3] = 1.0f;
 		}
 
 
@@ -168,9 +153,6 @@ namespace SunEngine
 			ref.attachment = colorRefAttachments.size();
 			ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			depthRefAttachment.push_back(ref);
-
-			_clearDepth.depthStencil.depth = 1.0f;
-			_clearDepth.depthStencil.stencil = 0xff;
 		}
 
 		Vector<VkSubpassDependency> dependencies;
@@ -223,21 +205,26 @@ namespace SunEngine
 
 	bool VulkanRenderTarget::createFramebuffer(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture)
 	{
-		Vector<VkImageView> attachments;
-		for(uint i = 0; i < _numTargets; i++)
-			attachments.push_back(pColorTextures[i]->GetView());
-		if (pDepthTexture) attachments.push_back(pDepthTexture->GetView());
+		for (uint i = 0; i < _framebuffers.size(); i++)
+		{
+			Vector<VkImageView> attachments;
 
-		VkFramebufferCreateInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		info.layers = 1;
-		info.renderPass = _renderPass;
-		info.width = _extent.width;
-		info.height = _extent.height;
-		info.attachmentCount = attachments.size();
-		info.pAttachments = attachments.data();
-		
-		if (!_device->CreateFramebuffer(info, &_framebuffer)) return false;
+			for (uint j = 0; j < _numTargets; j++)
+				attachments.push_back(pColorTextures[j]->GetLayerView(i));
+
+			if (pDepthTexture) attachments.push_back(pDepthTexture->GetLayerView(i));
+
+			VkFramebufferCreateInfo info = {};
+			info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			info.layers = 1;
+			info.renderPass = _renderPass;
+			info.width = _extent.width;
+			info.height = _extent.height;
+			info.attachmentCount = attachments.size();
+			info.pAttachments = attachments.data();
+
+			if (!_device->CreateFramebuffer(info, &_framebuffers[i])) return false;
+		}
 
 		return true;
 	}

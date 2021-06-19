@@ -14,6 +14,7 @@ namespace SunEngine
 		floatingPointColorBuffer = false;
 		pSharedDepthBuffer = 0;
 		msaa = SE_MSAA_OFF;
+		numLayers = 1;
 
 		for (uint i = 0; i < MAX_SUPPORTED_RENDER_TARGETS; i++)
 			pSharedColorBuffers[i] = 0;
@@ -64,21 +65,28 @@ namespace SunEngine
 			if (info.pSharedColorBuffers[i] == 0)
 			{
 				pTexture = new BaseTexture();
-				BaseTexture::CreateInfo::TextureData texData = {};
 
-				texData.image.Width = info.width;
-				texData.image.Height = info.height;
+				Vector<BaseTexture::CreateInfo::TextureData> colorTexData;
+				colorTexData.resize(info.numLayers);
+				for (uint j = 0; j < info.numLayers; j++)
+				{
+					BaseTexture::CreateInfo::TextureData texData = {};
 
-				if (!info.floatingPointColorBuffer)
-					texData.image.Flags = ImageData::COLOR_BUFFER_RGBA8;
-				else
-					texData.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
+					texData.image.Width = info.width;
+					texData.image.Height = info.height;
 
-				texData.image.Flags |= msaaFlags;
+					if (!info.floatingPointColorBuffer)
+						texData.image.Flags = ImageData::COLOR_BUFFER_RGBA8;
+					else
+						texData.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
+
+					texData.image.Flags |= msaaFlags;
+					colorTexData[j] = texData;
+				}
 
 				BaseTexture::CreateInfo texInfo = {};
-				texInfo.numImages = 1;
-				texInfo.pImages = &texData;
+				texInfo.numImages = info.numLayers;
+				texInfo.pImages = colorTexData.data();
 				if (!pTexture->Create(texInfo))
 					_errStr = pTexture->GetErrStr();
 
@@ -97,15 +105,22 @@ namespace SunEngine
 			if (!info.pSharedDepthBuffer)
 			{
 				_depthTexture = new BaseTexture();
-				BaseTexture::CreateInfo::TextureData texData = {};
-				texData.image.Width = info.width;
-				texData.image.Height = info.height;
-				texData.image.Flags = ImageData::DEPTH_BUFFER;
 
-				texData.image.Flags |= msaaFlags;
+				Vector<BaseTexture::CreateInfo::TextureData> depthTexData;
+				depthTexData.resize(info.numLayers);
+				for (uint i = 0; i < info.numLayers; i++)
+				{
+					BaseTexture::CreateInfo::TextureData texData = {};
+					texData.image.Width = info.width;
+					texData.image.Height = info.height;
+					texData.image.Flags = ImageData::DEPTH_BUFFER;
+					texData.image.Flags |= msaaFlags;
+					depthTexData[i] = texData;
+				}
+
 				BaseTexture::CreateInfo texInfo = {};
-				texInfo.numImages = 1;
-				texInfo.pImages = &texData;
+				texInfo.numImages = info.numLayers;
+				texInfo.pImages = depthTexData.data();
 				if (!_depthTexture->Create(texInfo))
 					_errStr = _depthTexture->GetErrStr();
 
@@ -129,6 +144,7 @@ namespace SunEngine
 		apiInfo.depthBuffer = _depthTexture ? (ITexture*)_depthTexture->GetAPIHandle() : 0;
 		apiInfo.numTargets = info.numTargets;
 		apiInfo.msaa = info.msaa;
+		apiInfo.numLayers = info.numLayers;
 
 		if(!_iRenderTarget->Create(apiInfo)) return false;
 
@@ -186,7 +202,6 @@ namespace SunEngine
 		_clearColor[1] = g;
 		_clearColor[2] = b;
 		_clearColor[3] = a;
-		_iRenderTarget->SetClearColor(r, g, b, a);
 	}
 
 	void RenderTarget::GetClearColor(float & r, float & g, float & b, float & a) const
@@ -197,15 +212,9 @@ namespace SunEngine
 		a = _clearColor[3];
 	}
 
-	void RenderTarget::SetViewport(const Viewport& vp)
-	{
-		_iRenderTarget->SetViewport(vp.x, vp.y, vp.width, vp.height);
-	}
-
 	void RenderTarget::SetClearOnBind(bool clear)
 	{
 		_clearOnBind = clear;
-		_iRenderTarget->SetClearOnBind(clear);
 	}
 
 	bool RenderTarget::GetClearOnBind() const
@@ -234,5 +243,34 @@ namespace SunEngine
 	BaseTexture* RenderTarget::GetDepthTexture() const
 	{
 		return _depthTexture;
+	}
+
+	bool RenderTarget::Bind(CommandBuffer* cmdBuffer, IBindState* pBindState)
+	{
+		if (pBindState && pBindState->GetType() == IOBT_RENDER_TARGET)
+			return GraphicsObject::Bind(cmdBuffer, pBindState);
+
+		IRenderTargetBindState state = {};
+		state.clearColor[0] = _clearColor[0];
+		state.clearColor[1] = _clearColor[1];
+		state.clearColor[2] = _clearColor[2];
+		state.clearColor[3] = _clearColor[3];
+		state.clearOnBind = _clearOnBind;
+		state.layer = 0;
+
+		return GraphicsObject::Bind(cmdBuffer, &state);
+	}
+
+	bool RenderTarget::BindLayer(CommandBuffer* cmdBuffer, uint layer)
+	{
+		IRenderTargetBindState state = {};
+		state.clearColor[0] = _clearColor[0];
+		state.clearColor[1] = _clearColor[1];
+		state.clearColor[2] = _clearColor[2];
+		state.clearColor[3] = _clearColor[3];
+		state.clearOnBind = _clearOnBind;
+		state.layer = layer;
+
+		return GraphicsObject::Bind(cmdBuffer, &state);
 	}
 }

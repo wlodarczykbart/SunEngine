@@ -1,4 +1,4 @@
-Texture2D ShadowTexture;
+Texture2DArray ShadowTexture;
 SamplerState ShadowSampler;
 
 cbuffer ShadowBuffer
@@ -21,9 +21,7 @@ uint GetCascadeIndex(float eyeSpaceZ)
 
 float SampleShadow(float2 texCoord, int splitIndex)
 {
-	float rangeStart = splitIndex * INV_CASCADE_SHADOW_MAP_SPLITS;
-	texCoord.x = lerp(rangeStart, rangeStart + INV_CASCADE_SHADOW_MAP_SPLITS, saturate(texCoord.x));
-	return ShadowTexture.Sample(ShadowSampler, texCoord).r;
+	return ShadowTexture.Sample(ShadowSampler, float3(texCoord, splitIndex)).r;
 }
 
 static const float3 testColors[4] = {

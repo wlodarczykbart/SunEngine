@@ -142,7 +142,6 @@ namespace SunEngine
 		else
 			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 
-
 		if (flags & ImageData::COLOR_BUFFER_RGBA8)
 		{
 			viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -158,6 +157,19 @@ namespace SunEngine
 
 		if (!_device->CreateImageView(viewInfo, &_view)) return false;
 
+		//create image views for each array layer(for VulkanRenderTarget framebuffer creation)
+		if (viewInfo.subresourceRange.layerCount > 1)
+		{
+			_layerViews.resize(viewInfo.subresourceRange.layerCount);
+			viewInfo.subresourceRange.layerCount = 1;
+			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY; //cubemaps cant have anything but (layerCount == 6) so force 2D_ARRAY 
+			for (uint i = 0; i < _layerViews.size(); i++)
+			{
+				viewInfo.subresourceRange.baseArrayLayer = i;
+				if (!_device->CreateImageView(viewInfo, &_layerViews[i])) return false;
+			}
+		}
+
 		_format = viewInfo.format;
 		_sampleMask = imgInfo.samples;
 
@@ -167,6 +179,9 @@ namespace SunEngine
 	bool VulkanTexture::Destroy()
 	{
 		_device->DestroyImageView(_view);
+		for (uint i = 0; i < _layerViews.size(); i++)
+			_device->DestroyImageView(_layerViews[i]);
+		_layerViews.clear();
 		_device->FreeMemory(_memory);
 		_device->DestroyImage(_image);
 		return true;
@@ -180,6 +195,11 @@ namespace SunEngine
 	void VulkanTexture::Unbind(ICommandBuffer * cmdBuffer)
 	{
 		(void)cmdBuffer;
+	}
+
+	VkImageView VulkanTexture::GetLayerView(uint layer) const
+	{
+		return _layerViews.size() ? _layerViews.at(layer) : _view;
 	}
 
 }

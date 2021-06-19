@@ -18,26 +18,18 @@ namespace SunEngine
 
 		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
-
-		void SetClearColor(const float r, const float g, const float b, const float a) override;
-		void SetClearOnBind(const bool clear) override;
-		void SetViewport(float x, float y, float width, float height) override;
 	private:
 		friend class VulkanShaderBindings;
 		
 		bool createRenderPass(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture);
 		bool createFramebuffer(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture);
 
-		VkFramebuffer _framebuffer;
-
-		VkClearValue _clearColor;
-		VkClearValue _clearDepth;
+		Vector<VkFramebuffer> _framebuffers;
 
 		VkRect2D _viewport;
 
 		uint _numTargets;
 		bool _hasDepth;
-		bool _clearOnBind;
 		MSAAMode _msaaMode;
 		VkRenderPass _noClearRenderPass;
 	};

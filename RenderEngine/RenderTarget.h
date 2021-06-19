@@ -9,14 +9,6 @@ namespace SunEngine
 	class Camera;
 	class BaseTexture;
 
-	struct Viewport
-	{
-		float x;
-		float y;
-		float width;
-		float height;
-	};
-
 	class RenderTarget : public GraphicsObject
 	{
 	public:
@@ -28,6 +20,7 @@ namespace SunEngine
 			MSAAMode msaa;
 			bool hasDepthBuffer;
 			bool floatingPointColorBuffer;
+			uint numLayers;
 
 			BaseTexture* pSharedColorBuffers[MAX_SUPPORTED_RENDER_TARGETS];
 			BaseTexture* pSharedDepthBuffer;
@@ -45,7 +38,6 @@ namespace SunEngine
 
 		void SetClearColor(const float r, const float g, const float b, const float a);
 		void GetClearColor(float &r, float &g, float &b, float &a) const;
-		void SetViewport(const Viewport& vp);
 
 		void SetClearOnBind(bool clear);
 		bool GetClearOnBind() const;
@@ -55,6 +47,9 @@ namespace SunEngine
 
 		BaseTexture* GetColorTexture(uint target = 0) const;
 		BaseTexture* GetDepthTexture() const;
+
+		bool Bind(CommandBuffer* cmdBuffer, IBindState* pBindState = 0) override;
+		bool BindLayer(CommandBuffer* cmdBuffer, uint layer);
 
 	private:
 		IRenderTarget * _iRenderTarget;
