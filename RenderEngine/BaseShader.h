@@ -41,8 +41,6 @@ namespace SunEngine
 	class RenderTarget;
 	class Sampler;
 	class BaseTexture;
-	class BaseTextureCube;
-	class BaseTextureArray;
 
 	struct CameraBufferData
 	{
@@ -132,8 +130,8 @@ namespace SunEngine
 		static String DepthSamplerName;
 		static String ShadowTextureName;
 		static String ShadowSamplerName;
-		static String SkyTextureName;
-		static String SkySamplerName;
+		static String EnvTextureName;
+		static String EnvSamplerName;
 	};
 
 	class BaseShader;
@@ -155,8 +153,6 @@ namespace SunEngine
 		bool SetUniformBuffer(const String& name, UniformBuffer* pBuffer);
 		bool SetTexture(const String& name, BaseTexture* pTexture);
 		bool SetSampler(const String& name, Sampler* pSampler);
-		bool SetTextureCube(const String& name, BaseTextureCube* pTextureCube);
-		bool SetTextureArray(const String& name, BaseTextureArray* pTextureArray);
 
 		bool Create(const CreateInfo& info);
 		bool Destroy() override;

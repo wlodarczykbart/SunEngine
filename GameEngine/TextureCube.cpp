@@ -16,10 +16,17 @@ namespace SunEngine
 		if (!_gpuObject.Destroy())
 			return false;
 
-		BaseTextureCube::CreateInfo info = {};
+		BaseTexture::CreateInfo info = {};
+		BaseTexture::CreateInfo::TextureData texData[6];
 		for (uint i = 0; i < 6; i++)
-			info.images[i] = _images[i].ImageData();
+		{
+			texData[i] = {};
+			texData[i].image = _images[i].ImageData();
+			texData[i].image.Flags |= ImageData::CUBEMAP;
+		}
 
+		info.numImages = 6;
+		info.pImages = texData;
 		if (!_gpuObject.Create(info))
 			return false;
 

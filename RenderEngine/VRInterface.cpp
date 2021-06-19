@@ -202,10 +202,14 @@ namespace SunEngine
 				{
 					SwapImage* pSwapImage = new SwapImage();
 
+					BaseTexture::CreateInfo::TextureData texData = {};
+					texData.image.Width = swapchainInfo.width;
+					texData.image.Height = swapchainInfo.height;
+
 					BaseTexture::CreateInfo texInfo = {};
-					texInfo.image.Width = swapchainInfo.width;
-					texInfo.image.Height = swapchainInfo.height;
 					texInfo.isExternal = true;
+					texInfo.pImages = &texData;
+					texInfo.numImages = 1;
 					if (!pSwapImage->texture.Create(texInfo))
 						return false;
 

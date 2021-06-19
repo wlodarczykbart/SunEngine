@@ -323,6 +323,7 @@ namespace SunEngine
 			//pSceneNode->Scale = glm::vec3(30, 0.01f, 30.0f);
 		}
 
+		float testWorldSize = 120;
 		Asset* pAssetPlane = resMgr.AddAsset("AssetPlane");
 		{
 			AssetNode* pRoot = pAssetPlane->AddNode("Plane");
@@ -335,28 +336,40 @@ namespace SunEngine
 
 			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
 			pSceneNode->Position = glm::vec3(0.0f, -2.0f, 0.0f);
-			pSceneNode->Scale = glm::vec3(30, 30.0f, 30.0f);
+			pSceneNode->Scale = glm::vec3(testWorldSize, 1.0f, testWorldSize);
 		}
 
-		int Slices = 4*1;
+		int Slices = 0*1;
 		float Offset = 3.0f;
 		float ZStart = -(Slices * Slices * 2.0f);
 		float XStart = -(Slices * Slices * 0.5f);
 
 		float halfOffset = (Slices / 2) * Offset;
 
-		for (int i = 0; i < Slices; i++)
+		Asset* pAssetTestCubes = resMgr.AddAsset("AssetTestCubes");
 		{
-			for (int j = 0; j < Slices; j++)
+			AssetNode* pRoot = pAssetTestCubes->AddNode("Root");
+			for (int i = 0; i < Slices; i++)
 			{
-				SceneNode* pCubeSceneNode = pAssetStandard->CreateSceneNode(pScene);
-				pCubeSceneNode->Position = glm::vec3(i * Offset - halfOffset, -1.5f, j * Offset - halfOffset);
-				//pCubeSceneNode->Position.z += ZStart;
-				//pCubeSceneNode->Position.x += XStart;
-				//pCubeSceneNode->Scale = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
-				pCubeSceneNode->Orientation.Angles = glm::linearRand(glm::vec3(0.0f), glm::vec3(360.0f));
-				TEST_NODES.push_back(pCubeSceneNode);
+				for (int j = 0; j < Slices; j++)
+				{
+					AssetNode* pCube = pAssetTestCubes->AddNode(StrFormat("Cube%d%d", i, j));
+					pAssetTestCubes->SetParent(pCube->GetName(), pRoot->GetName());
+					MeshRenderer* pRenderer = pCube->AddComponent(new MeshRenderer())->As<MeshRenderer>();
+					pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Cube));
+					pRenderer->SetMaterial(resMgr.Clone(pMetalMaterial));
+					pRenderer->GetMaterial()->RegisterToGPU();
+					pRenderer->GetMaterial()->SetMaterialVar(MaterialStrings::DiffuseColor, glm::linearRand(Vec3::Zero, Vec3::One));
+
+					pCube->Position = glm::vec3(i * Offset - halfOffset, -1.5f, j * Offset - halfOffset);
+					pCube->Position = glm::linearRand(glm::vec3(-testWorldSize, 0.0f, -testWorldSize) * 0.5f, glm::vec3(testWorldSize, 0.0f, testWorldSize) * 0.5f);
+					pCube->Scale.y = 10;
+					//pCubeSceneNode->Position.x += XStart;
+					//pCubeSceneNode->Scale = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
+					pCube->Orientation.Angles.x = glm::linearRand((0.0f), (360.0f));
+				}
 			}
+			SceneNode* pNode =  pAssetTestCubes->CreateSceneNode(pScene);
 		}
 
 		Asset* pAssetTerrain = resMgr.AddAsset("Terrain");
@@ -470,7 +483,8 @@ namespace SunEngine
 
 		auto options = SunEngine::AssetImporter::Options::Default;
 		options.MaxTextureSize = 4096;
-		Asset* pAsset = ImportAsset(strAsset, options);
+		Asset* pAsset = 0;
+		pAsset = ImportAsset(strAsset, options);
 		if (pAsset)
 		{
 			//auto node = pAsset->GetNodeByName("Cerberus00_Fixed.001");
@@ -514,7 +528,7 @@ namespace SunEngine
 			//pTex->RegisterToGPU();
 			//pMaterial->SetTexture2D(MaterialStrings::RoughnessMap, pTex);
 
-			pAsset->CreateSceneNode(pScene, 300);
+			pAsset->CreateSceneNode(pScene, 400);
 		}
 		else
 			spdlog::warn("Failed to load {}", strAsset);

@@ -39,8 +39,8 @@ namespace SunEngine
 			break;
 		case SunEngine::SBT_ENVIRONMENT:
 			names.bufferNames.push_back(ShaderStrings::EnvBufferName);
-			names.textureNames.push_back(ShaderStrings::SkyTextureName);
-			names.samplerNames.push_back(ShaderStrings::SkySamplerName);
+			names.textureNames.push_back(ShaderStrings::EnvTextureName);
+			names.samplerNames.push_back(ShaderStrings::EnvSamplerName);
 			break;
 		case SunEngine::SBT_SHADOW:
 			names.bufferNames.push_back(ShaderStrings::ShadowBufferName);

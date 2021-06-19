@@ -125,8 +125,8 @@ float4 main(float4 clipPos : SV_POSITION) : SV_TARGET
         csHitPoint
     );
 
-    float vis;
-    bool hit = ssr(texCoord, texSize, hitPixel, vis);
+    //float vis;
+    //bool hit = ssr(texCoord, texSize, hitPixel, vis);
 
     if (hit)
     {
@@ -564,9 +564,9 @@ float2 projectTo01(in float4 viewPos)
 
 bool ssr(in float2 texCoord, in float2 texSize, out float2 outCoord, out float outVisibility)
 {
-    float maxDistance = 15.0;
-    float resolution = 0.3;
-    int steps = 10;
+    float maxDistance = 80.0;
+    float resolution = 0.8;
+    int steps = 50;
     float thickness = 0.5;
 
     outCoord = texCoord;

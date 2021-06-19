@@ -520,7 +520,7 @@ namespace SunEngine
 						pEnv->GetFogSettings(fog);
 
 						ImGui::Checkbox("Enabled", &fog.enabled);
-						ImGui::Checkbox("SampleSky", &fog.sampleSky);
+						ImGui::DragFloat("HeightFalloff", &fog.heightFalloff, 0.00001f, 0.0f, 0.2f, "%.5f");
 						ImGui::DragFloat("Density", &fog.density, 0.00001f, 0.0f, 0.2f, "%.5f");
 						ImGui::ColorEdit3("Color", &fog.color.x);
 

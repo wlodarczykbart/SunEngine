@@ -17,8 +17,8 @@ namespace SunEngine
 		if (!_gpuObject.Destroy())
 			return false;
 
-		BaseTexture::CreateInfo info = {};
-		info.image = _img.ImageData();
+		BaseTexture::CreateInfo::TextureData texData = {};
+		texData.image = _img.ImageData();
 
 		Vector<ImageData> mipData;
 		for (uint i = 0; i < _mips.size(); i++)
@@ -28,9 +28,12 @@ namespace SunEngine
 
 			mipData.push_back(mipImage);
 		}
-		info.mipLevels = mipData.size();
-		info.pMips = mipData.data();
+		texData.mipLevels = mipData.size();
+		texData.pMips = mipData.data();
 
+		BaseTexture::CreateInfo info;
+		info.numImages = 1;
+		info.pImages = &texData;
 		if (!_gpuObject.Create(info))
 			return false;
 

@@ -31,8 +31,6 @@ namespace SunEngine
 	class IUniformBuffer;
 	class ITexture;
 	class IShaderBindings;
-	class ITextureCube;
-	class ITextureArray;
 	class IVRInterface;
 
 	void SetGraphicsAPI(GraphicsAPI api);
@@ -134,19 +132,14 @@ namespace SunEngine
 
 	struct ITextureCreateInfo
 	{
-		ImageData image;
-		ImageData* pMips;
-		uint mipLevels;
-	};
+		struct TextureData
+		{
+			ImageData image;
+			ImageData* pMips;
+			uint mipLevels;
+		};
 
-	struct ITextureCubeCreateInfo
-	{
-		ImageData images[6];
-	};
-
-	struct ITextureArrayCreateInfo
-	{
-		ITextureCreateInfo* images;
+		TextureData* images;
 		uint numImages;
 	};
 

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "BaseTextureCube.h"
+#include "BaseTexture.h"
 #include "GPUResource.h"
 #include "Image.h"
 
 namespace SunEngine
 {
-	class TextureCube : public GPUResource<BaseTextureCube>
+	class TextureCube : public GPUResource<BaseTexture>
 	{
 	public:
 		TextureCube();

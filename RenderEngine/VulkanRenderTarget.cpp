@@ -52,6 +52,14 @@ namespace SunEngine
 		return true;
 	}
 
+	bool VulkanRenderTarget::Destroy()
+	{
+		_device->DestroyRenderPass(_renderPass);
+		_device->DestroyRenderPass(_noClearRenderPass);
+		_device->DestroyFramebuffer(_framebuffer);
+		return true;
+	}
+
 	void VulkanRenderTarget::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		uint clearValueCount = 0;

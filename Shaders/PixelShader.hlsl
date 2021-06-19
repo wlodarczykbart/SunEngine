@@ -52,7 +52,7 @@ void ShadePixel(float3 albedo, float ambient, float3 specular, float smoothness,
 	//EnvColor = lerp(EnvColor, float3(0.1, 0.1, 0.1), 1.0-heightFactor);
 	
 	pOut.color = float4(litColor + ambientColor + emissive, 1.0);	
-	pOut.color.rgb = ComputeFogContribution(pOut.color.rgb, distToEye, screenTexCoord);
+	pOut.color.rgb = ComputeFogContribution(pOut.color.rgb, position, InvViewMatrix[3].y);
 	//pOut.color.rgb = normal;
 #endif
 }

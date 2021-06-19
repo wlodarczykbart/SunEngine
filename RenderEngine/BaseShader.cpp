@@ -12,8 +12,6 @@
 #include "Sampler.h"
 #include "UniformBuffer.h"
 #include "BaseTexture.h"
-#include "BaseTextureCube.h"
-#include "BaseTextureArray.h"
 
 #include "GraphicsContext.h"
 
@@ -40,8 +38,8 @@ namespace SunEngine
 	String ShaderStrings::DepthSamplerName = "DepthSampler";
 	String ShaderStrings::ShadowTextureName = "ShadowTexture";
 	String ShaderStrings::ShadowSamplerName = "ShadowSampler";
-	String ShaderStrings::SkyTextureName = "SkyTexture";
-	String ShaderStrings::SkySamplerName = "SkySampler";
+	String ShaderStrings::EnvTextureName = "EnvTexture";
+	String ShaderStrings::EnvSamplerName = "EnvSampler";
 
 	BaseShader::BaseShader() : GraphicsObject(GraphicsObject::SHADER)
 	{
@@ -183,44 +181,6 @@ namespace SunEngine
 			const String& binding = (*foundIter).second.Name;
 			_iBindings->SetSampler((ISampler*)pSampler->GetAPIHandle(), binding);
 			(*foundIter).second.Set(pSampler);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	bool ShaderBindings::SetTextureCube(const String& name, BaseTextureCube* pTextureCube)
-	{
-		StrMap<ResourceInfo>::iterator foundIter = _resourceMap.find(name);
-		if (foundIter != _resourceMap.end())
-		{
-			//if ((*foundIter).second.Resource == pTextureCube && (*foundIter).second.CurrentHandle == pTextureCube->GetAPIHandle())
-			//	return true;
-
-			const String& binding = (*foundIter).second.Name;
-			_iBindings->SetTextureCube((ITextureCube*)pTextureCube->GetAPIHandle(), binding);
-			(*foundIter).second.Set(pTextureCube);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	bool ShaderBindings::SetTextureArray(const String& name, BaseTextureArray* pTextureArray)
-	{
-		StrMap<ResourceInfo>::iterator foundIter = _resourceMap.find(name);
-		if (foundIter != _resourceMap.end())
-		{
-			//if ((*foundIter).second.Resource == pTextureArray && (*foundIter).second.CurrentHandle == pTextureArray->GetAPIHandle())
-			//	return true;
-
-			const String& binding = (*foundIter).second.Name;
-			_iBindings->SetTextureArray((ITextureArray*)pTextureArray->GetAPIHandle(), binding);
-			(*foundIter).second.Set(pTextureArray);
 			return true;
 		}
 		else

@@ -59,20 +59,20 @@ float4 main(PS_In pIn) : SV_TARGET
 
 	float2 texSize;
     DiffuseMap.GetDimensions(texSize.x, texSize.y);
-
+	
     float3 eyePos = PositionMap.Sample(Sampler, pIn.texCoord).xyz;
 	float3 eyeDir = normalize(eyePos);
     float3 eyeNormal = normalize(decodeNormal(NormalMap.Sample(Sampler, pIn.texCoord).xy));
     float3 rayDir = normalize(reflect(eyeDir, eyeNormal));
-
-	float t = max(dot(eyeNormal, -eyeDir), 0.0);
+	
+	//float t = max(dot(eyeNormal, -eyeDir), 0.0);
 	//return float4(t,t,t, 1);
 	
-
+	
     float2 hitPixel;
     float3 csHitPoint;
 	float iterations;
-
+	
 	float4x4 ProjPixelMatrix = float4x4(
 		texSize.x*0.5, 0.0, 0.0, 0.0,
 		0.0, texSize.y*-0.5, 0.0, 0.0,
@@ -80,7 +80,7 @@ float4 main(PS_In pIn) : SV_TARGET
 		texSize.x*0.5, texSize.y*0.5, 0.0, 1.0
 	);
 	ProjPixelMatrix = mul(ProjectionMatrix, ProjPixelMatrix);
-
+	
     bool hit = traceScreenSpaceRay2(
         eyePos,
         rayDir,
@@ -97,12 +97,19 @@ float4 main(PS_In pIn) : SV_TARGET
         csHitPoint,
 		iterations
     );
-
+	
     if (hit)
     {
         hitPixel /= texSize;
 		float alpha = calculateAlphaForIntersection(iterations, gSpecular.a, hitPixel, csHitPoint, eyePos, rayDir);
+		//alpha = 0.5;
+		
+		//float t = 1.0 - clamp( distance( eyePos, csHitPoint) / MAX_DISTANCE, 0.0, 1.0);
+		//return float4(t,t,t,1);
+		
         return float4(DiffuseMap.Sample(Sampler, hitPixel).rgb, alpha);
+		
+		
     }
     else
     {

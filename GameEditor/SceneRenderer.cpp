@@ -118,34 +118,34 @@ namespace SunEngine
 		if (!_helperPipelines[DefaultShaders::Clouds].Create(cloudPipelineInfo))
 			return false;
 
-		//Create sky target
+		//Create env target
 		{
-			RenderTarget::CreateInfo skyTargetInfo = {};
-			skyTargetInfo.hasDepthBuffer = false;
-			skyTargetInfo.floatingPointColorBuffer = true;
-			skyTargetInfo.width = 512; //TODO read from engineinfo
-			skyTargetInfo.height = 512;
-			skyTargetInfo.numTargets = 1;
-			if (!_skyTarget.Create(skyTargetInfo))
+			RenderTarget::CreateInfo evnTargetInfo = {};
+			evnTargetInfo.hasDepthBuffer = false;
+			evnTargetInfo.floatingPointColorBuffer = true;
+			evnTargetInfo.width = 512; //TODO read from engineinfo
+			evnTargetInfo.height = 512;
+			evnTargetInfo.numTargets = 6;
+			if (!_envTarget.Create(evnTargetInfo))
 				return false;
 
-			BaseShader* pSkyCopyShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureCopy)->GetBaseVariant(ShaderVariant::ONE_Z);
-			ShaderBindings::CreateInfo skyBindingInfo = {};
-			skyBindingInfo.pShader = pSkyCopyShader;
-			skyBindingInfo.type = SBT_MATERIAL;
+			BaseShader* pEnvCopyShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureCopy)->GetBaseVariant(ShaderVariant::ONE_Z);
+			ShaderBindings::CreateInfo envCopyBindingInfo = {};
+			envCopyBindingInfo.pShader = pEnvCopyShader;
+			envCopyBindingInfo.type = SBT_MATERIAL;
 
-			if (!_skyBindings.Create(skyBindingInfo))
+			if (!_envCopyBindings.Create(envCopyBindingInfo))
 				return false;
-			if (!_skyBindings.SetTexture(MaterialStrings::DiffuseMap, _skyTarget.GetColorTexture()))
+			if (!_envCopyBindings.SetTexture(MaterialStrings::DiffuseMap, _envTarget.GetColorTexture()))
 				return false;
-			if (!_skyBindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE)))
+			if (!_envCopyBindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE)))
 				return false;
 
-			GraphicsPipeline::CreateInfo skyCopyPipelineInfo = {};
-			skyCopyPipelineInfo.pShader = pSkyCopyShader;
-			skyCopyPipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_EQUAL;
-			skyCopyPipelineInfo.settings.depthStencil.enableDepthWrite = false;
-			if (!_helperPipelines[HelperPipelines::SkyCopy].Create(skyCopyPipelineInfo))
+			GraphicsPipeline::CreateInfo envCopyPipelineInfo = {};
+			envCopyPipelineInfo.pShader = pEnvCopyShader;
+			envCopyPipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_EQUAL;
+			envCopyPipelineInfo.settings.depthStencil.enableDepthWrite = false;
+			if (!_helperPipelines[HelperPipelines::SkyCopy].Create(envCopyPipelineInfo))
 				return false;
 		}
 
@@ -332,7 +332,7 @@ namespace SunEngine
 		envData.SunViewDirection.Set(&sunDirView);
 		envData.TimeData.Set(deltaTime, elapsedTime, 0, 0);
 		envData.FogColor.Set(fog.color.x, fog.color.y, fog.color.z, 0.0f);
-		envData.FogControls.Set(fog.enabled ? 1.0f : 0.0f, fog.sampleSky ? 1.0f : 0.0f, fog.density, 0.0f);
+		envData.FogControls.Set(fog.enabled ? 1.0f : 0.0f, fog.heightFalloff, fog.density, 0.0f);
 		if (!_environmentBuffer->Buffer.Update(&envData))
 			return false;
 
@@ -372,8 +372,8 @@ namespace SunEngine
 				if (!binding.SetUniformBuffer(ShaderStrings::EnvBufferName, &_environmentBuffer->Buffer))
 					return false;
 
-				bool skyTextureSet = binding.SetTexture(ShaderStrings::SkyTextureName, _skyTarget.GetColorTexture());
-				bool skySamplerSet = binding.SetSampler(ShaderStrings::SkySamplerName, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
+				bool envTextureSet = binding.SetTexture(ShaderStrings::EnvTextureName, _envTarget.GetColorTexture());
+				bool envSamplerSet = binding.SetSampler(ShaderStrings::EnvSamplerName, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
 			}
 
 			if (pShader->ContainsBuffer(ShaderStrings::ShadowBufferName) && _shadowBuffer->ShaderBindings.find(pShader) == _shadowBuffer->ShaderBindings.end())
@@ -414,9 +414,9 @@ namespace SunEngine
 		}
 		_depthTarget.Unbind(cmdBuffer);
 
-		_skyTarget.Bind(cmdBuffer);
-		RenderSky(cmdBuffer);
-		_skyTarget.Unbind(cmdBuffer);
+		_envTarget.Bind(cmdBuffer);
+		RenderEnvironment(cmdBuffer);
+		_envTarget.Unbind(cmdBuffer);
 
 		if (pMSAAResolveInfo)
 		{
@@ -679,60 +679,60 @@ namespace SunEngine
 		return false;
 	}
 
-	void SceneRenderer::RenderSky(CommandBuffer* cmdBuffer)
-	{
-		IShaderBindingsBindState cameraBindData = {};
-		cameraBindData.DynamicIndices[0] = { ShaderStrings::CameraBufferName, 0 };
+	//void SceneRenderer::RenderSky(CommandBuffer* cmdBuffer)
+	//{
+	//	IShaderBindingsBindState cameraBindData = {};
+	//	cameraBindData.DynamicIndices[0] = { ShaderStrings::CameraBufferName, 0 };
 
-		SkyModel* pSkyModel = _currentEnvironment->GetActiveSkyModel();
-		Material* pMaterial = pSkyModel->GetMaterial();
-		auto& pipeline = _helperPipelines.at(pMaterial->GetShader()->GetName());
-		BaseShader* pShader = pipeline.GetShader();
-		SkyModel::MeshType meshType = pSkyModel->GetMeshType();
+	//	SkyModel* pSkyModel = _currentEnvironment->GetActiveSkyModel();
+	//	Material* pMaterial = pSkyModel->GetMaterial();
+	//	auto& pipeline = _helperPipelines.at(pMaterial->GetShader()->GetName());
+	//	BaseShader* pShader = pipeline.GetShader();
+	//	SkyModel::MeshType meshType = pSkyModel->GetMeshType();
 
-		Mesh* pMesh = 0;
-		switch (meshType)
-		{
-		case SunEngine::SkyModel::MT_CUBE:
-			pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Cube);
-			break;
-		case SunEngine::SkyModel::MT_SPHERE:
-			pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Sphere);
-			break;
-		case SunEngine::SkyModel::MT_QUAD:
-			pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Quad);
-			break;
-		default:
-			break;
-		}
+	//	Mesh* pMesh = 0;
+	//	switch (meshType)
+	//	{
+	//	case SunEngine::SkyModel::MT_CUBE:
+	//		pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Cube);
+	//		break;
+	//	case SunEngine::SkyModel::MT_SPHERE:
+	//		pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Sphere);
+	//		break;
+	//	case SunEngine::SkyModel::MT_QUAD:
+	//		pMesh = ResourceMgr::Get().GetMesh(DefaultResource::Mesh::Quad);
+	//		break;
+	//	default:
+	//		break;
+	//	}
 
-		pShader->Bind(cmdBuffer);
-		pipeline.Bind(cmdBuffer);
-		pMaterial->GetGPUObject()->Bind(cmdBuffer);
-		TryBindBuffer(cmdBuffer, pShader, _cameraBuffer.get(), &cameraBindData);
-		TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
-		if (pMesh)
-		{
-			pMesh->GetGPUObject()->Bind(cmdBuffer);
-			cmdBuffer->DrawIndexed(pMesh->GetIndexCount(), 1, 0, 0, 0);
-		}
-		else
-		{
-			//screen quad default, is generated in shader
-			cmdBuffer->Draw(6, 1, 0, 0);
-		}
-		pMaterial->GetGPUObject()->Unbind(cmdBuffer);
-		pipeline.Unbind(cmdBuffer);
-		pShader->Unbind(cmdBuffer);
-	}
+	//	pShader->Bind(cmdBuffer);
+	//	pipeline.Bind(cmdBuffer);
+	//	pMaterial->GetGPUObject()->Bind(cmdBuffer);
+	//	TryBindBuffer(cmdBuffer, pShader, _cameraBuffer.get(), &cameraBindData);
+	//	TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
+	//	if (pMesh)
+	//	{
+	//		pMesh->GetGPUObject()->Bind(cmdBuffer);
+	//		cmdBuffer->DrawIndexed(pMesh->GetIndexCount(), 1, 0, 0, 0);
+	//	}
+	//	else
+	//	{
+	//		//screen quad default, is generated in shader
+	//		cmdBuffer->Draw(6, 1, 0, 0);
+	//	}
+	//	pMaterial->GetGPUObject()->Unbind(cmdBuffer);
+	//	pipeline.Unbind(cmdBuffer);
+	//	pShader->Unbind(cmdBuffer);
+	//}
 
 	void SceneRenderer::RenderEnvironment(CommandBuffer* cmdBuffer)
 	{
-		//Copy the texture containing the sky background to main framebuffer
-		RenderCommand(cmdBuffer, &_helperPipelines.at(HelperPipelines::SkyCopy), &_skyBindings);
+		////Copy the texture containing the sky background to main framebuffer
+		//RenderCommand(cmdBuffer, &_helperPipelines.at(HelperPipelines::SkyCopy), &_skyBindings);
 
-		//Draw clouds over sky
-		RenderCommand(cmdBuffer, &_helperPipelines.at(DefaultShaders::Clouds), _currentEnvironment->GetCloudBindings());
+		////Draw clouds over sky
+		//RenderCommand(cmdBuffer, &_helperPipelines.at(DefaultShaders::Clouds), _currentEnvironment->GetCloudBindings());
 	}
 
 	void SceneRenderer::RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount)

@@ -1,10 +1,6 @@
 add_library(RenderEngine
 VulkanUniformBuffer.h
 VulkanUniformBuffer.cpp
-VulkanTextureCube.h
-VulkanTextureCube.cpp
-VulkanTextureArray.h
-VulkanTextureArray.cpp
 VulkanTexture.h
 VulkanTexture.cpp
 VulkanSurface.h
@@ -43,10 +39,6 @@ RenderTarget.cpp
 PipelineSettings.h
 IUniformBuffer.h
 IUniformBuffer.cpp
-ITextureCube.h
-ITextureCube.cpp
-ITextureArray.h
-ITextureArray.cpp
 ITexture.h
 ITexture.cpp
 ISurface.h
@@ -86,10 +78,6 @@ GraphicsAPIDef.h
 GraphicsAPIDef.cpp
 D3D11UniformBuffer.h
 D3D11UniformBuffer.cpp
-D3D11TextureCube.h
-D3D11TextureCube.cpp
-D3D11TextureArray.h
-D3D11TextureArray.cpp
 D3D11Texture.h
 D3D11Texture.cpp
 D3D11Surface.h
@@ -119,10 +107,6 @@ D3D11VRInterface.cpp
 CommandBuffer.h
 CommandBuffer.cpp
 CMakeLists.txt
-BaseTextureCube.h
-BaseTextureCube.cpp
-BaseTextureArray.h
-BaseTextureArray.cpp
 BaseTexture.h
 BaseTexture.cpp
 BaseShader.h

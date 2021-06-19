@@ -69,13 +69,16 @@ namespace SunEngine
 
 		for (uint i = 0; i < DT_COUNT; i++)
 		{
-			BaseTexture::CreateInfo texInfo = {};
+			BaseTexture::CreateInfo::TextureData texInfo = {};
 			texInfo.image.Width = 2;
 			texInfo.image.Height = 2;
 			texInfo.image.Pixels = defaultPixels[i].data();
 
 			BaseTexture* pTexture = new BaseTexture();
-			if (!pTexture->Create(texInfo))
+			BaseTexture::CreateInfo info = {};
+			info.numImages = 1;
+			info.pImages = &texInfo;
+			if (!pTexture->Create(info))
 				return false;
 
 			_defaultTextures[i] = pTexture;

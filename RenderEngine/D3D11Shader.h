@@ -11,8 +11,6 @@ namespace SunEngine
 	class D3D11UniformBuffer;
 	class D3D11Texture;
 	class ConfigFile;
-	class D3D11TextureCube;
-	class D3D11TextureArray;
 	class D3D11ShaderResource;
 
 	class D3D11Shader;
@@ -27,8 +25,6 @@ namespace SunEngine
 		bool Create(const IShaderBindingCreateInfo& createInfo) override;
 		void SetTexture(ITexture* pTexture, const String& name) override;
 		void SetSampler(ISampler* pSampler, const String& name) override;
-		void SetTextureCube(ITextureCube* pTextureCube, const String& name) override;
-		void SetTextureArray(ITextureArray* pTextureArray, const String& name) override;
 		void SetUniformBuffer(IUniformBuffer* pBuffer, const String& name) override;
 
 		void Bind(ICommandBuffer *pCmdBuffer, IBindState* pBindState = 0) override;
@@ -51,8 +47,6 @@ namespace SunEngine
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
 		void BindTexture(D3D11Texture* pTexture, uint binding);
-		void BindTextureCube(D3D11TextureCube* pTextureCube, uint binding);
-		void BindTextureArray(D3D11TextureArray* pTextureArray, uint binding);
 		void BindSampler(D3D11Sampler* pSampler, uint binding);
 		void BindBuffer(D3D11UniformBuffer* pBuffer, uint binding, uint firstConstant, uint numConstants);
 	private:

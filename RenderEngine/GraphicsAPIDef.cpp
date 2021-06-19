@@ -7,8 +7,6 @@
 #include "IDevice.h"
 #include "IGraphicsPipeline.h"
 #include "IRenderTarget.h"
-#include "ITextureCube.h"
-#include "ITextureArray.h"
 #include "ICommandBuffer.h"
 #include "IUniformBuffer.h"
 #include "IVRInterface.h"
@@ -47,9 +45,7 @@ namespace SunEngine
 		AllocateGraphics<IMesh>();
 		AllocateGraphics<IGraphicsPipeline>();
 		AllocateGraphics<IDevice>();
-		AllocateGraphics<ITextureCube>();
 		AllocateGraphics<IRenderTarget>();
-		AllocateGraphics<ITextureArray>();
 		AllocateGraphics<ICommandBuffer>();
 		AllocateGraphics<IUniformBuffer>();
 		AllocateGraphics<IVRInterface>();

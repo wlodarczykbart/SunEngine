@@ -506,7 +506,7 @@ int main(int argc, const char** argv)
 		glm::mat4 worldMatrix;
 	};
 
-	FLOAT worldRange = 40.0f;
+	FLOAT worldRange = 120.0f;
 
 	Vector<RenderNode> renderNodes;
 	uint cubeCount = 30;
@@ -517,7 +517,7 @@ int main(int argc, const char** argv)
 
 		glm::vec4 t = glm::vec4(rand() / (float)RAND_MAX, 0.0f, rand() / (float)RAND_MAX, 0.0f);
 		glm::vec4 pos = glm::mix(glm::vec4(-worldRange, 0.0f, -worldRange, 0.0f), glm::vec4(worldRange, 0.0f, worldRange, 0.0f), t);
-		planeNode.worldMatrix = glm::translate(glm::vec3(pos)) * glm::scale(glm::vec3(1.0f, 1.0f + (20.0f * (rand() / float(RAND_MAX))), 1.0f));
+		planeNode.worldMatrix = glm::translate(glm::vec3(pos)) * glm::mat4RotationX(glm::radians(float(rand() % 360))) * glm::scale(glm::vec3(1.0f, 10.0f /*+ 0*(20.0f * (rand() / float(RAND_MAX)))*/, 1.0f));
 		renderNodes.push_back(planeNode);
 	}
 

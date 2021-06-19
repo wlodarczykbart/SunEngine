@@ -14,6 +14,7 @@ namespace SunEngine
 		~VulkanRenderTarget();
 
 		bool Create(const IRenderTargetCreateInfo &info) override;
+		bool Destroy() override;
 
 		void Bind(ICommandBuffer* cmdBuffer, IBindState*) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;

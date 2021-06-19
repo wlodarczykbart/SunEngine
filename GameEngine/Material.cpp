@@ -94,7 +94,7 @@ namespace SunEngine
 		auto found = _mtlTextureCubes.find(name);
 		if (found != _mtlTextureCubes.end())
 		{
-			if (!_gpuObject.SetTextureCube(name, pTexture->GetGPUObject()))
+			if (!_gpuObject.SetTexture(name, pTexture->GetGPUObject()))
 				return false;
 
 			(*found).second.pTextureCube = pTexture;
@@ -111,7 +111,7 @@ namespace SunEngine
 		auto found = _mtlTexture2DArrays.find(name);
 		if (found != _mtlTexture2DArrays.end())
 		{
-			if (!_gpuObject.SetTextureArray(name, pTexture->GetGPUObject()))
+			if (!_gpuObject.SetTexture(name, pTexture->GetGPUObject()))
 				return false;
 
 			(*found).second.pTextureArray = pTexture;

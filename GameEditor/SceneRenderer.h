@@ -112,7 +112,6 @@ namespace SunEngine
 		void ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex = 0, bool isDepth = false);
 		bool GetPipeline(RenderNodeData& node, bool& sorted, bool isDepth = false, bool isShadow = false);
 		bool TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
-		void RenderSky(CommandBuffer* cmdBuffer);
 		void RenderEnvironment(CommandBuffer* cmdBuffer);
 		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6);
 		bool CreateDepthMaterial(Material* pMaterial, uint64 variantMask, Material* pEmptyMaterial) const;
@@ -145,8 +144,8 @@ namespace SunEngine
 
 		StrMap<GraphicsPipeline> _helperPipelines;
 
-		RenderTarget _skyTarget;
-		ShaderBindings _skyBindings;
+		RenderTarget _envTarget;
+		ShaderBindings _envCopyBindings;
 
 		AABB _shadowCasterAABB;
 	};

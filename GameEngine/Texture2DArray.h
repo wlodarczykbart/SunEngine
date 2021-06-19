@@ -1,11 +1,11 @@
 #pragma once
 
-#include "BaseTextureArray.h"
+#include "BaseTexture.h"
 #include "Texture2D.h"
 
 namespace SunEngine
 {
-	class Texture2DArray : public GPUResource<BaseTextureArray>
+	class Texture2DArray : public GPUResource<BaseTexture>
 	{
 	public:
 		Texture2DArray();

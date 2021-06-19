@@ -11,7 +11,7 @@ namespace SunEngine
 	Environment::FogSettings::FogSettings()
 	{
 		enabled = true;
-		sampleSky = true;
+		heightFalloff = 0.01f;
 		density = 0.00176f;
 		color = glm::vec3(0.25f);
 	}
@@ -136,9 +136,5 @@ namespace SunEngine
 	void Environment::GetFogSettings(FogSettings& settings) const
 	{
 		settings = _fogSettings;
-
-		//textured skybox is likely to have things like clouds and other environmental elements that would not make sense to use as the fog
-		if(_activeSkyModel == DefaultShaders::Skybox)
-			settings.sampleSky = false;
 	}
 }

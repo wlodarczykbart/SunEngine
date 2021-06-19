@@ -232,10 +232,13 @@ namespace SunEngine
 		unsigned char* pixels;
 		int width, height;
 		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+		BaseTexture::CreateInfo::TextureData texData = {};
+		texData.image.Width = width;
+		texData.image.Height = height;
+		texData.image.Pixels = (Pixel*)pixels;
 		BaseTexture::CreateInfo texInfo = {};
-		texInfo.image.Width = width;
-		texInfo.image.Height = height;
-		texInfo.image.Pixels = (Pixel*)pixels;
+		texInfo.numImages = 1;
+		texInfo.pImages = &texData;
 		if (!_fontTexture.Create(texInfo))
 			return false;
 

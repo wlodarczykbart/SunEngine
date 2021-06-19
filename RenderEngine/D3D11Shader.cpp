@@ -9,8 +9,6 @@
 #include "D3D11Sampler.h"
 #include "D3D11UniformBuffer.h"
 #include "D3D11Texture.h"
-#include "D3D11TextureCube.h"
-#include "D3D11TextureArray.h"
 
 #include "Sampler.h"
 #include "BaseTexture.h"
@@ -212,16 +210,6 @@ namespace SunEngine
 		BindShaderResourceView(pTexture->_srv, binding);
 	}
 
-	void D3D11Shader::BindTextureCube(D3D11TextureCube * pTextureCube, uint binding)
-	{
-		BindShaderResourceView(pTextureCube->_srv, binding);
-	}
-
-	void D3D11Shader::BindTextureArray(D3D11TextureArray * pTextureArray, uint binding)
-	{
-		BindShaderResourceView(pTextureArray->_srv, binding);
-	}
-
 	void D3D11Shader::BindSampler(D3D11Sampler * pSampler, uint binding)
 	{
 		Map<uint, Vector<BindSamplerFunc> >::iterator it = _samplerFuncMap.find(binding);
@@ -350,16 +338,6 @@ namespace SunEngine
 	void D3D11ShaderBindings::SetSampler(ISampler* pSampler, const String& name)
 	{
 		_bindingMap.at(name).second = static_cast<D3D11Sampler*>(pSampler);
-	}
-
-	void D3D11ShaderBindings::SetTextureCube(ITextureCube* pTextureCube, const String& name)
-	{
-		_bindingMap.at(name).second = static_cast<D3D11TextureCube*>(pTextureCube);
-	}
-
-	void D3D11ShaderBindings::SetTextureArray(ITextureArray * pTextureArray, const String& name)
-	{
-		_bindingMap.at(name).second = static_cast<D3D11TextureArray*>(pTextureArray);
 	}
 
 	void D3D11ShaderBindings::SetUniformBuffer(IUniformBuffer* pBuffer, const String& name)

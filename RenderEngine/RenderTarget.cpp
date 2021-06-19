@@ -64,16 +64,21 @@ namespace SunEngine
 			if (info.pSharedColorBuffers[i] == 0)
 			{
 				pTexture = new BaseTexture();
-				BaseTexture::CreateInfo texInfo = {};
-				texInfo.image.Width = info.width;
-				texInfo.image.Height = info.height;
+				BaseTexture::CreateInfo::TextureData texData = {};
+
+				texData.image.Width = info.width;
+				texData.image.Height = info.height;
 
 				if (!info.floatingPointColorBuffer)
-					texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA8;
+					texData.image.Flags = ImageData::COLOR_BUFFER_RGBA8;
 				else
-					texInfo.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
+					texData.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
 
-				texInfo.image.Flags |= msaaFlags;
+				texData.image.Flags |= msaaFlags;
+
+				BaseTexture::CreateInfo texInfo = {};
+				texInfo.numImages = 1;
+				texInfo.pImages = &texData;
 				if (!pTexture->Create(texInfo))
 					_errStr = pTexture->GetErrStr();
 
@@ -92,12 +97,15 @@ namespace SunEngine
 			if (!info.pSharedDepthBuffer)
 			{
 				_depthTexture = new BaseTexture();
-				BaseTexture::CreateInfo texInfo = {};
-				texInfo.image.Width = info.width;
-				texInfo.image.Height = info.height;
-				texInfo.image.Flags = ImageData::DEPTH_BUFFER;
+				BaseTexture::CreateInfo::TextureData texData = {};
+				texData.image.Width = info.width;
+				texData.image.Height = info.height;
+				texData.image.Flags = ImageData::DEPTH_BUFFER;
 
-				texInfo.image.Flags |= msaaFlags;
+				texData.image.Flags |= msaaFlags;
+				BaseTexture::CreateInfo texInfo = {};
+				texInfo.numImages = 1;
+				texInfo.pImages = &texData;
 				if (!_depthTexture->Create(texInfo))
 					_errStr = _depthTexture->GetErrStr();
 

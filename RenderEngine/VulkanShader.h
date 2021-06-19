@@ -31,8 +31,6 @@ namespace SunEngine
 		void SetUniformBuffer(IUniformBuffer* pBuffer, const String& name) override;
 		void SetTexture(ITexture* pTexture, const String& name) override;
 		void SetSampler(ISampler* pSampler, const String& name) override;
-		void SetTextureCube(ITextureCube* pTextureCube, const String& name) override;
-		void SetTextureArray(ITextureArray* pTextureArray, const String& name) override;
 
 	private:
 		void BindImageView(VkImageView view, VkImageLayout layout, uint binding);

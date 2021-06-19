@@ -9,8 +9,6 @@
 #include "VulkanSampler.h"
 #include "VulkanUniformBuffer.h"
 #include "VulkanTexture.h"
-#include "VulkanTextureCube.h"
-#include "VulkanTextureArray.h"
 
 #include "GraphicsContext.h"
 #include "Sampler.h"
@@ -504,18 +502,6 @@ namespace SunEngine
 			_device->UpdateDescriptorSets(&set, 1);
 		}
 		_bindingMap.at(name).second = static_cast<VulkanSampler*>(pSampler);
-	}
-
-	void VulkanShaderBindings::SetTextureCube(ITextureCube * pTextureCube, const String& name)
-	{
-		BindImageView(static_cast<VulkanTextureCube*>(pTextureCube)->_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _bindingMap.at(name).first);
-		_bindingMap.at(name).second = static_cast<VulkanTextureCube*>(pTextureCube);
-	}
-
-	void VulkanShaderBindings::SetTextureArray(ITextureArray * pTextureArray, const String& name)
-	{
-		BindImageView(static_cast<VulkanTextureArray*>(pTextureArray)->_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _bindingMap.at(name).first);
-		_bindingMap.at(name).second = static_cast<VulkanTextureArray*>(pTextureArray);
 	}
 
 	void VulkanShaderBindings::BindImageView(VkImageView view, VkImageLayout layout, const uint binding)

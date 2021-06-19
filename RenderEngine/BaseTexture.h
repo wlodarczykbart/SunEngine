@@ -2,26 +2,30 @@
 
 #include "GraphicsObject.h"
 
-#define TEXTURE_VERSION 1
-
 namespace SunEngine
 {
-
 	class BaseTexture : public GraphicsObject
 	{
 	public:
 		struct CreateInfo
 		{
-			ImageData image;
-			ImageData* pMips;
-			uint mipLevels;
+			CreateInfo();
+
+			struct TextureData
+			{
+				ImageData image;
+				ImageData* pMips;
+				uint mipLevels;
+			};
+
+			TextureData* pImages;
+			uint numImages;
 			bool isExternal;
 		};
 
 		BaseTexture();
 		virtual ~BaseTexture();
 
-		//bool Create(const char* tgaFilename);
 		bool Create(const CreateInfo &info);
 		bool Destroy() override;
 

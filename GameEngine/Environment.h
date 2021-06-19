@@ -31,7 +31,7 @@ namespace SunEngine
 			FogSettings();
 
 			bool enabled;
-			bool sampleSky;
+			float heightFalloff;
 			float density;
 			glm::vec3 color;
 		};

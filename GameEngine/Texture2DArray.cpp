@@ -19,7 +19,7 @@ namespace SunEngine
 		if (_width == 0 || _height == 0 || _textures.size() == 0)
 			return false;
 
-		Vector<BaseTexture::CreateInfo> imageInfos;
+		Vector<BaseTexture::CreateInfo::TextureData> imageInfos;
 		imageInfos.resize(_textures.size());
 
 		Vector<Vector<ImageData>> mipDataLookup;
@@ -33,7 +33,7 @@ namespace SunEngine
 			for (uint j = 0; j < mipDataLookup[i].size(); j++)
 				mipDataLookup[i][j] = tex->texture.GetMipImageData(j);
 
-			BaseTexture::CreateInfo texInfo = {};
+			BaseTexture::CreateInfo::TextureData texInfo = {};
 			texInfo.image = tex->texture.GetImageData();
 			texInfo.mipLevels = mipDataLookup[i].size();
 			texInfo.pMips = mipDataLookup[i].data();
@@ -41,7 +41,7 @@ namespace SunEngine
 			imageInfos[i] = texInfo;
 		}
 
-		BaseTextureArray::CreateInfo info = {};
+		BaseTexture::CreateInfo info = {};
 		info.numImages = _textures.size();
 		info.pImages = imageInfos.data();
 		
