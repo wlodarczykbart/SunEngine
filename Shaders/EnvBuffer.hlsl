@@ -22,6 +22,11 @@ cbuffer EnvBuffer
 TextureCube EnvTexture;
 SamplerState EnvSampler;
 
+float4 SampleEnvironment(float3 dir)
+{
+	return EnvTexture.Sample(EnvSampler, dir);
+};
+
 float3 ComputeFogContribution(float3 inputColor, float3 viewSpacePos, float eyePosY)
 {
 	if(false)//FOG_ENABLED)

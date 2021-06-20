@@ -104,6 +104,7 @@ namespace SunEngine
 			LinkedList<RenderNodeData> RenderList;
 			AABB FrustumBox;
 			UniquePtr<CameraComponentData> CameraData;
+			uint CameraIndex;
 		};
 
 		void ProcessRenderNode(RenderNode* pNode);
@@ -144,7 +145,6 @@ namespace SunEngine
 		StrMap<GraphicsPipeline> _helperPipelines;
 
 		RenderTarget _envTarget;
-		ShaderBindings _envCopyBindings;
 
 		AABB _shadowCasterAABB;
 	};

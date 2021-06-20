@@ -40,30 +40,17 @@ float ArHosekSkyModel_GetRadianceInternal(
 struct PS_In
 {
 	float4 clipPos : SV_POSITION;
-	float4 direction : DIRECTION;
-#if 0
-	float2 texCoord : TEXCOORD;
-#endif
+	float3 direction : DIRECTION;
 };
 
 float4 main(PS_In pIn) : SV_TARGET
 {
 	//NOTE: Is this shader cheap enough to not prefer generating a cubemap texture and avoiding this?
 	
-#if 0	
-	float4 vDir = float4(pIn.texCoord.xy, 0.0, 1.0);
-	vDir.xy = vDir.xy * 2.0 - 1.0;
-	vDir = mul(vDir, InvProjectionMatrix);
-	vDir /= vDir.w;
-	vDir = normalize(mul(float4(vDir.xyz, 0.0), InvViewMatrix));
-#else
-	float4 vDir = normalize(pIn.direction);
-	//vDir /= vDir.w;
-	//vDir = normalize(vDir);	
-#endif	
+	float4 vDir = float4(normalize(pIn.direction), 0.0);
 	
 	float VdotS = dot(vDir, SunDirection);
-	float cosGamma = max(VdotS, 0.00001);
+	float cosGamma = min(1.0, max(VdotS, 0.00001));
 	float gamma = acos(cosGamma);
 	float cosTheta = max(dot(vDir, float4(0, 1, 0, 0)), 0.00001);
     float zenith = sqrt(cosTheta);	

@@ -21,6 +21,7 @@ namespace SunEngine
 			bool hasDepthBuffer;
 			bool floatingPointColorBuffer;
 			uint numLayers;
+			bool cubemap;
 
 			BaseTexture* pSharedColorBuffers[MAX_SUPPORTED_RENDER_TARGETS];
 			BaseTexture* pSharedDepthBuffer;

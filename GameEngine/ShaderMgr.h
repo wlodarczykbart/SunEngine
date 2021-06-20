@@ -20,6 +20,7 @@ namespace SunEngine
 		static const String SkyArHosek;
 		static const String MSAAResolve;
 		static const String Terrain;
+		static const String EnvTextureCopy;
 
 	private:
 		DefaultShaders() = delete;

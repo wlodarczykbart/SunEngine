@@ -77,9 +77,7 @@ float3 ComputeShadowFactor(float3 viewPos)
 	float shadowFactor = 1.0;
 	float bias = 0.001;
 	
-	if(	shadowCoord.x > 0.0 && shadowCoord.x < 1.0 && 
-		shadowCoord.y > 0.0 && shadowCoord.y < 1.0 && 
-		shadowCoord.z >-1.0 && shadowCoord.z < 1.0) 
+	if(shadowCoord.z >-1.0 && shadowCoord.z < 1.0) 
 	{
 		shadowFactor = 0.0;
 		[unroll]

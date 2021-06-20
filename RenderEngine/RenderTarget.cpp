@@ -15,6 +15,7 @@ namespace SunEngine
 		pSharedDepthBuffer = 0;
 		msaa = SE_MSAA_OFF;
 		numLayers = 1;
+		cubemap = false;
 
 		for (uint i = 0; i < MAX_SUPPORTED_RENDER_TARGETS; i++)
 			pSharedColorBuffers[i] = 0;
@@ -58,6 +59,8 @@ namespace SunEngine
 		else if (info.msaa == SE_MSAA_4) msaaFlags |= ImageData::MULTI_SAMPLES_4;
 		else if (info.msaa == SE_MSAA_8) msaaFlags |= ImageData::MULTI_SAMPLES_8;
 
+		uint numLayers = info.cubemap ? 6 : info.numLayers;
+
 		for (uint i = 0; i < info.numTargets; i++)
 		{
 			BaseTexture* pTexture = 0;
@@ -67,8 +70,8 @@ namespace SunEngine
 				pTexture = new BaseTexture();
 
 				Vector<BaseTexture::CreateInfo::TextureData> colorTexData;
-				colorTexData.resize(info.numLayers);
-				for (uint j = 0; j < info.numLayers; j++)
+				colorTexData.resize(numLayers);
+				for (uint j = 0; j < numLayers; j++)
 				{
 					BaseTexture::CreateInfo::TextureData texData = {};
 
@@ -76,16 +79,19 @@ namespace SunEngine
 					texData.image.Height = info.height;
 
 					if (!info.floatingPointColorBuffer)
-						texData.image.Flags = ImageData::COLOR_BUFFER_RGBA8;
+						texData.image.Flags |= ImageData::COLOR_BUFFER_RGBA8;
 					else
-						texData.image.Flags = ImageData::COLOR_BUFFER_RGBA16F;
+						texData.image.Flags |= ImageData::COLOR_BUFFER_RGBA16F;
+
+					if (info.cubemap)
+						texData.image.Flags |= ImageData::CUBEMAP;
 
 					texData.image.Flags |= msaaFlags;
 					colorTexData[j] = texData;
 				}
 
 				BaseTexture::CreateInfo texInfo = {};
-				texInfo.numImages = info.numLayers;
+				texInfo.numImages = numLayers;
 				texInfo.pImages = colorTexData.data();
 				if (!pTexture->Create(texInfo))
 					_errStr = pTexture->GetErrStr();
@@ -107,8 +113,8 @@ namespace SunEngine
 				_depthTexture = new BaseTexture();
 
 				Vector<BaseTexture::CreateInfo::TextureData> depthTexData;
-				depthTexData.resize(info.numLayers);
-				for (uint i = 0; i < info.numLayers; i++)
+				depthTexData.resize(numLayers);
+				for (uint i = 0; i < numLayers; i++)
 				{
 					BaseTexture::CreateInfo::TextureData texData = {};
 					texData.image.Width = info.width;
@@ -119,7 +125,7 @@ namespace SunEngine
 				}
 
 				BaseTexture::CreateInfo texInfo = {};
-				texInfo.numImages = info.numLayers;
+				texInfo.numImages = numLayers;
 				texInfo.pImages = depthTexData.data();
 				if (!_depthTexture->Create(texInfo))
 					_errStr = _depthTexture->GetErrStr();
@@ -144,7 +150,7 @@ namespace SunEngine
 		apiInfo.depthBuffer = _depthTexture ? (ITexture*)_depthTexture->GetAPIHandle() : 0;
 		apiInfo.numTargets = info.numTargets;
 		apiInfo.msaa = info.msaa;
-		apiInfo.numLayers = info.numLayers;
+		apiInfo.numLayers = numLayers;
 
 		if(!_iRenderTarget->Create(apiInfo)) return false;
 

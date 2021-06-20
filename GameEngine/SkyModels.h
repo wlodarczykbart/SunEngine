@@ -10,20 +10,12 @@ namespace SunEngine
 	class SkyModel
 	{
 	public:
-		enum MeshType
-		{
-			MT_QUAD,
-			MT_CUBE,
-			MT_SPHERE,
-		};
-
 		SkyModel();
 		virtual ~SkyModel();
 		Material* GetMaterial() const { return _material.get(); }
 
 		virtual void Init() = 0;
 		virtual void Update(const glm::vec3& sunDirection) { (void)sunDirection; };
-		virtual MeshType GetMeshType() const = 0;
 	protected:
 		UniquePtr<Material> _material;
 	};
@@ -33,7 +25,6 @@ namespace SunEngine
 	public:
 		SkyModelSkybox();
 		void Init() override;
-		MeshType GetMeshType() const override { return MT_CUBE; }
 
 		bool SetSkybox(TextureCube* pSkybox);
 	private:
@@ -47,7 +38,6 @@ namespace SunEngine
 
 		void Init() override;
 		void Update(const glm::vec3& sunDirection) override;
-		MeshType GetMeshType() const override { return MT_QUAD; }
 
 		float GetTurbidity() const { return _turbidity; }
 		void SetTurbidity(float value) { _turbidity = value; }

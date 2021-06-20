@@ -1,0 +1,14 @@
+#include "EnvBuffer.hlsl"
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float3 direction : DIRECTION;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	//need to use zyx or the sun will travel in the wrong horizontal direction for some reason
+	float3 dir = (pIn.direction.zyx); //Normalize or not?	
+	return float4(SampleEnvironment(dir).rgb, 1.0);
+}
