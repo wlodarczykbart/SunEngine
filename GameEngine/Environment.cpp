@@ -11,8 +11,8 @@ namespace SunEngine
 	Environment::FogSettings::FogSettings()
 	{
 		enabled = true;
-		heightFalloff = 0.01f;
-		density = 0.00176f;
+		heightFalloff = 0.12400f;
+		density = 0.00082f;
 		color = glm::vec3(0.25f);
 	}
 

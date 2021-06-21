@@ -40,19 +40,18 @@ void ShadePixel(float3 albedo, float ambient, float3 specular, float smoothness,
 	v /= distToEye;
 #endif	
 
-	float3 shadowFactor = ComputeShadowFactor(position);
+	float4 worldPos = mul(float4(position, 1.0), InvViewMatrix);
+	float3 shadowFactor = ComputeShadowFactor(worldPos, position.z);
 	
 	float3 litColor = BRDF_CookTorrance(l, normal, v, SunColor.rgb, albedo, specular, smoothness, 0.001) * shadowFactor;
 	
     float3 ambientColor = 0.01 * ambient * albedo;	
 	
-	//float3 EnvColor = float3(0.5,0.5,0.5);
-	//float ft = 1.0-exp(-distToEye * 0.005);
-	//float heightFactor = exp(-worldPos.y * 0.1);
-	//EnvColor = lerp(EnvColor, float3(0.1, 0.1, 0.1), 1.0-heightFactor);
+	float3 toPixel = (worldPos - InvViewMatrix[3]).xyz;
 	
 	pOut.color = float4(litColor + ambientColor + emissive, 1.0);	
-	pOut.color.rgb = ComputeFogContribution(pOut.color.rgb, position, InvViewMatrix[3].y);
+	pOut.color.rgb = ComputeFogContribution(pOut.color.rgb, toPixel, InvViewMatrix[3].y);
+	//pOut.color.rgb = lerp(pOut.color.rgb, FogColor.rgb, 0.5);
 	//pOut.color.rgb = normal;
 #endif
 }

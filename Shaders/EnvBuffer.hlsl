@@ -29,7 +29,7 @@ float4 SampleEnvironment(float3 dir)
 
 float3 ComputeFogContribution(float3 inputColor, float3 viewSpacePos, float eyePosY)
 {
-	if(false)//FOG_ENABLED)
+	if(FOG_ENABLED)
 	{
 		float cVolFogHeightDensityAtViewer = exp( -FOG_HEIGHT_FALLOFF * eyePosY );	
 		float fogInt = length( viewSpacePos ) * cVolFogHeightDensityAtViewer;
@@ -40,7 +40,7 @@ float3 ComputeFogContribution(float3 inputColor, float3 viewSpacePos, float eyeP
 			float t = FOG_HEIGHT_FALLOFF * viewSpacePos.y;
 			fogInt *= ( 1.0 - exp( -t ) ) / t;
 		}
-		return lerp(inputColor, FogColor.rgb, exp( -FOG_DENSITY * fogInt ));
+		return lerp(inputColor, FogColor.rgb, 1.0-exp( -FOG_DENSITY * fogInt ));
 	}
 	else
 	{

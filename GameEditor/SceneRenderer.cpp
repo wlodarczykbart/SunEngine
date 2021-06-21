@@ -206,7 +206,7 @@ namespace SunEngine
 		//if (GraphicsWindow::KeyDown(KEY_V))
 		//	rotation += 1.0f;;
 
-		glm::mat4 envCubeProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
+		glm::mat4 envCubeProj = glm::perspective(glm::radians(90.0f), 1.0f, 0.5f, 5000.0f);
 		for (uint i = 0; i < 6; i++)
 		{
 			glm::mat4 envCubeView = glm::inverse(
@@ -336,6 +336,7 @@ namespace SunEngine
 
 		Environment::FogSettings fog;
 		_currentEnvironment->GetFogSettings(fog);
+		fog.color = _currentEnvironment->GetActiveSkyModel()->GetSkyColor();
 
 		EnvBufferData envData = {};
 		glm::vec4 sunDir = glm::vec4(glm::normalize(_currentEnvironment->GetSunDirection()), 0.0);
@@ -427,6 +428,7 @@ namespace SunEngine
 		{
 			pMSAAResolveInfo->pTarget->Bind(cmdBuffer);
 			ProcessRenderList(cmdBuffer, _opaqueRenderList);
+			RenderCommand(cmdBuffer, &_helperPipelines.at(HelperPipelines::EnvCopy), 0);
 			pMSAAResolveInfo->pTarget->Unbind(cmdBuffer);
 		}
 
@@ -466,13 +468,10 @@ namespace SunEngine
 		else
 		{
 			ProcessRenderList(cmdBuffer, _opaqueRenderList);
-		}
-
-		if (true)
-		{
 			RenderCommand(cmdBuffer, &_helperPipelines.at(HelperPipelines::EnvCopy), 0);
 		}
-		else
+
+		if(false)
 		{
 			IShaderBindingsBindState cameraBindData = {};
 			cameraBindData.DynamicIndices[0] = { ShaderStrings::CameraBufferName, 0 };
@@ -792,20 +791,20 @@ namespace SunEngine
 			pipeline.Unbind(cmdBuffer);
 			pShader->Unbind(cmdBuffer);
 
+			//Draw clouds over sky
+			RenderCommand(cmdBuffer, &_helperPipelines.at(DefaultShaders::Clouds), _currentEnvironment->GetCloudBindings(), 6, cameraBindData.DynamicIndices[0].second);
+
 			_envTarget.Unbind(cmdBuffer);
 		}
 
 		////Copy the texture containing the sky background to main framebuffer
 		//RenderCommand(cmdBuffer, &_helperPipelines.at(HelperPipelines::SkyCopy), &_skyBindings);
-
-		////Draw clouds over sky
-		//RenderCommand(cmdBuffer, &_helperPipelines.at(DefaultShaders::Clouds), _currentEnvironment->GetCloudBindings());
 	}
 
-	void SceneRenderer::RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount)
+	void SceneRenderer::RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount, uint cameraUpdateIndex)
 	{
 		IShaderBindingsBindState cameraBindData = {};
-		cameraBindData.DynamicIndices[0] = { ShaderStrings::CameraBufferName, 0 };
+		cameraBindData.DynamicIndices[0] = { ShaderStrings::CameraBufferName, cameraUpdateIndex };
 
 		BaseShader* pShader = pPipeline->GetShader();
 		pShader->Bind(cmdBuffer);

@@ -16,8 +16,11 @@ namespace SunEngine
 
 		virtual void Init() = 0;
 		virtual void Update(const glm::vec3& sunDirection) { (void)sunDirection; };
+
+		const glm::vec3& GetSkyColor() const { return _skyColor; }
 	protected:
 		UniquePtr<Material> _material;
+		glm::vec3 _skyColor;
 	};
 
 	class SkyModelSkybox : public SkyModel
@@ -52,5 +55,6 @@ namespace SunEngine
 		float _turbidity;
 		float _albedo;
 		float _intensity;
+		Vector<glm::vec3> _sampleDirections;
 	};
 }

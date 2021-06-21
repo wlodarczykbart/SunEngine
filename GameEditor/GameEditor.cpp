@@ -98,15 +98,16 @@ namespace SunEngine
 
 		View::CreateInfo debugViewInfo = {};
 		debugViewInfo.floatingPointColorBuffer = false;
-		debugViewInfo.visible = false;
 		debugViewInfo.height = 256;
 		debugViewInfo.width = 256;
 
 		auto pShadowView = new ShadowMapView(&_sceneRenderer);
+		debugViewInfo.visible = true;
 		pShadowView->Create(debugViewInfo);
 		AddView(pShadowView);
 
 		auto pTexture2DView = new Texture2DView();
+		debugViewInfo.visible = false;
 		pTexture2DView->Create(debugViewInfo);
 		AddView(pTexture2DView);
 
@@ -451,8 +452,6 @@ namespace SunEngine
 			pTerrain->UpdateBiomes();
 			double et = t.Tick();
 			spdlog::info("UpdateBiomes {}", et);
-		
-
 		}
 
 		//pScene->Initialize();
@@ -480,9 +479,10 @@ namespace SunEngine
 		//strAsset = "F:/Models/FBX/_PHONG_/Wooden_barrels__OBJ/Wooden_barrels.FBX";
 		//strAsset = "F:/Models/glTF-Sample-Models-master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf";
 		//strAsset = "F:/Code/Vulkan-master/data/models/cerberus/cerberus.gltf";
+		//strAsset = "F:/Models/glTF-Sample-Models-master/2.0/Sponza/glTF/Sponza.gltf";
 
 		auto options = SunEngine::AssetImporter::Options::Default;
-		options.MaxTextureSize = 4096;
+		options.MaxTextureSize = 1024;
 		Asset* pAsset = 0;
 		//pAsset = ImportAsset(strAsset, options);
 		if (pAsset)

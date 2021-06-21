@@ -66,11 +66,9 @@ static const float2 CascadeShadowMapPCFOffsets[25] = {
 	float2(-2.0, -2.0)
 };
 
-float3 ComputeShadowFactor(float3 viewPos)
+float3 ComputeShadowFactor(float4 worldPos, float viewDistance)
 {
-	uint cascadeIndex = GetCascadeIndex(viewPos.z);
-
-	float4 worldPos = mul(float4(viewPos, 1.0), InvViewMatrix);
+	uint cascadeIndex = GetCascadeIndex(viewDistance);
 	float4 shadowCoord = mul(worldPos, ShadowMatrices[cascadeIndex]);
 	shadowCoord /= shadowCoord.w;
 	

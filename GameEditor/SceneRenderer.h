@@ -113,7 +113,7 @@ namespace SunEngine
 		bool GetPipeline(RenderNodeData& node, bool& sorted, bool isDepth = false, bool isShadow = false);
 		bool TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
 		void RenderEnvironment(CommandBuffer* cmdBuffer);
-		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6);
+		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6, uint cameraUpdateIndex = 0);
 		bool CreateDepthMaterial(Material* pMaterial, uint64 variantMask, Material* pEmptyMaterial) const;
 		uint64 CalculateDepthVariantHash(Material* pMaterial, uint64 variantMask) const;
 		void UpdateShadowCascades(Vector<CameraBufferData>& cameraBuffersToFill);

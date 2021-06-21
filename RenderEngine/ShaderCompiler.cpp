@@ -210,6 +210,7 @@ namespace SunEngine
 			{"t", "Texture2DMS<float4>"},
 			{"t", "Texture2D"},
 			{"t", "TextureCube"},
+			{"t", "TextureCubeArray"},
 			{"s", "SamplerState"},
 		};
 

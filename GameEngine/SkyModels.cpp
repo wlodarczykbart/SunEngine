@@ -59,6 +59,12 @@ namespace SunEngine
 		Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::SkyArHosek);
 		_material->SetShader(pShader);
 		_material->RegisterToGPU();	
+
+		_sampleDirections.clear();
+		for (uint i = 0; i < 64; i++)
+		{
+			_sampleDirections.push_back(glm::normalize(glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 0.1f, 1.0f))));
+		}
 	}
 
 	void SkyModelArHosek::Update(const glm::vec3& sunDirection)
@@ -102,6 +108,26 @@ namespace SunEngine
 		_material->SetMaterialVar("StateConfigG", StateConfigG);
 		_material->SetMaterialVar("StateConfigB", StateConfigB);
 		_material->SetMaterialVar("StateRadiances", StateRadiances);
+
+
+		_skyColor = Vec3::Zero;
+		for (uint i = 0; i < _sampleDirections.size(); i++)
+		{
+			float VdotS = glm::dot(_sampleDirections[i], sunDir);
+			float gamma = acos(glm::min(1.0f, glm::max(VdotS, 0.00001f)));
+			float theta = acos(glm::min(1.0f, glm::max(glm::dot(_sampleDirections[i], Vec3::Up), 0.00001f)));
+
+			glm::vec3 color;
+			color.r = (float)arhosek_tristim_skymodel_radiance(skymodel_state, theta, gamma, 0);
+			color.g = (float)arhosek_tristim_skymodel_radiance(skymodel_state, theta, gamma, 1);
+			color.b = (float)arhosek_tristim_skymodel_radiance(skymodel_state, theta, gamma, 2);
+			color /= 255.0f;
+			color = glm::pow(color, glm::vec3(1.0f / 2.2f));
+			
+			_skyColor += color;
+		}
+		_skyColor /= _sampleDirections.size();
+		_skyColor *= _intensity;
 
 		arhosekskymodelstate_free(skymodel_state);
 	}

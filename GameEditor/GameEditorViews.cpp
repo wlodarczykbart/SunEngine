@@ -15,6 +15,7 @@
 #include "GameEditorGUI.h"
 #include "StringUtil.h"
 #include "Terrain.h"
+#include "Environment.h"
 #include "GameEditorViews.h"
 
 namespace SunEngine
@@ -635,7 +636,10 @@ namespace SunEngine
 
 	bool ShadowMapView::Render(CommandBuffer* cmdBuffer)
 	{
-		_target.SetClearColor(0, 1, 0, 1);
+		auto env = SceneMgr::Get().GetActiveScene()->GetEnvironmentList().front();
+		auto color = env->C()->As<Environment>()->GetActiveSkyModel()->GetSkyColor();
+
+		_target.SetClearColor(color.r, color.g, color.b, 1);
 		_target.Bind(cmdBuffer);
 		//TODO BROKEN SINCE USING TEXTURE ARRAYS NOW...
 		//BaseShader* pShader = _pipeline.GetShader();
