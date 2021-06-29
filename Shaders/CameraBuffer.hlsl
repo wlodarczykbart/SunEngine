@@ -2,6 +2,7 @@
 #define CAMERA_NEAR_Z CameraData[1].x
 #define CAMERA_FAR_Z CameraData[1].y
 #define SCREEN_SIZE VIEWPORT.zw
+#define SUN_VIEW_DIRECTION CameraData[3]
 
 cbuffer CameraBuffer
 {

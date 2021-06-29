@@ -7,10 +7,12 @@ namespace SunEngine
 	{
 		_image = VK_NULL_HANDLE;
 		_view = VK_NULL_HANDLE;
+		_cubeToArrayView = VK_NULL_HANDLE;
 		_memory = VK_NULL_HANDLE;
-		_format = VK_FORMAT_UNDEFINED;
 		_sampleMask = VK_SAMPLE_COUNT_1_BIT;
 		_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+		_viewInfo = {};
+		_external = false;
 	}
 
 
@@ -122,55 +124,46 @@ namespace SunEngine
 			if (!_device->TransferImageData(_image, images.data(), info.numImages, info.images->mipLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)) return false;
 		}
 
-		VkImageViewCreateInfo viewInfo = {};
-		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		viewInfo.image = _image;
-		viewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-		viewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-		viewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-		viewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-		viewInfo.format = imgInfo.format;
-		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		viewInfo.subresourceRange.layerCount = info.numImages;
-		viewInfo.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-		viewInfo.subresourceRange.baseMipLevel = 0;// info.mipLevels ? 3 : 0;
+		_viewInfo = {};
+		_viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		_viewInfo.image = _image;
+		_viewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+		_viewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+		_viewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+		_viewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+		_viewInfo.format = imgInfo.format;
+		_viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		_viewInfo.subresourceRange.layerCount = info.numImages;
+		_viewInfo.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+		_viewInfo.subresourceRange.baseMipLevel = 0;// info.mipLevels ? 3 : 0;
 
 		if (flags & ImageData::CUBEMAP)
-			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-		else if (info.numImages > 1)
-			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			_viewInfo.viewType = info.numImages > 6 ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
 		else
-			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			_viewInfo.viewType = info.numImages > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
 
 		if (flags & ImageData::COLOR_BUFFER_RGBA8)
 		{
-			viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			_viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		}
 		if (flags & ImageData::COLOR_BUFFER_RGBA16F)
 		{
-			viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			_viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		}
 		else if (flags & ImageData::DEPTH_BUFFER)
 		{
-			viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+			_viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 		}
 
-		if (!_device->CreateImageView(viewInfo, &_view)) return false;
+		if (!_device->CreateImageView(_viewInfo, &_view)) return false;
 
-		//create image views for each array layer(for VulkanRenderTarget framebuffer creation)
-		if (viewInfo.subresourceRange.layerCount > 1)
+		if (flags & ImageData::CUBEMAP)
 		{
-			_layerViews.resize(viewInfo.subresourceRange.layerCount);
-			viewInfo.subresourceRange.layerCount = 1;
-			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY; //cubemaps cant have anything but (layerCount == 6) so force 2D_ARRAY 
-			for (uint i = 0; i < _layerViews.size(); i++)
-			{
-				viewInfo.subresourceRange.baseArrayLayer = i;
-				if (!_device->CreateImageView(viewInfo, &_layerViews[i])) return false;
-			}
+			VkImageViewCreateInfo cubeToArrayInto = _viewInfo;
+			cubeToArrayInto.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			if (!_device->CreateImageView(cubeToArrayInto, &_cubeToArrayView)) return false;
 		}
 
-		_format = viewInfo.format;
 		_sampleMask = imgInfo.samples;
 
 		return true;
@@ -179,11 +172,19 @@ namespace SunEngine
 	bool VulkanTexture::Destroy()
 	{
 		_device->DestroyImageView(_view);
-		for (uint i = 0; i < _layerViews.size(); i++)
-			_device->DestroyImageView(_layerViews[i]);
-		_layerViews.clear();
-		_device->FreeMemory(_memory);
-		_device->DestroyImage(_image);
+		if (!_external)
+		{
+			_device->FreeMemory(_memory);
+			_device->DestroyImage(_image);
+		}
+
+		if (_cubeToArrayView != VK_NULL_HANDLE)
+		{
+			_device->DestroyImageView(_cubeToArrayView);
+			_cubeToArrayView = VK_NULL_HANDLE;
+		}
+
+		_external = false;
 		return true;
 	}
 
@@ -195,11 +196,6 @@ namespace SunEngine
 	void VulkanTexture::Unbind(ICommandBuffer * cmdBuffer)
 	{
 		(void)cmdBuffer;
-	}
-
-	VkImageView VulkanTexture::GetLayerView(uint layer) const
-	{
-		return _layerViews.size() ? _layerViews.at(layer) : _view;
 	}
 
 }

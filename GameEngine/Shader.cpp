@@ -16,6 +16,11 @@ namespace SunEngine
 		VARIANT_ENTRY(ALPHA_TEST),
 		VARIANT_ENTRY(SKINNED),
 		VARIANT_ENTRY(ONE_Z),
+		VARIANT_ENTRY(SIMPLE_SHADING),
+		VARIANT_ENTRY(KERNEL_3X3),
+		VARIANT_ENTRY(KERNEL_5X5),
+		VARIANT_ENTRY(KERNEL_7X7),
+		VARIANT_ENTRY(KERNEL_9X9),
 	};
 
 	Shader::Shader()
@@ -342,18 +347,20 @@ namespace SunEngine
 		}
 	}
 
-	void Shader::FillMatrices(const glm::mat4& view, const glm::mat4& proj, CameraBufferData& camData)
+	void Shader::FillMatrices(const glm::mat4& view, const glm::mat4& proj, const glm::vec3& sunDirection, CameraBufferData& camData)
 	{
 		glm::mat4 viewProj = proj * view;
 		glm::mat4 invView = glm::inverse(view);
 		glm::mat4 invProj = glm::inverse(proj);
 		glm::mat4 invViewProj = glm::inverse(viewProj);
+		glm::vec4 sunViewDir = glm::normalize(view * glm::vec4(sunDirection, 0.0f));
 		camData.ViewMatrix.Set(&view);
 		camData.ProjectionMatrix.Set(&proj);
 		camData.ViewProjectionMatrix.Set(&viewProj);
 		camData.InvViewMatrix.Set(&invView);
 		camData.InvProjectionMatrix.Set(&invProj);
 		camData.InvViewProjectionMatrix.Set(&invViewProj);
+		camData.CameraData.row3.Set(&sunViewDir);
 	}
 
 	void Shader::SetDefaults()
@@ -381,7 +388,7 @@ namespace SunEngine
 
 					if (res.type == SRT_TEXTURE)
 					{
-						if (res.dimension == SRD_TEXTURE_2D)
+						if (res.dimension == SRD_TEXTURE2D)
 						{
 							pVariant->defaults[res.name].Type = SPT_TEXTURE2D;
 							pVariant->defaults[res.name].pTexture2D = resMgr.GetTexture2D("Black");

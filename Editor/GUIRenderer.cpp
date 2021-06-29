@@ -424,8 +424,8 @@ namespace SunEngine
 	{
 		ImGui::NewFrame();
 
-		static bool show_demo_window = true;
-		ImGui::ShowDemoWindow(&show_demo_window);
+		//static bool show_demo_window = true;
+		//ImGui::ShowDemoWindow(&show_demo_window);
 
 		CustomRender();
 		RenderViews();

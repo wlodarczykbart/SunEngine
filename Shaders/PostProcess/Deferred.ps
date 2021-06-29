@@ -43,8 +43,7 @@ float4 main(PS_In pIn) : SV_TARGET
 		gSpecular.a, 
 		float3(gNormal.zw, gPosition.w),
 		decodeNormal(gNormal.xy), 
-		gPosition.xyz, 
-		pIn.texCoord, 
+		gPosition.xyz,
 		pOut);
 	return float4(pOut.color.rgb, 1.0);
 }

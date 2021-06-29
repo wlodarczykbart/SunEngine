@@ -900,7 +900,7 @@ namespace SunEngine
 		}
 
 		//TODO: better way to determine if metal shader?
-		bool metallic = false;
+		bool metallic = true;
 		bool alphaTest = false;
 		bool emissive = false;
 		for (auto& texType : _materialMapping[pDst])
@@ -911,6 +911,8 @@ namespace SunEngine
 				alphaTest = true;
 			if (texType.first == MaterialStrings::EmissiveMap)
 				emissive = true;
+			if (texType.first == MaterialStrings::SpecularMap)
+				metallic = false;
 		}
 
 		String strShader = metallic ? DefaultShaders::Metallic : DefaultShaders::Specular;
@@ -935,14 +937,14 @@ namespace SunEngine
 				continue;
 			}
 
-			//if(IsMaterialKey(prop->mKey, AI_MATKEY_COLOR_DIFFUSE))
-			//	pDst->SetMaterialVar(MaterialStrings::DiffuseColor, prop->mData, prop->mDataLength);
+			if(IsMaterialKey(prop->mKey, AI_MATKEY_COLOR_DIFFUSE))
+				pDst->SetMaterialVar(MaterialStrings::DiffuseColor, prop->mData, prop->mDataLength);
 
 			//else if (IsMaterialKey(prop->mKey, AI_MATKEY_COLOR_SPECULAR))
 			//	pDst->SetMaterialVar(MaterialStrings::SpecularColor, prop->mData, prop->mDataLength);
 
 			//else if (IsMaterialKey(prop->mKey, AI_MATKEY_OPACITY))
-			//	pDst->SetMaterialVar(MaterialStrings::Opaqueness, prop->mData, prop->mDataLength);
+			//	pDst->SetMaterialVar(MaterialStrings::Opacity, prop->mData, prop->mDataLength);
 
 			//else if (IsMaterialKey(prop->mKey, AI_MATKEY_COLOR_TRANSPARENT))
 			//	pDst->SetMaterialVar(MaterialStrings::Opaqueness, prop->mData, prop->mDataLength);

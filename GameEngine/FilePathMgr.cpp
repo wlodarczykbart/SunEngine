@@ -91,6 +91,7 @@ namespace SunEngine
 		_skinnedBoneMatrices = glm::clamp(configSection->GetUInt("SkinnedBoneMatrices", 128), Limits::MinSkinnedBoneMatrices, Limits::MaxSkinnedBoneMatrices);
 		_terrainTextures = glm::clamp(configSection->GetUInt("TerrainTextures", 8), Limits::MinTerrainTextures, Limits::MaxTerrainTextures);
 		_terrainTextureResolution = glm::clamp(configSection->GetUInt("TerrainTextureResolution", 1024), Limits::MinTerrainTextureResolution, Limits::MaxTerrainTextureResolution);
+		_reflectionProbes = glm::clamp(configSection->GetUInt("ReflectionProbes", 2), Limits::MinReflectionProbes, Limits::MaxReflectionProbes);
 
 		_shadowsEnabled = configSection->GetBool("Shadows", true);
 

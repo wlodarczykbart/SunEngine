@@ -54,7 +54,7 @@ bool traceScreenSpaceRay1(
     const float maxSteps,
 
     // Maximum camera-space distance to trace before returning a miss
-    float maxDistance,
+    const float maxDistance,
 
     // Pixel coordinates of the first intersection with the scene
     out point2 hitPixel,
@@ -222,8 +222,8 @@ bool traceScreenSpaceRay2(
     float           nearPlaneZ,
     float			stride,
     float           jitterFraction,
-    float           maxSteps,
-    in float        maxRayTraceDistance,
+    const float     maxSteps,
+    const float     maxRayTraceDistance,
     out Point2      hitPixel,
     out Point3		csHitPoint,
 	out float 		iterations

@@ -16,6 +16,7 @@ namespace SunEngine
 	DefineStaticStr(MaterialStrings, DiffuseColor);
 	DefineStaticStr(MaterialStrings, SpecularColor);
 	DefineStaticStr(MaterialStrings, Smoothness);
+	DefineStaticStr(MaterialStrings, Metallic);
 	DefineStaticStr(MaterialStrings, Sampler);
 	DefineStaticStr(MaterialStrings, PositionMap);
 	DefineStaticStr(MaterialStrings, DepthMap);
@@ -23,6 +24,8 @@ namespace SunEngine
 	DefineStaticStr(MaterialStrings, Opacity);
 	DefineStaticStr(MaterialStrings, EmissiveMap);
 	DefineStaticStr(MaterialStrings, EmissiveColor);
+	DefineStaticStr(MaterialStrings, TextureTransform);
+	DefineStaticStr(MaterialStrings, TextureLayer);
 
 	Material::Material()
 	{
@@ -205,13 +208,13 @@ namespace SunEngine
 						data.Res = res;
 						switch (res.dimension)
 						{
-						case SRD_TEXTURE_2D:
+						case SRD_TEXTURE2D:
 							_mtlTextures2D[res.name] = data;
 							break;
-						case SRD_TEXTURE_CUBE:
+						case SRD_TEXTURECUBE:
 							_mtlTextureCubes[res.name] = data;
 							break;
-						case SRD_TEXTURE_ARRAY:
+						case SRD_TEXTURE2DARRAY:
 							_mtlTexture2DArrays[res.name] = data;
 							break;
 						default:

@@ -6,6 +6,7 @@
 #include "GraphicsPipeline.h"
 #include "UniformBuffer.h"
 #include "BaseShader.h"
+#include "Material.h"
 #include "RenderTarget.h"
 
 namespace SunEngine
@@ -19,31 +20,36 @@ namespace SunEngine
 	class Material;
 	class Environment;
 
-	struct RenderTargetPassInfo
+	enum RenderPassType
+	{
+		RPT_OUTPUT,
+		RPT_GBUFFER,
+		RPT_DEFERRED_RESOLVE,
+		RPT_DEFERRED_COPY,
+		RPT_SSR,
+		RPT_SSR_BLUR,
+		RPT_SSR_COPY,
+		RPT_MSAA_RESOLVE,
+	};
+
+	struct RenderPassInfo
 	{
 		RenderTarget* pTarget;
 		GraphicsPipeline* pPipeline;
 		ShaderBindings* pBindings;
 	};
 
-	struct DeferredRenderTargetPassInfo : public RenderTargetPassInfo
-	{
-		RenderTarget* pDeferredResolveTarget;
-		GraphicsPipeline* pDeferredCopyPipeline;
-		ShaderBindings* pDeferredCopyBindings;
-		GraphicsPipeline* pSSRPipeline;
-		ShaderBindings* pSSRBindings;
-	};
-
 	class SceneRenderer
 	{
 	public:	
+
+
 		SceneRenderer();
 		~SceneRenderer();
 
 		bool Init();
 		bool PrepareFrame(BaseTexture* pOutputTexture, bool updateTextures, CameraComponentData* pCamera = 0);
-		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, RenderTargetPassInfo* pOutputInfo, DeferredRenderTargetPassInfo* pDeferredInfo, RenderTargetPassInfo* pMSAAResolveInfo);
+		bool RenderFrame(CommandBuffer* cmdBuffer, RenderTarget* pOpaqueTarget, const Map<RenderPassType, RenderPassInfo>& renderPasses);
 
 		BaseTexture* GetShadowMapTexture() const { return _depthTarget.GetDepthTexture(); }
 		void SetCascadeSplitLambda(float lambda) { _cascadeSplitLambda = lambda; }
@@ -107,10 +113,27 @@ namespace SunEngine
 			uint CameraIndex;
 		};
 
+		struct ReflectionProbeData
+		{
+			ReflectionProbeData();
+
+			bool NeedsUpdate;
+			Vector<glm::vec3> ProbeCenters;
+			uint CurrentUpdateProbe;
+			uint CurrentUpdateFace;
+			RenderTarget Target;
+			Material EnvFaceCopyMaterial[6];
+			UniformBufferGroup ObjectBufferGroup;
+			UniformBufferGroup SkinnedBonesBufferGroup;
+			LinkedList<RenderNodeData> RenderList;
+			UniquePtr<CameraComponentData> CameraData;
+			uint CameraIndex;
+		};
+
 		void ProcessRenderNode(RenderNode* pNode);
 		void ProcessDepthRenderNode(RenderNode* pNode, DepthRenderData* pDepthData);
 		void ProcessRenderList(CommandBuffer* cmdBuffer, LinkedList<RenderNodeData>& renderList, uint cameraUpdateIndex = 0, bool isDepth = false);
-		bool GetPipeline(RenderNodeData& node, bool& sorted, bool isDepth = false, bool isShadow = false);
+		bool GetPipeline(RenderNodeData& node, bool& sorted, bool isShadow = false);
 		bool TryBindBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader, UniformBufferData* buffer, IBindState* pBindState = 0) const;
 		void RenderEnvironment(CommandBuffer* cmdBuffer);
 		void RenderCommand(CommandBuffer* cmdBuffer, GraphicsPipeline* pPipeline, ShaderBindings* pBindings, uint vertexCount = 6, uint cameraUpdateIndex = 0);
@@ -120,6 +143,8 @@ namespace SunEngine
 		bool ShouldRender(const RenderNode* pNode) const;
 		uint64 GetVariantMask(const RenderNode* pNode) const;
 		bool PerformSkinningCheck(const RenderNode* pNode);
+		void UpdateEnvironmentProbes(Vector<CameraBufferData>& cameraBuffersToFill);
+		void RenderEnvironmentProbes(CommandBuffer* cmdBuffer);
 
 		bool _bInit;
 		UniquePtr<UniformBufferData> _cameraBuffer;
@@ -145,6 +170,10 @@ namespace SunEngine
 		StrMap<GraphicsPipeline> _helperPipelines;
 
 		RenderTarget _envTarget;
+		ReflectionProbeData _envProbeData;
+
+
+
 
 		AABB _shadowCasterAABB;
 	};

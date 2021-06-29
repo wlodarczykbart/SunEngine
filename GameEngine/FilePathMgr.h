@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GraphicsAPIDef.h"
+#include "BaseShader.h"
 
 namespace SunEngine
 {
@@ -22,13 +23,15 @@ namespace SunEngine
 				static const uint MinCascadeShadowPCFBlurSize = 1;
 				static const uint MaxCascadeShadowPCFBlurSize = 5;
 				static const uint MinCascadeShadowMapSplits = 1;
-				static const uint MaxCascadeShadowMapSplits = 4;
+				static const uint MaxCascadeShadowMapSplits = ShadowBufferData::MAX_CASCADE_SPLITS;
 				static const uint MinSkinnedBoneMatrices = 64;
 				static const uint MaxSkinnedBoneMatrices = 256;
 				static const uint MinTerrainTextures = 4;
 				static const uint MaxTerrainTextures = 16;
 				static const uint MinTerrainTextureResolution = 512;
 				static const uint MaxTerrainTextureResolution = 2048;
+				static const uint MinReflectionProbes = 2;
+				static const uint MaxReflectionProbes = EnvBufferData::MAX_ENVIRONMENT_PROBES;
 			};
 
 			enum ERenderMode
@@ -51,6 +54,8 @@ namespace SunEngine
 			bool ShadowsEnabled() const { return _shadowsEnabled; }
 			MSAAMode GetMSAAMode() const { return _msaaMode; }
 
+			uint ReflectionProbes() const { return _reflectionProbes; }
+
 			void SetRenderMode(ERenderMode mode) { _renderMode = mode; }
 
 		private:
@@ -71,6 +76,7 @@ namespace SunEngine
 			MSAAMode _msaaMode;
 			uint _terrainTextures;
 			uint _terrainTextureResolution;
+			uint _reflectionProbes;
 		};
 
 		class Paths

@@ -26,12 +26,15 @@ namespace SunEngine
 		static const String SpecularColor;
 		static const String Opacity;
 		static const String Smoothness;
+		static const String Metallic;
 		static const String Sampler;
 		static const String PositionMap;
 		static const String DepthMap;
 		static const String AlphaMap;
 		static const String EmissiveMap;
 		static const String EmissiveColor;
+		static const String TextureTransform;
+		static const String TextureLayer;
 	};
 
 	class Material : public GPUResource<ShaderBindings>

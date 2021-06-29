@@ -76,8 +76,9 @@ namespace SunEngine
 
 	struct EnvBufferData
 	{
+		static const uint MAX_ENVIRONMENT_PROBES = 64;
+
 		ShaderVec4 SunDirection;
-		ShaderVec4 SunViewDirection;
 		ShaderVec4 SunColor;
 
 		ShaderVec4 FogColor;
@@ -85,6 +86,8 @@ namespace SunEngine
 
 		ShaderVec4 TimeData; //x = deltaTime, y = elapsedTime
 		ShaderVec4 WindDir;
+
+		ShaderVec4 EnvProbeCenters[MAX_ENVIRONMENT_PROBES];
 	};
 
 	struct ShadowBufferData
@@ -131,6 +134,7 @@ namespace SunEngine
 		static String ShadowTextureName;
 		static String ShadowSamplerName;
 		static String EnvTextureName;
+		static String EnvProbesTextureName;
 		static String EnvSamplerName;
 	};
 

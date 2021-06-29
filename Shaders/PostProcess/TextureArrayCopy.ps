@@ -1,0 +1,20 @@
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+Texture2DArray DiffuseMap;
+SamplerState Sampler;
+
+cbuffer MaterialBuffer 
+{
+	float4 TextureTransform;
+	float4 TextureLayer;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float2 texCoord = pIn.texCoord * TextureTransform.zw + TextureTransform.xy;
+	return DiffuseMap.Sample(Sampler, float3(texCoord, TextureLayer.x));
+}

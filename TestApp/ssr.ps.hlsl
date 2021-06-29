@@ -1,9 +1,16 @@
 #pragma pack_matrix(row_major)
 
+struct PS_In
+{
+    float4 clipPos : SV_POSITION;
+    float2 texCoord : TEXCOORD;
+};
+
 Texture2D ColorTexture : register(t0);
 Texture2D PositionTexture : register(t1);
 Texture2D NormalTexture : register(t2);
 Texture2D DepthTexture : register(t3);
+Texture2D BackfaceDepthTexture : register(t4);
 SamplerState Sampler : register(s0);
 
 cbuffer CameraBuffer : register(b0)
@@ -69,20 +76,39 @@ bool traceScreenSpaceRay2(
 
 bool ssr(in float2 texCoord, in float2 texSize, out float2 outCoord, out float outVisibility);
 
-float4 main(float4 clipPos : SV_POSITION) : SV_TARGET
+bool traceScreenSpaceRay(
+    // Camera-space ray origin, which must be within the view volume
+    float3 csOrig,
+    // Unit length camera-space ray direction
+    float3 csDir,
+    // Number between 0 and 1 for how far to bump the ray in stride units
+    // to conceal banding artifacts. Not needed if stride == 1.
+    float jitter,
+    float MaxDistance,
+    float NearPlaneZ,
+    float2 RTSize,
+    float StrideZCutoff,
+    float Stride,
+    float MaxSteps,
+    float ZThickness,
+    // Pixel coordinates of the first intersection with the scene
+    out float2 hitPixel,
+    // Camera space location of the ray hit
+    out float3 hitPoint);
+
+float4 main(PS_In pIn) : SV_TARGET
 {
     float2 texSize;
     ColorTexture.GetDimensions(texSize.x, texSize.y);
     
-	float2 texCoord = clipPos.xy / texSize;
-
+    float2 texCoord = pIn.texCoord;
     float3 eyePos = PositionTexture.Sample(Sampler, texCoord).xyz;
     
-    float depth = DepthTexture.Sample(Sampler, texCoord).r;
-    float4 ndc = float4(float2(texCoord.x, 1.0f - texCoord.y) * 2.0f - 1.0f, depth, 1.0f);
-    ndc = mul(ndc, InvProjMatrix);
-    ndc /= ndc.w;
-    eyePos = ndc.xyz;
+    //float depth = DepthTexture.Sample(Sampler, texCoord).r;
+    //float4 ndc = float4(float2(texCoord.x, 1.0f - texCoord.y) * 2.0f - 1.0f, depth, 1.0f);
+    //ndc = mul(ndc, InvProjMatrix);
+    //ndc /= ndc.w;
+    //eyePos = ndc.xyz;
 
     float3 eyeDir = normalize(NormalTexture.Sample(Sampler, texCoord).xyz);
     eyeDir = mul(float4(0, 1, 0, 0), ViewMatrix).xyz;
@@ -118,12 +144,40 @@ float4 main(float4 clipPos : SV_POSITION) : SV_TARGET
         0.5f, //  csZThickness, expected thickness of objects in scene (e.g. pillars)
         -0.5f, //camera.nearPlaneZ,
         2.0f, //stride,
-        1 + float((int(clipPos.x) + int(clipPos.y)) & 1) * 0.5,
+        1 + float((int(pIn.clipPos.x) + int(pIn.clipPos.y)) & 1) * 0.5,
         225.0f, //maxSteps,
         80.0f, //maxRayTraceDistance,
         hitPixel,
         csHitPoint
     );
+
+    //bool hit = traceScreenSpaceRay(
+    //    eyePos,
+    //    rayDir,
+    //    1 + float((int(clipPos.x) + int(clipPos.y)) & 1) * 0.5,
+    //    12.29,
+    //    -0.5f,
+    //    texSize,
+    //    22.59,
+    //    30.0f,
+    //    10,
+    //    0.0f,
+    //    hitPixel,
+    //    csHitPoint
+    //);
+
+    //float jitter,
+    //    float MaxDistance,
+    //    float NearPlaneZ,
+    //    float2 RTSize,
+    //    float StrideZCutoff,
+    //    float Stride,
+    //    float MaxSteps,
+    //    float ZThickness,
+    //    // Pixel coordinates of the first intersection with the scene
+    //    out float2 hitPixel,
+    //    // Camera space location of the ray hit
+    //    out float3 hitPoint);
 
     //float vis;
     //bool hit = ssr(texCoord, texSize, hitPixel, vis);
@@ -132,11 +186,12 @@ float4 main(float4 clipPos : SV_POSITION) : SV_TARGET
     {
         hitPixel /= texSize;
         //hitPixel.y = 1.0f - hitPixel.y;
-        return lerp(ColorTexture.Sample(Sampler, texCoord), ColorTexture.Sample(Sampler, hitPixel), 0.5);
+        return float4(ColorTexture.Sample(Sampler, hitPixel).rgb, 1.0);
     }
     else
     {
-        return ColorTexture.Sample(Sampler, texCoord);
+        //return float4(0, 0, 0, 0);
+        return float4(ColorTexture.Sample(Sampler, texCoord).rgb, 0.0);
     }
 }
 
@@ -148,6 +203,7 @@ float4 main(float4 clipPos : SV_POSITION) : SV_TARGET
 
 float texelFetch(sampler2D tex, int2 icoord)
 {
+    //return PositionTexture.Load(int3(icoord, 0)).z;
     return GetEyeDepth(tex, icoord);
 }
 
@@ -158,6 +214,27 @@ float texelFetch(sampler2D tex, int2 icoord)
 #define point3 vec3
 
 float distanceSquared(vec2 a, vec2 b) { a -= b; return dot(a, a); }
+
+//bool intersectsDepthBuffer(float z, float minZ, float maxZ, float ZThickness)
+//{
+//    /*
+//    * Based on how far away from the camera the depth is,
+//    * adding a bit of extra thickness can help improve some
+//    * artifacts. Driving this value up too high can cause
+//    * artifacts of its own.
+//    */
+//    //float depthScale = min(1.0f, z * StrideZCutoff);
+//    //z += ZThickness + lerp(0.0f, 2.0f, depthScale);
+//    return (maxZ >= z) && (minZ - ZThickness <= z);
+//}
+
+
+void swap(inout float f0, inout float f1)
+{
+    float temp = f0;
+    f0 = f1;
+    f1 = temp;
+}
 
 // Returns true if the ray hit something
 bool traceScreenSpaceRay1(
@@ -242,6 +319,8 @@ bool traceScreenSpaceRay1(
 
     // Scale derivatives by the desired pixel stride and then
     // offset the starting values by the jitter fraction
+    float strideScale = 1.0f - min(1.0f, (csOrig.z) / 20.0f);
+    //stride *= strideScale;
     dP *= stride; dQ *= stride; dk *= stride;
     P0 += dP * jitter; Q0 += dQ * jitter; k0 += dk * jitter;
 
@@ -280,6 +359,138 @@ bool traceScreenSpaceRay1(
     return (rayZMax >= sceneZMax - zThickness) && (rayZMin < sceneZMax);
 }
 
+#define Projection ProjMatrix
+
+// Returns true if the ray hit something
+bool traceScreenSpaceRay(
+    // Camera-space ray origin, which must be within the view volume
+    float3 csOrig,
+    // Unit length camera-space ray direction
+    float3 csDir,
+    // Number between 0 and 1 for how far to bump the ray in stride units
+    // to conceal banding artifacts. Not needed if stride == 1.
+    float jitter,
+    float MaxDistance,
+    float NearPlaneZ,
+    float2 RTSize,
+    float StrideZCutoff,
+    float Stride,
+    float MaxSteps,
+    float ZThickness,
+    // Pixel coordinates of the first intersection with the scene
+    out float2 hitPixel,
+    // Camera space location of the ray hit
+    out float3 hitPoint)
+{
+    // Clip to the near plane
+    float rayLength = ((csOrig.z + csDir.z * MaxDistance) > NearPlaneZ) ?
+        (NearPlaneZ - csOrig.z) / csDir.z : MaxDistance;
+    float3 csEndPoint = csOrig + csDir * rayLength;
+
+    // Project into homogeneous clip space
+    float4 H0 = mul(Projection, float4(csOrig, 1.0f));
+    float4 H1 = mul(Projection, float4(csEndPoint, 1.0f));
+
+    float k0 = 1.0f / H0.w;
+    float k1 = 1.0f / H1.w;
+
+    // The interpolated homogeneous version of the camera-space points
+    float3 Q0 = csOrig * k0;
+    float3 Q1 = csEndPoint * k1;
+
+    // Screen-space endpoints
+    float2 P0 = H0.xy * k0;
+    float2 P1 = H1.xy * k1;
+
+    P0 = P0 * float2(0.5, -0.5) + float2(0.5, 0.5);
+    P1 = P1 * float2(0.5, -0.5) + float2(0.5, 0.5);
+
+    P0.xy *= RTSize.xy;
+    P1.xy *= RTSize.xy;
+
+    // If the line is degenerate, make it cover at least one pixel
+    // to avoid handling zero-pixel extent as a special case later
+    P1 += (distanceSquared(P0, P1) < 0.0001f) ? float2(0.01f, 0.01f) : 0.0f;
+    float2 delta = P1 - P0;
+
+    // Permute so that the primary iteration is in x to collapse
+    // all quadrant-specific DDA cases later
+    bool permute = false;
+    if (abs(delta.x) < abs(delta.y))
+    {
+        // This is a more-vertical line
+        permute = true;
+        delta = delta.yx;
+        P0 = P0.yx;
+        P1 = P1.yx;
+    }
+
+    float stepDir = sign(delta.x);
+    float invdx = stepDir / delta.x;
+
+    // Track the derivatives of Q and k
+    float3 dQ = (Q1 - Q0) * invdx;
+    float dk = (k1 - k0) * invdx;
+    float2 dP = float2(stepDir, delta.y * invdx);
+
+    // Scale derivatives by the desired pixel stride and then
+    // offset the starting values by the jitter fraction
+    float strideScale = 1.0f - min(1.0f, csOrig.z * StrideZCutoff);
+    float stride = 1.0f + strideScale * Stride;
+    dP *= stride;
+    dQ *= stride;
+    dk *= stride;
+
+    P0 += dP * jitter;
+    Q0 += dQ * jitter;
+    k0 += dk * jitter;
+
+    // Slide P from P0 to P1, (now-homogeneous) Q from Q0 to Q1, k from k0 to k1
+    float4 PQk = float4(P0, Q0.z, k0);
+    float4 dPQk = float4(dP, dQ.z, dk);
+    float3 Q = Q0;
+
+    // Adjust end condition for iteration direction
+    float end = P1.x * stepDir;
+
+    float stepCount = 0.0f;
+    float prevZMaxEstimate = csOrig.z;
+    float rayZMin = prevZMaxEstimate;
+    float rayZMax = prevZMaxEstimate;
+    float sceneZMax = rayZMax + 200.0f;
+
+    for (;
+        ((PQk.x * stepDir) <= end) && (stepCount < MaxSteps) &&
+        //!intersectsDepthBuffer(sceneZMax, rayZMin, rayZMax, ZThickness) &&
+        ((rayZMax < sceneZMax - ZThickness) || (rayZMin > sceneZMax)) &&
+        (sceneZMax != 0.0f);
+        ++stepCount)
+    {
+        rayZMin = prevZMaxEstimate;
+        rayZMax = (dPQk.z * 0.5f + PQk.z) / (dPQk.w * 0.5f + PQk.w);
+        prevZMaxEstimate = rayZMax;
+
+        if (rayZMin > rayZMax)
+        {
+            swap(rayZMin, rayZMax);
+        }
+
+        hitPixel = permute ? PQk.yx : PQk.xy;
+
+        //sceneZMax = lineariseDepth(depthBuffer[hitPixel].r);
+        sceneZMax = texelFetch(PositionTexture, int2(hitPixel));
+
+        PQk += dPQk;
+    }
+
+    // Advance Q based on the number of steps
+    Q.xy += dQ.xy * stepCount;
+    hitPoint = Q * (1.0f / PQk.w);
+
+    //return intersectsDepthBuffer(sceneZMax, rayZMin, rayZMax, ZThickness);
+    return (rayZMax >= sceneZMax - ZThickness) && (rayZMin < sceneZMax);
+}
+
 #define Vec2 float2
 #define Vec3 float3
 #define Vec4 float4
@@ -291,12 +502,6 @@ bool traceScreenSpaceRay1(
 #define Vector4  float4
 #define Color3 float3
 
-void swap(inout float f0, inout float f1)
-{
-    float temp = f0;
-    f0 = f1;
-    f1 = temp;
-}
 
 /**
   \file data-files/shader/screenSpaceRayTrace.glsl

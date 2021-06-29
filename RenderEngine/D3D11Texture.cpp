@@ -3,11 +3,21 @@
 
 namespace SunEngine
 {
+	static const Map<D3D11_SRV_DIMENSION, D3D11_SRV_DIMENSION> SRVDimensionMap =
+	{
+		{ D3D11_SRV_DIMENSION_TEXTURE2D, D3D11_SRV_DIMENSION_TEXTURE2D },
+		{ D3D11_SRV_DIMENSION_TEXTURE2DARRAY, D3D11_SRV_DIMENSION_TEXTURE2DARRAY },
+		{ D3D11_SRV_DIMENSION_TEXTURE2DMS, D3D11_SRV_DIMENSION_TEXTURE2DMS },
+		{ D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY, D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY },
+		{ D3D11_SRV_DIMENSION_TEXTURECUBE,  D3D11_SRV_DIMENSION_TEXTURE2DARRAY },
+		{ D3D11_SRV_DIMENSION_TEXTURECUBEARRAY,  D3D11_SRV_DIMENSION_TEXTURE2DARRAY },
+	};
 
 	D3D11Texture::D3D11Texture()
 	{
 		_texture = 0;
 		_srv = 0;
+		_external = false;
 	}
 
 
@@ -116,8 +126,17 @@ namespace SunEngine
 
 		if (flags & ImageData::CUBEMAP)
 		{
-			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-			srvDesc.TextureCube.MipLevels = 1 + mips;
+			if (texDesc.ArraySize > 6)
+			{
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
+				srvDesc.TextureCubeArray.NumCubes = texDesc.ArraySize / 6;
+				srvDesc.TextureCubeArray.MipLevels = 1 + mips;
+			}
+			else
+			{
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+				srvDesc.TextureCube.MipLevels = 1 + mips;
+			}
 		}
 		else if (info.numImages > 1)
 		{
@@ -174,7 +193,9 @@ namespace SunEngine
 	bool D3D11Texture::Destroy()
 	{
 		COM_RELEASE(_srv);
-		COM_RELEASE(_texture);
+		if(!_external)
+			COM_RELEASE(_texture);
+		_external = false;
 		return true;
 	}
 

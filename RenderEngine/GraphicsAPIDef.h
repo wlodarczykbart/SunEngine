@@ -162,9 +162,18 @@ namespace SunEngine
 
 	enum ShaderResourceDimension
 	{
-		SRD_TEXTURE_2D,
-		SRD_TEXTURE_CUBE,
-		SRD_TEXTURE_ARRAY,
+		SRD_UNKNOWN,
+		SRD_BUFFER,
+		SRD_TEXTURE1D,
+		SRD_TEXTURE1DARRAY,
+		SRD_TEXTURE2D,
+		SRD_TEXTURE2DARRAY,
+		SRD_TEXTURE2DMS,
+		SRD_TEXTURE2DMSARRAY,
+		SRD_TEXTURE3D,
+		SRD_TEXTURECUBE,
+		SRD_TEXTURECUBEARRAY,
+		SRD_BUFFEREX,
 	};
 
 	struct IShaderResource
@@ -172,7 +181,7 @@ namespace SunEngine
 		IShaderResource()
 		{
 			type = SRT_UNSUPPORTED;
-			dimension = SRD_TEXTURE_2D;
+			dimension = SRD_UNKNOWN;
 			stages = 0;
 			bindingCount = 0;
 			name[0] = '\0';

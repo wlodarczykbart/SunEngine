@@ -445,6 +445,12 @@ namespace SunEngine
 				ImGui::TreePop();
 			}
 
+			if (ImGui::TreeNode("ScreenSpaceReflections"))
+			{
+				ImGui::Checkbox("Enabled", &settings.ssr.enabled);
+				ImGui::TreePop();
+			}
+
 			if (ImGui::TreeNode("Timing"))
 			{
 				ImGui::Text("FrameTick: %fms", pEditor->GetFrameTick() * 1000.0);

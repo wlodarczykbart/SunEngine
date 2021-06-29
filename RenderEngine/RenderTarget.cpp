@@ -59,7 +59,9 @@ namespace SunEngine
 		else if (info.msaa == SE_MSAA_4) msaaFlags |= ImageData::MULTI_SAMPLES_4;
 		else if (info.msaa == SE_MSAA_8) msaaFlags |= ImageData::MULTI_SAMPLES_8;
 
-		uint numLayers = info.cubemap ? 6 : info.numLayers;
+		uint numLayers = info.numLayers;
+		if (info.cubemap)
+			numLayers *= 6;
 
 		for (uint i = 0; i < info.numTargets; i++)
 		{

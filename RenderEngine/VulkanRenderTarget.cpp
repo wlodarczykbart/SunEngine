@@ -30,11 +30,11 @@ namespace SunEngine
 		_hasDepth = info.depthBuffer != 0;
 		_msaaMode = info.msaa;
 
+		_framebuffers.resize(info.numLayers);
+
 		VulkanTexture* vkColorTextures[MAX_SUPPORTED_RENDER_TARGETS];
 		for (uint i = 0; i < info.numTargets; i++)
 			vkColorTextures[i] = static_cast<VulkanTexture*>(info.colorBuffers[i]);
-
-		_framebuffers.resize(info.numLayers);
 
 		if (!createRenderPass(vkColorTextures, static_cast<VulkanTexture*>(info.depthBuffer))) return false;
 		if (!createFramebuffer(vkColorTextures, static_cast<VulkanTexture*>(info.depthBuffer))) return false;
@@ -210,9 +210,46 @@ namespace SunEngine
 			Vector<VkImageView> attachments;
 
 			for (uint j = 0; j < _numTargets; j++)
-				attachments.push_back(pColorTextures[j]->GetLayerView(i));
+			{
+				if (_framebuffers.size() == 1)
+				{
+					attachments.push_back(pColorTextures[j]->GetView());
+				}
+				else
+				{
+					VkImageViewCreateInfo viewInfo = {};
+					viewInfo = pColorTextures[j]->GetViewInfo();
+					viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+					viewInfo.subresourceRange.layerCount = 1;
+					viewInfo.subresourceRange.baseArrayLayer = i;
 
-			if (pDepthTexture) attachments.push_back(pDepthTexture->GetLayerView(i));
+					VkImageView view;
+					if (!_device->CreateImageView(viewInfo, &view)) return false;
+					_framebufferViews.push_back(view);
+					attachments.push_back(view);
+				}
+			}
+
+			if (pDepthTexture)
+			{
+				if (_framebuffers.size() == 1)
+				{
+					attachments.push_back(pDepthTexture->GetView());
+				}
+				else
+				{
+					VkImageViewCreateInfo viewInfo = {};
+					viewInfo = pDepthTexture->GetViewInfo();
+					viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+					viewInfo.subresourceRange.layerCount = 1;
+					viewInfo.subresourceRange.baseArrayLayer = i;
+
+					VkImageView view;
+					if (!_device->CreateImageView(viewInfo, &view)) return false;
+					_framebufferViews.push_back(view);
+					attachments.push_back(view);
+				}
+			}
 
 			VkFramebufferCreateInfo info = {};
 			info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

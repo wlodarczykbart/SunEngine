@@ -16,12 +16,29 @@
 #include "Timer.h"
 #include "Terrain.h"
 #include "FilePathMgr.h"
+#include "Animation.h"
 
 #include "GameEditor.h"
 
 namespace SunEngine
 {
 	Vector<SceneNode*> TEST_NODES;
+
+	struct TestAnimNode
+	{
+		TestAnimNode()
+		{
+			pNode = 0;
+			pAnimator = 0;
+			target = Vec3::Zero;
+		}
+
+		SceneNode* pNode;
+		AnimatorComponentData* pAnimator;
+		glm::vec3 target;
+	};
+	Vector<TestAnimNode> gTestAnimNodes;
+	float gTestWorldSize = 120;
 
 	GameEditor::GameEditor()
 	{
@@ -71,7 +88,7 @@ namespace SunEngine
 		}
 
 		SceneView* pView = new SceneView(&_sceneRenderer);
-		//_view->SetRenderToGraphicsWindow(true);
+		pView->SetRenderToGraphicsWindow(true);
 		if (!pView->Create(viewInfo))
 		{
 			spdlog::error("Failed to create {} RenderTarget: {}", pView->GetName().c_str(), pView->GetRenderTarget()->GetErrStr().c_str());
@@ -102,7 +119,7 @@ namespace SunEngine
 		debugViewInfo.width = 256;
 
 		auto pShadowView = new ShadowMapView(&_sceneRenderer);
-		debugViewInfo.visible = true;
+		debugViewInfo.visible = false;
 		pShadowView->Create(debugViewInfo);
 		AddView(pShadowView);
 
@@ -137,8 +154,35 @@ namespace SunEngine
 		//for (SceneNode* node : TEST_NODES) node->Orientation.Angles.y += 5.0f;
 
 		static Timer timer(true);
-
 		float dt = (float)timer.Tick();
+		dt = 1.0f / 60.0f;
+
+		static bool start = false;
+		if (GraphicsWindow::KeyDown(KeyCode::KEY_B)) start = true;
+
+		if (start && !GraphicsWindow::KeyDown(KeyCode::KEY_RBUTTON))
+		{
+			for (auto& node : gTestAnimNodes)
+			{
+				glm::vec3 fwd = node.pNode->GetWorld()[2];
+				glm::vec3 targetDir = glm::normalize((node.target - node.pNode->Position) * glm::vec3(1, 0, 1));
+				if (glm::isinf(targetDir).x || glm::isnan(targetDir).x) targetDir = Vec3::Zero;
+
+				float d = glm::dot(fwd, targetDir);
+				if (d <= 0.0f)
+				{
+					node.target = glm::linearRand(glm::vec3(-gTestWorldSize, 0.0f, -gTestWorldSize) * 0.5f, glm::vec3(gTestWorldSize, 0.0f, gTestWorldSize) * 0.5f) * 0.5f;
+					node.pNode->Orientation.Mode = ORIENT_QUAT;
+					targetDir = glm::normalize((node.target - node.pNode->Position) * glm::vec3(1, 0, 1));
+					node.pNode->Orientation.Quat = glm::quatLookAt(-targetDir, Vec3::Up);
+				}
+				else
+				{
+					node.pNode->Position += targetDir * dt * node.pAnimator->GetSpeed();
+				}
+			}
+		}
+
 		pScene->Update(dt, (float)timer.ElapsedTime());
 	}
 
@@ -316,15 +360,23 @@ namespace SunEngine
 			AssetNode* pRoot = pAssetBlinnPhong->AddNode("Sphere");
 			MeshRenderer* pRenderer = pRoot->AddComponent(new MeshRenderer())->As<MeshRenderer>();
 			pRenderer->SetMesh(resMgr.GetMesh(DefaultResource::Mesh::Sphere));
-			pRenderer->SetMaterial(resMgr.Clone(pSpecularMaterial));
-			pRenderer->GetMaterial()->RegisterToGPU();
+			//pRenderer->SetMaterial(resMgr.Clone(pMetalMaterial));
+			//pRenderer->GetMaterial()->RegisterToGPU();
 
-			//SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
-			//pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
-			//pSceneNode->Scale = glm::vec3(30, 0.01f, 30.0f);
+			Material* pTestMaterial = resMgr.AddMaterial("TestMaterial");
+			pTestMaterial->SetShader(shaderMgr.GetShader(DefaultShaders::Test));
+			if (!pTestMaterial->RegisterToGPU())
+			{
+				spdlog::error("Failed to register {}: {}", pTestMaterial->GetName().data(), pTestMaterial->GetGPUObject()->GetErrStr().data());
+				return false;
+			}
+			pRenderer->SetMaterial(pTestMaterial);
+
+			SceneNode* pSceneNode = pAssetBlinnPhong->CreateSceneNode(pScene);
+			pSceneNode->Position = glm::vec3(+0.0f, 1.5f, 0.0f);
+			//pSceneNode->Scale = glm::vec3(30, 1.0f, 30.0f);
 		}
 
-		float testWorldSize = 120;
 		Asset* pAssetPlane = resMgr.AddAsset("AssetPlane");
 		{
 			AssetNode* pRoot = pAssetPlane->AddNode("Plane");
@@ -335,12 +387,12 @@ namespace SunEngine
 			pRenderer->GetMaterial()->RegisterToGPU();
 			pPlaneMaterial->SetTexture2D(MaterialStrings::DiffuseMap, resMgr.GetTexture2D(DefaultResource::Texture::Default));
 
-			SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
-			pSceneNode->Position = glm::vec3(0.0f, -2.0f, 0.0f);
-			pSceneNode->Scale = glm::vec3(testWorldSize, 1.0f, testWorldSize);
+			//SceneNode* pSceneNode = pAssetPlane->CreateSceneNode(pScene);
+			//pSceneNode->Position = glm::vec3(0.0f, -0.05f, 0.0f);
+			//pSceneNode->Scale = glm::vec3(gTestWorldSize, 1.0f, gTestWorldSize);
 		}
 
-		int Slices = 4*1;
+		int Slices = 4*0;
 		float Offset = 3.0f;
 		float ZStart = -(Slices * Slices * 2.0f);
 		float XStart = -(Slices * Slices * 0.5f);
@@ -363,7 +415,7 @@ namespace SunEngine
 					pRenderer->GetMaterial()->SetMaterialVar(MaterialStrings::DiffuseColor, glm::linearRand(Vec3::Zero, Vec3::One));
 
 					pCube->Position = glm::vec3(i * Offset - halfOffset, -1.5f, j * Offset - halfOffset);
-					pCube->Position = glm::linearRand(glm::vec3(-testWorldSize, 0.0f, -testWorldSize) * 0.5f, glm::vec3(testWorldSize, 0.0f, testWorldSize) * 0.5f);
+					pCube->Position = glm::linearRand(glm::vec3(-gTestWorldSize, 0.0f, -gTestWorldSize) * 0.5f, glm::vec3(gTestWorldSize, 0.0f, gTestWorldSize) * 0.5f);
 					pCube->Scale.y = 10;
 					//pCubeSceneNode->Position.x += XStart;
 					//pCubeSceneNode->Scale = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
@@ -480,13 +532,25 @@ namespace SunEngine
 		//strAsset = "F:/Models/glTF-Sample-Models-master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf";
 		//strAsset = "F:/Code/Vulkan-master/data/models/cerberus/cerberus.gltf";
 		//strAsset = "F:/Models/glTF-Sample-Models-master/2.0/Sponza/glTF/Sponza.gltf";
+		//strAsset = "F:/Models/FBX/_PHONG_/Castle/castle.3DS";
+		//strAsset = "F:/Models/glTF-Sample-Models-master/2.0/CesiumMan/glTF/CesiumMan.gltf";
+		//strAsset = "F:/Models/glTF-Sample-Models-master/2.0/BrainStem/glTF/BrainStem.gltf";
 
 		auto options = SunEngine::AssetImporter::Options::Default;
 		options.MaxTextureSize = 1024;
 		Asset* pAsset = 0;
-		//pAsset = ImportAsset(strAsset, options);
+		pAsset = ImportAsset(strAsset, options);
 		if (pAsset)
 		{
+			AssetNode* pNode = pAsset->GetNodeByName("Road_2x2 (Roads_Tiling)");
+			Vector<Component*> roads;
+			pNode->GetComponentsOfType(COMPONENT_RENDER_OBJECT, roads);
+			for (uint i = 0; i < roads.size(); i++)
+			{
+				auto road = roads[i]->As<MeshRenderer>();
+				road->GetMaterial()->SetMaterialVar(MaterialStrings::Smoothness, 0.45f);
+			}
+
 			//auto node = pAsset->GetNodeByName("Cerberus00_Fixed.001");
 			//auto renderer = node->GetComponentOfType(COMPONENT_RENDER_OBJECT)->As<MeshRenderer>();
 
@@ -528,10 +592,91 @@ namespace SunEngine
 			//pTex->RegisterToGPU();
 			//pMaterial->SetTexture2D(MaterialStrings::RoughnessMap, pTex);
 
-			pAsset->CreateSceneNode(pScene, 400);
+			pAsset->CreateSceneNode(pScene, gTestWorldSize*2);
 		}
 		else
 			spdlog::warn("Failed to load {}", strAsset);
+
+		strAsset = "F:/Models/glTF-Sample-Models-master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf";
+		pAsset = ImportAsset(strAsset, options);
+		if (pAsset)
+		{
+			AssetNode* pRenderNode = pAsset->GetRoot();
+			auto pRenderer = pRenderNode->GetComponentOfType(COMPONENT_RENDER_OBJECT)->As<MeshRenderer>();
+			pRenderer->GetMaterial()->SetMaterialVar(MaterialStrings::Metallic, 500.0f);
+
+			SceneNode* pHelmet = pAsset->CreateSceneNode(pScene, 2);
+			pHelmet->Position = glm::vec3(3.0f, 2.0f, -3.0f);
+		}
+
+		struct AnimTestData
+		{
+			String path;
+			float minSpeed;
+			float maxSpeed;
+			uint spawnCount;
+			float scale;
+			float metallic;
+			float smoothness;
+		};
+
+		Vector<AnimTestData> animModels;
+		AnimTestData data;
+
+		data.path = "F:/Models/glTF-Sample-Models-master/2.0/BrainStem/glTF/BrainStem.gltf";
+		data.minSpeed = 0.5f;
+		data.maxSpeed = 1.0f;
+		data.spawnCount = 4;
+		data.scale = 3.0f;
+		data.metallic = 0.8f;
+		data.smoothness = 0.8f;
+		animModels.push_back(data);
+
+		data.path = "F:/Models/glTF-Sample-Models-master/2.0/CesiumMan/glTF/CesiumMan.gltf";
+		data.minSpeed = 1.0f;
+		data.maxSpeed = 2.0f;
+		data.spawnCount = 10;
+		data.scale = 2.0f;
+		data.metallic = 0.0f;
+		data.smoothness = 0.75f;
+		animModels.push_back(data);
+
+		for (auto& model : animModels)
+		{
+			pAsset = ImportAsset(model.path, options);
+			if (pAsset)
+			{
+				Vector<MeshRenderer*> meshes;
+				pAsset->Traverse([](AssetNode* pNode, void* pData) -> void {
+					pNode->GetComponentsOfType(*static_cast<Vector<MeshRenderer*>*>(pData));
+				}, &meshes);
+
+				for (auto& mesh : meshes)
+				{
+					Material* mtl = mesh->GetMaterial();
+					mtl->SetMaterialVar(MaterialStrings::Metallic, model.metallic);
+					mtl->SetMaterialVar(MaterialStrings::Smoothness, model.smoothness);
+				}
+
+				for (uint i = 0; i < model.spawnCount; i++)
+				{
+					SceneNode* pController = pScene->AddNode("AnimTestController");
+					SceneNode* node = pAsset->CreateSceneNode(pScene, model.scale);
+					node->SetParent(pController);
+
+					TestAnimNode anim;
+					anim.pNode = pController;
+					anim.pAnimator = node->GetComponentData<AnimatorComponentData>((node->GetComponentOfType(ComponentType::COMPONENT_ANIMATOR)));
+					anim.pAnimator->SetSpeed(glm::linearRand(model.minSpeed, model.maxSpeed));
+					anim.pAnimator->SetPlaying(true);
+
+					//anim.target = glm::linearRand(glm::vec3(-gTestWorldSize, 0.0f, -gTestWorldSize) * 0.5f, glm::vec3(gTestWorldSize, 0.0f, gTestWorldSize) * 0.5f);
+					//pController->Position = anim.target;
+
+					gTestAnimNodes.push_back(anim);
+				}
+			}
+		}
 
 		return true;
 	}

@@ -368,7 +368,7 @@ namespace SunEngine
 			if (createInfo.bufferBindings[i].stages & SS_GEOMETRY)
 				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
-			_bindingMap[createInfo.bufferBindings[i].name].first = binding.binding;
+			_bindingMap[createInfo.bufferBindings[i].name].binding = binding.binding;
 			layoutBindings.push_back(binding);
 
 			if (binding.binding+1 > maxBufferBinding)
@@ -400,7 +400,8 @@ namespace SunEngine
 				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 			}
 
-			_bindingMap[createInfo.resourceBindings[i].name].first = binding.binding;
+			_bindingMap[createInfo.resourceBindings[i].name].binding = binding.binding;
+			_bindingMap[createInfo.resourceBindings[i].name].dimension = createInfo.resourceBindings[i].dimension;
 			layoutBindings.push_back(binding);
 		}
 
@@ -436,7 +437,7 @@ namespace SunEngine
 				{
 					auto& buffInfo = _bindingMap.at(state->DynamicIndices[idx].first);
 
-					_dynamicOffsets[buffInfo.first] = static_cast<VulkanUniformBuffer*>(buffInfo.second)->GetAlignedSize() * state->DynamicIndices[idx].second;
+					_dynamicOffsets[buffInfo.binding] = static_cast<VulkanUniformBuffer*>(buffInfo.pObject)->GetAlignedSize() * state->DynamicIndices[idx].second;
 					idx++;
 				}
 			}
@@ -468,20 +469,24 @@ namespace SunEngine
 			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			set.dstSet = _sets[i];
 			set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-			set.dstBinding = _bindingMap.at(name).first;
+			set.dstBinding = _bindingMap.at(name).binding;
 			set.pBufferInfo = &info;
 			set.descriptorCount = 1;
 
 			_device->UpdateDescriptorSets(&set, 1);
 		}
-		_bindingMap.at(name).second = pVulkanBuffer;
+		_bindingMap.at(name).pObject = pVulkanBuffer;
 	}
 
 	void VulkanShaderBindings::SetTexture(ITexture * pTexture, const String& name)
 	{
 		VulkanTexture* vkTexture = static_cast<VulkanTexture*>(pTexture);
-		BindImageView(vkTexture->_view, vkTexture->_layout, _bindingMap.at(name).first);
-		_bindingMap.at(name).second = vkTexture;
+		bool cubemapToArray = 
+			(vkTexture->_viewInfo.viewType == VK_IMAGE_VIEW_TYPE_CUBE || vkTexture->_viewInfo.viewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) 
+			&& _bindingMap.at(name).dimension == SRD_TEXTURE2DARRAY;
+
+		BindImageView(cubemapToArray ? vkTexture->_cubeToArrayView : vkTexture->_view, vkTexture->_layout, _bindingMap.at(name).binding);
+		_bindingMap.at(name).pObject = vkTexture;
 	}
 
 	void VulkanShaderBindings::SetSampler(ISampler * pSampler, const String& name)
@@ -495,13 +500,13 @@ namespace SunEngine
 			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			set.dstSet = _sets[i];
 			set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-			set.dstBinding = _bindingMap.at(name).first;
+			set.dstBinding = _bindingMap.at(name).binding;
 			set.pImageInfo = &info;
 			set.descriptorCount = 1;
 
 			_device->UpdateDescriptorSets(&set, 1);
 		}
-		_bindingMap.at(name).second = static_cast<VulkanSampler*>(pSampler);
+		_bindingMap.at(name).pObject = static_cast<VulkanSampler*>(pSampler);
 	}
 
 	void VulkanShaderBindings::BindImageView(VkImageView view, VkImageLayout layout, const uint binding)

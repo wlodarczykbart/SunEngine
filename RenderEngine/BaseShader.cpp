@@ -39,6 +39,7 @@ namespace SunEngine
 	String ShaderStrings::ShadowTextureName = "ShadowTexture";
 	String ShaderStrings::ShadowSamplerName = "ShadowSampler";
 	String ShaderStrings::EnvTextureName = "EnvTexture";
+	String ShaderStrings::EnvProbesTextureName = "EnvProbesTexture";
 	String ShaderStrings::EnvSamplerName = "EnvSampler";
 
 	BaseShader::BaseShader() : GraphicsObject(GraphicsObject::SHADER)

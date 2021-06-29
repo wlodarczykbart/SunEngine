@@ -115,4 +115,12 @@ namespace SunEngine
 
 		return expanded;
 	}
+
+	void Asset::Traverse(TraverseFunc func, void* pData) const
+	{
+		for (auto& node : _nodes)
+		{
+			func(node.get(), pData);
+		}
+	}
 }

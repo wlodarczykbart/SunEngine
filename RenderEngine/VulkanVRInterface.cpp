@@ -114,25 +114,26 @@ namespace SunEngine
 
 		pVulkanTexture->_image = imgInfo.image;
 		pVulkanTexture->_memory = 0;
-		pVulkanTexture->_format = (VkFormat)format;
 		pVulkanTexture->_sampleMask = VK_SAMPLE_COUNT_1_BIT;
 		pVulkanTexture->_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		VkImageViewCreateInfo viewInfo = {};
+		VkImageViewCreateInfo  viewInfo = {};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		viewInfo.image = imgInfo.image;
 		viewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
 		viewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
 		viewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
 		viewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-		viewInfo.format = pVulkanTexture->_format;
+		viewInfo.format = (VkFormat)format;
 		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		viewInfo.subresourceRange.layerCount = 1;
 		viewInfo.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
 		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		viewInfo.subresourceRange.baseMipLevel = 0;// info.mipLevels ? 3 : 0;
 
-		if (!_device->CreateImageView(viewInfo, &pVulkanTexture->_view)) return false;
+		pVulkanTexture->_viewInfo = viewInfo;
+		if (!_device->CreateImageView(pVulkanTexture->_viewInfo, &pVulkanTexture->_view)) return false;
+		pVulkanTexture->_external = true;
 
 		return true;
 	}

@@ -33,13 +33,27 @@ namespace SunEngine
 		void SetSampler(ISampler* pSampler, const String& name) override;
 
 	private:
+		struct ResourceBindData
+		{
+			ResourceBindData()
+			{
+				binding = 0;
+				dimension = SRD_UNKNOWN;
+				pObject = 0;
+			}
+
+			uint binding;
+			ShaderResourceDimension dimension;
+			VulkanObject* pObject;
+		};
+
 		void BindImageView(VkImageView view, VkImageLayout layout, uint binding);
 		VkDescriptorSet GetCurrentSet() const;
 
 		uint _setNumber;
 		Vector<VkDescriptorSet> _sets;
 		VkDescriptorSetLayout _layout;
-		StrMap<Pair<uint, VulkanObject*>> _bindingMap;
+		StrMap<ResourceBindData> _bindingMap;
 		Vector<uint> _dynamicOffsets;
 	};
 

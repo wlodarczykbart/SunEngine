@@ -1,0 +1,26 @@
+#include "EnvBuffer.hlsl"
+#include "CameraBuffer.hlsl"
+
+
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float4 texCoord : TEXCOORD;	
+	float4 position : POSITION;
+	float4 normal : NORMAL;
+	float4 tangent : TANGENT;
+};
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+	float3 v = InvViewMatrix[3].xyz - pIn.position.xyz;
+	v = normalize(v);
+	
+	float3 n = normalize(pIn.normal.xyz);
+	
+	float3 r = reflect(-v, n);
+	
+	float3 env = SampleEnvironment(r, 0);
+
+	return float4(env, 1);
+}

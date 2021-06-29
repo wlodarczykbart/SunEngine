@@ -40,6 +40,7 @@ namespace SunEngine
 		case SunEngine::SBT_ENVIRONMENT:
 			names.bufferNames.push_back(ShaderStrings::EnvBufferName);
 			names.textureNames.push_back(ShaderStrings::EnvTextureName);
+			names.textureNames.push_back(ShaderStrings::EnvProbesTextureName);
 			names.samplerNames.push_back(ShaderStrings::EnvSamplerName);
 			break;
 		case SunEngine::SBT_SHADOW:
@@ -209,8 +210,8 @@ namespace SunEngine
 			{"t", "Texture2DArray"},
 			{"t", "Texture2DMS<float4>"},
 			{"t", "Texture2D"},
-			{"t", "TextureCube"},
 			{"t", "TextureCubeArray"},
+			{"t", "TextureCube"},
 			{"s", "SamplerState"},
 		};
 
@@ -588,14 +589,23 @@ namespace SunEngine
 							if (resDesc.Type == D3D_SIT_TEXTURE)
 							{
 								resource.type = SRT_TEXTURE;
-								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2D)
-									resource.dimension = SRD_TEXTURE_2D;
-								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2DMS)
-									resource.dimension = SRD_TEXTURE_2D;
-								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2DARRAY)
-									resource.dimension = SRD_TEXTURE_ARRAY;
-								if (resDesc.Dimension == D3D_SRV_DIMENSION_TEXTURECUBE)
-									resource.dimension = SRD_TEXTURE_CUBE;
+								switch (resDesc.Dimension)
+								{
+								case D3D_SRV_DIMENSION_UNKNOWN: 		  resource.dimension = SRD_UNKNOWN; break;
+								case D3D_SRV_DIMENSION_BUFFER:			  resource.dimension = SRD_BUFFER; break;
+								case D3D_SRV_DIMENSION_TEXTURE1D:		  resource.dimension = SRD_TEXTURE1D; break;
+								case D3D_SRV_DIMENSION_TEXTURE1DARRAY:	  resource.dimension = SRD_TEXTURE1DARRAY; break;
+								case D3D_SRV_DIMENSION_TEXTURE2D:		  resource.dimension = SRD_TEXTURE2D; break;
+								case D3D_SRV_DIMENSION_TEXTURE2DARRAY:	  resource.dimension = SRD_TEXTURE2DARRAY; break;
+								case D3D_SRV_DIMENSION_TEXTURE2DMS:		  resource.dimension = SRD_TEXTURE2DMS; break;
+								case D3D_SRV_DIMENSION_TEXTURE2DMSARRAY:  resource.dimension = SRD_TEXTURE2DMSARRAY; break;
+								case D3D_SRV_DIMENSION_TEXTURE3D:		  resource.dimension = SRD_TEXTURE3D; break;
+								case D3D_SRV_DIMENSION_TEXTURECUBE:		  resource.dimension = SRD_TEXTURECUBE; break;
+								case D3D_SRV_DIMENSION_TEXTURECUBEARRAY:  resource.dimension = SRD_TEXTURECUBEARRAY; break;
+								case D3D_SRV_DIMENSION_BUFFEREX:		  resource.dimension = SRD_BUFFEREX; break;
+								default:
+									break;
+								}
 							}
 							else if (resDesc.Type == D3D_SIT_SAMPLER)
 							{

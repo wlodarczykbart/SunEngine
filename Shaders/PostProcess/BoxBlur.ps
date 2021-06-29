@@ -1,0 +1,65 @@
+struct PS_In
+{
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+#define KERNEL 0
+#define SAMPLE_COUNT 1
+
+#ifdef KERNEL_3X3
+#undef KERNEL
+#undef SAMPLE_COUNT
+#define KERNEL 1
+#define SAMPLE_COUNT 9.0
+#endif
+
+#ifdef KERNEL_5X5
+#undef KERNEL
+#undef SAMPLE_COUNT
+#define KERNEL 2
+#define SAMPLE_COUNT 25.0
+#endif
+
+#ifdef KERNEL_7X7
+#undef KERNEL
+#undef SAMPLE_COUNT
+#define KERNEL 3
+#define SAMPLE_COUNT 49.0
+#endif
+
+#ifdef KERNEL_9X9
+#undef KERNEL
+#undef SAMPLE_COUNT
+#define KERNEL 4
+#define SAMPLE_COUNT 81.0
+#endif
+
+Texture2D DiffuseMap;
+SamplerState Sampler;
+
+float4 main(PS_In pIn) : SV_TARGET
+{
+#if (KERNEL == 0)
+	return DiffuseMap.Sample(Sampler, pIn.texCoord);
+#else
+	float2 texSize;
+	DiffuseMap.GetDimensions(texSize.x, texSize.y);
+	texSize = 1.0 / texSize;
+
+	float4 color = float4(0, 0, 0, 0);
+
+	[unroll]
+	for(int i = -KERNEL; i <= KERNEL; i++)
+	{
+		[unroll]
+		for(int j = -KERNEL; j <= KERNEL; j++)
+		{
+			float2 texCoord = pIn.texCoord + float2(j, i) * texSize;
+			color += DiffuseMap.Sample(Sampler, texCoord);
+		}
+	}
+	
+	return color / SAMPLE_COUNT;
+#endif
+}

@@ -63,6 +63,11 @@ namespace SunEngine
 				bool showEnvironments;
 			} gui;
 
+			struct
+			{
+				bool enabled;
+			} ssr;
+
 		};
 
 		SceneView(SceneRenderer* pRenderer);
@@ -91,13 +96,13 @@ namespace SunEngine
 		void BuildSelectedNodeGUI(Scene* pScene, GUIRenderer* pRenderer);
 		void BuildTerrain(Terrain* pTerrain);
 
-		bool CreateRenderPassData(const String& shader, RenderPassData& data, bool useOneZ = false);
+		bool CreateRenderPassData(const String& shader, RenderPassData& data, uint64 variantMask = 0);
 
 		SceneRenderer* _renderer;
 		String _selNodeName;
 		RenderTarget _opaqueTarget;
 		RenderTarget _outputTarget;
-		RenderTarget _deferredTarget;
+		RenderTarget _gbufferTarget;
 		RenderTarget _deferredResolveTarget;
 		RenderTarget _toneMapTarget;
 		RenderTarget _msaaTarget;
@@ -105,11 +110,15 @@ namespace SunEngine
 		RenderPassData _toneMapData;
 		RenderPassData _fxaaData;
 		RenderPassData _outputData;
-		RenderPassData _deferredData;
+		RenderPassData _deferredResolveData;
 		RenderPassData _deferredCopyData;
 		RenderPassData _msaaResolveData;
 #ifdef SUPPORT_SSR
+		RenderTarget _ssrTarget;
 		RenderPassData _ssrData;
+		RenderTarget _ssrBlurTarget;
+		RenderPassData _ssrBlurData;
+		RenderPassData _ssrCopyData;
 #endif
 		UniformBuffer _shaderBuffer;
 		int _shaderBufferUsageCount;
@@ -133,6 +142,8 @@ namespace SunEngine
 		ShaderBindings _bindings;
 		GraphicsPipeline _pipeline;
 		SceneRenderer* _renderer;
+
+		UniformBuffer _shaderBuffer;
 	};
 
 	class Texture2DView : public View

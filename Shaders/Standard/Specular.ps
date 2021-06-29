@@ -63,12 +63,15 @@ PS_Out main(PS_In pIn)
 	ao = lerp(ao, diffuse.a, pIn.normal.w);
 #endif		
 		
+#if 1//ndef SIMPLE_SHADING		
 	float3x3 tbn;
 	tbn[0] = normalize(pIn.tangent.xyz);
 	tbn[2] = normalize(pIn.normal.xyz);
 	tbn[1] = -cross(tbn[2], tbn[0]);
-	
 	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
+#else	
+	float3 n = lerp(normalize(pIn.normal.xyz), NormalMap.Sample(Sampler, texCoord).xyz, pIn.normal.w);
+#endif	
 		
 	ShadePixel(
 		albedo, 
@@ -77,8 +80,7 @@ PS_Out main(PS_In pIn)
 		smoothness, 
 		emissive, 
 		n, 
-		pIn.position.xyz, 
-		GetScreenTexCoord(pIn.clipPos.xy), 
+		pIn.position.xyz,
 		pOut);	
 		
 #ifndef GBUFFER

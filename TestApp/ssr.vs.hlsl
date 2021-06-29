@@ -11,7 +11,17 @@ static const float2 VERTS[] =
 	float2(-1.0f, +1.0f),
 };
 
-float4 main(uint vIndex : SV_VERTEXID) : SV_POSITION
+struct PS_In
 {
-	return float4(VERTS[vIndex], 0.0f, 1.0f);
+	float4 clipPos : SV_POSITION;
+	float2 texCoord : TEXCOORD;
+};
+
+PS_In main(uint vIndex : SV_VERTEXID)
+{
+	PS_In pIn;
+	pIn.clipPos = float4(VERTS[vIndex], 0.0f, 1.0f);
+	pIn.texCoord = VERTS[vIndex] * 0.5 + 0.5;
+	pIn.texCoord.y = 1.0f - pIn.texCoord.y;
+	return pIn;
 };

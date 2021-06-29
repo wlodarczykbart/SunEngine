@@ -308,7 +308,7 @@ int main(int argc, const char** argv)
 
 	String shaderPath = "";
 	
-	BaseShader coreShader, ssrShader;
+	BaseShader coreShader, backfaceShader, ssrShader, ssrResolveShader;
 	{
 		BaseShader::CreateInfo info = {};
 		info.buffers[bindingMap[SBT_CAMERA].bufferInfo.name] = bindingMap[SBT_CAMERA].bufferInfo;
@@ -326,6 +326,9 @@ int main(int argc, const char** argv)
 		fs.OpenForRead((shaderPath + "core.vs.cso").c_str());
 		fs.ReadBuffer(info.vertexBinaries[SE_GFX_D3D11]);
 		fs.Close();
+
+		if (!backfaceShader.Create(info))
+			return -1;
 
 		fs.OpenForRead((shaderPath + "ssr_core.ps.cso").c_str());
 		fs.ReadBuffer(info.pixelBinaries[SE_GFX_D3D11]);
@@ -377,6 +380,13 @@ int main(int argc, const char** argv)
 		//resource.binding[SE_GFX_VULKAN] = 0;
 		info.resources[resource.name] = resource;
 
+		sprintf_s(resource.name, "BackfaceDepthTexture");
+		resource.dimension = SRD_TEXTURE_2D;
+		resource.type = SRT_TEXTURE;
+		resource.binding[SE_GFX_D3D11] = 4;
+		//resource.binding[SE_GFX_VULKAN] = 0;
+		info.resources[resource.name] = resource;
+
 		sprintf_s(resource.name, "Sampler");
 		resource.binding[SE_GFX_D3D11] = 0;
 		//resource.binding[SE_GFX_VULKAN] = 0;
@@ -386,6 +396,34 @@ int main(int argc, const char** argv)
 		if (!ssrShader.Create(info))
 			return -1;
 
+		info.resources.clear();
+
+		fs.OpenForRead((shaderPath + "ssr_resolve.ps.cso").c_str());
+		fs.ReadBuffer(info.pixelBinaries[SE_GFX_D3D11]);
+		fs.Close();
+
+		sprintf_s(resource.name, "ColorTexture");
+		resource.dimension = SRD_TEXTURE_2D;
+		resource.type = SRT_TEXTURE;
+		resource.binding[SE_GFX_D3D11] = 0;
+		//resource.binding[SE_GFX_VULKAN] = 0;
+		info.resources[resource.name] = resource;
+
+		sprintf_s(resource.name, "ReflectionColorTexture");
+		resource.dimension = SRD_TEXTURE_2D;
+		resource.type = SRT_TEXTURE;
+		resource.binding[SE_GFX_D3D11] = 1;
+		//resource.binding[SE_GFX_VULKAN] = 0;
+		info.resources[resource.name] = resource;
+
+		sprintf_s(resource.name, "Sampler");
+		resource.binding[SE_GFX_D3D11] = 0;
+		//resource.binding[SE_GFX_VULKAN] = 0;
+		resource.type = SRT_SAMPLER;
+		info.resources[resource.name] = resource;
+
+		if (!ssrResolveShader.Create(info))
+			return -1;
 	}
 
 	for (auto& binding : bindingMap)
@@ -410,7 +448,7 @@ int main(int argc, const char** argv)
 		}
 	}
 
-	GraphicsPipeline corePipeline, ssrPipeline;
+	GraphicsPipeline corePipeline, backfacePipeline, ssrPipeline, ssrResolvePipeline;
 	{
 		GraphicsPipeline::CreateInfo info = {};
 #ifdef GLM_FORCE_LEFT_HANDED
@@ -424,9 +462,18 @@ int main(int argc, const char** argv)
 		info.pShader = &ssrShader;
 		if (!ssrPipeline.Create(info))
 			return -1;
+
+		info.pShader = &ssrResolveShader;
+		if (!ssrResolvePipeline.Create(info))
+			return -1;
+
+		info.pShader = &backfaceShader;
+		info.settings.rasterizer.frontFace = info.settings.rasterizer.frontFace == SE_FF_CLOCKWISE ? SE_FF_COUNTER_CLOCKWISE : SE_FF_CLOCKWISE;
+		if (!backfacePipeline.Create(info))
+			return -1;
 	}
 
-	RenderTarget colorTarget;
+	RenderTarget colorTarget, backfaceTarget, ssrTarget;
 	{
 		RenderTarget::CreateInfo info = {};
 		info.width = window.Width();
@@ -437,19 +484,37 @@ int main(int argc, const char** argv)
 
 		if (!colorTarget.Create(info))
 			return -1;
-	}
 
-	Sampler sampler;
-	{
-		Sampler::CreateInfo info = {};
-		info.settings.anisotropicMode = SE_AM_OFF;
-		info.settings.filterMode = SE_FM_NEAREST;
-		info.settings.wrapMode = SE_WM_CLAMP_TO_EDGE;
-		if (!sampler.Create(info))
+		info.numTargets = 0;
+		info.floatingPointColorBuffer = false;
+		if (!backfaceTarget.Create(info))
+			return -1;
+
+		info.width /= 2;
+		info.height /= 2;
+		info.numTargets = 1;
+		info.floatingPointColorBuffer = true;
+		info.hasDepthBuffer = false;
+		if (!ssrTarget.Create(info))
 			return -1;
 	}
 
-	ShaderBindings ssrBindings;
+	Sampler linearSampler, pointSampler;
+	{
+		Sampler::CreateInfo info = {};
+		info.settings.anisotropicMode = SE_AM_OFF;
+		info.settings.wrapMode = SE_WM_CLAMP_TO_EDGE;
+
+		info.settings.filterMode = SE_FM_NEAREST;
+		if (!pointSampler.Create(info))
+			return -1;
+
+		info.settings.filterMode = SE_FM_LINEAR;
+		if (!linearSampler.Create(info))
+			return -1;
+	}
+
+	ShaderBindings ssrBindings, ssrResolveBindings;
 	{
 		ShaderBindings::CreateInfo info = {};
 		info.pShader = &ssrShader;
@@ -465,7 +530,20 @@ int main(int argc, const char** argv)
 			return -1;
 		if (!ssrBindings.SetTexture("DepthTexture", colorTarget.GetDepthTexture()))
 			return -1;
-		if (!ssrBindings.SetSampler("Sampler", &sampler))
+		if (!ssrBindings.SetTexture("BackfaceDepthTexture", backfaceTarget.GetDepthTexture()))
+			return -1;
+		if (!ssrBindings.SetSampler("Sampler", &pointSampler))
+			return -1;
+
+		info.pShader = &ssrResolveShader;
+		if (!ssrResolveBindings.Create(info))
+			return -1;
+
+		if (!ssrResolveBindings.SetTexture("ColorTexture", colorTarget.GetColorTexture(0)))
+			return -1;
+		if (!ssrResolveBindings.SetTexture("ReflectionColorTexture", ssrTarget.GetColorTexture(0)))
+			return -1;
+		if (!ssrResolveBindings.SetSampler("Sampler", &linearSampler))
 			return -1;
 	}
 
@@ -517,7 +595,7 @@ int main(int argc, const char** argv)
 
 		glm::vec4 t = glm::vec4(rand() / (float)RAND_MAX, 0.0f, rand() / (float)RAND_MAX, 0.0f);
 		glm::vec4 pos = glm::mix(glm::vec4(-worldRange, 0.0f, -worldRange, 0.0f), glm::vec4(worldRange, 0.0f, worldRange, 0.0f), t);
-		planeNode.worldMatrix = glm::translate(glm::vec3(pos)) * glm::mat4RotationX(glm::radians(float(rand() % 360))) * glm::scale(glm::vec3(1.0f, 10.0f /*+ 0*(20.0f * (rand() / float(RAND_MAX)))*/, 1.0f));
+		planeNode.worldMatrix = glm::translate(glm::vec3(pos)) * glm::mat4RotationX(glm::radians(float(rand() % 1))) * glm::scale(glm::vec3(1.0f, 10.0f /*+ 0*(20.0f * (rand() / float(RAND_MAX)))*/, 1.0f));
 		renderNodes.push_back(planeNode);
 	}
 
@@ -627,43 +705,80 @@ int main(int argc, const char** argv)
 		surface.StartFrame();
 
 		colorTarget.Bind(cmdBuffer);
-
-		coreShader.Bind(cmdBuffer);
-		corePipeline.Bind(cmdBuffer);
-
-		cameraBindState.DynamicIndices[0].second = 0;
-		bindingMap[SBT_CAMERA].bindings.Bind(cmdBuffer, &cameraBindState);
-
-		for (uint i = 0; i < renderNodes.size(); i++)
 		{
-			auto& node = renderNodes[i];
-			node.pMesh->Bind(cmdBuffer);
-			objectBindState.DynamicIndices[0].second = i;
-			bindingMap[SBT_OBJECT].bindings.Bind(cmdBuffer, &objectBindState);
-			cmdBuffer->DrawIndexed(node.pMesh->GetNumIndices(), 1, 0, 0, 0);
-			node.pMesh->Unbind(cmdBuffer);
+			coreShader.Bind(cmdBuffer);
+			corePipeline.Bind(cmdBuffer);
+
+			cameraBindState.DynamicIndices[0].second = 0;
+			bindingMap[SBT_CAMERA].bindings.Bind(cmdBuffer, &cameraBindState);
+
+			for (uint i = 0; i < renderNodes.size(); i++)
+			{
+				auto& node = renderNodes[i];
+				node.pMesh->Bind(cmdBuffer);
+				objectBindState.DynamicIndices[0].second = i;
+				bindingMap[SBT_OBJECT].bindings.Bind(cmdBuffer, &objectBindState);
+				cmdBuffer->DrawIndexed(node.pMesh->GetNumIndices(), 1, 0, 0, 0);
+				node.pMesh->Unbind(cmdBuffer);
+			}
+
+			corePipeline.Unbind(cmdBuffer);
+			coreShader.Unbind(cmdBuffer);
 		}
-
-		corePipeline.Unbind(cmdBuffer);
-		coreShader.Unbind(cmdBuffer);
-
 		colorTarget.Unbind(cmdBuffer);
 
+		backfaceTarget.Bind(cmdBuffer);
+		{
+			backfaceShader.Bind(cmdBuffer);
+			backfacePipeline.Bind(cmdBuffer);
+
+			cameraBindState.DynamicIndices[0].second = 0;
+			bindingMap[SBT_CAMERA].bindings.Bind(cmdBuffer, &cameraBindState);
+
+			for (uint i = 0; i < renderNodes.size(); i++)
+			{
+				auto& node = renderNodes[i];
+				node.pMesh->Bind(cmdBuffer);
+				objectBindState.DynamicIndices[0].second = i;
+				bindingMap[SBT_OBJECT].bindings.Bind(cmdBuffer, &objectBindState);
+				cmdBuffer->DrawIndexed(node.pMesh->GetNumIndices(), 1, 0, 0, 0);
+				node.pMesh->Unbind(cmdBuffer);
+			}
+
+			backfacePipeline.Unbind(cmdBuffer);
+			backfaceShader.Unbind(cmdBuffer);
+		}
+		backfaceTarget.Unbind(cmdBuffer);
+
+		ssrTarget.Bind(cmdBuffer);
+		{
+			ssrShader.Bind(cmdBuffer);
+			ssrPipeline.Bind(cmdBuffer);
+			ssrBindings.Bind(cmdBuffer);
+
+			cameraBindState.DynamicIndices[0].second = 0;
+			bindingMap[SBT_CAMERA].bindings.Bind(cmdBuffer, &cameraBindState);
+
+			cmdBuffer->Draw(6, 1, 0, 0);
+
+			ssrBindings.Unbind(cmdBuffer);
+			ssrPipeline.Unbind(cmdBuffer);
+			ssrShader.Unbind(cmdBuffer);
+		}
+		ssrTarget.Unbind(cmdBuffer);
+
 		surface.Bind(cmdBuffer);
+		{
+			ssrResolveShader.Bind(cmdBuffer);
+			ssrResolvePipeline.Bind(cmdBuffer);
+			ssrResolveBindings.Bind(cmdBuffer);
 
-		ssrShader.Bind(cmdBuffer);
-		ssrPipeline.Bind(cmdBuffer);
-		ssrBindings.Bind(cmdBuffer);
+			cmdBuffer->Draw(6, 1, 0, 0);
 
-		cameraBindState.DynamicIndices[0].second = 0;
-		bindingMap[SBT_CAMERA].bindings.Bind(cmdBuffer, &cameraBindState);
-
-		cmdBuffer->Draw(6, 1, 0, 0);
-
-		ssrBindings.Unbind(cmdBuffer);
-		ssrPipeline.Unbind(cmdBuffer);
-		ssrShader.Unbind(cmdBuffer);
-
+			ssrResolveBindings.Unbind(cmdBuffer);
+			ssrResolvePipeline.Unbind(cmdBuffer);
+			ssrResolveShader.Unbind(cmdBuffer);
+		}
 		surface.Unbind(cmdBuffer);
 
 		surface.EndFrame();

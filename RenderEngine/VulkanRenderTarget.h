@@ -25,6 +25,7 @@ namespace SunEngine
 		bool createFramebuffer(VulkanTexture** pColorTextures, VulkanTexture* pDepthTexture);
 
 		Vector<VkFramebuffer> _framebuffers;
+		Vector<VkImageView> _framebufferViews;
 
 		VkRect2D _viewport;
 

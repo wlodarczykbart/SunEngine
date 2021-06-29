@@ -43,6 +43,11 @@ namespace SunEngine
 			ALPHA_TEST = 1 << 2,
 			SKINNED = 1 << 3,
 			ONE_Z = 1 << 4,
+			SIMPLE_SHADING = 1 << 5,
+			KERNEL_3X3 = 1 << 6,
+			KERNEL_5X5 = 1 << 7,
+			KERNEL_7X7 = 1 << 8,
+			KERNEL_9X9 = 1 << 9,
 		};
 	}
 
@@ -69,7 +74,7 @@ namespace SunEngine
 
 		const String& GetName() const { return _name; }
 
-		static void FillMatrices(const glm::mat4& view, const glm::mat4& proj, CameraBufferData& camData);
+		static void FillMatrices(const glm::mat4& view, const glm::mat4& proj, const glm::vec3& sunDirection, CameraBufferData& camData);
 
 	private:
 		void SetDefaults();

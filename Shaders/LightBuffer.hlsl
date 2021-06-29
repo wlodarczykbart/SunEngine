@@ -54,7 +54,13 @@ float3 F_Schlick(float vDotH, float3 f0)
 	return f0 + (float3(1,1,1) - f0) * pow(1.0 - vDotH, 5.0);
 }
 
-float3 BRDF_CookTorrance(float3 l, float3 n, float3 v, float3 lightColor, float3 albedo, float3 f0, float smoothness, float attenuation)
+float3 F_SchlickR(float nDotV, float3 f0, float a)
+{
+	a = 1.0 - a;
+	return f0 + (max(float3(a,a,a), f0) - f0) * pow(1.0 - nDotV, 5.0);
+}
+
+float3 BRDF_CookTorrance(float3 l, float3 n, float3 v, float3 r, float3 lightColor, float3 albedo, float3 f0, float smoothness, float attenuation)
 {
 	l  = normalize(l);
 	n = normalize(n);
@@ -75,11 +81,11 @@ float3 BRDF_CookTorrance(float3 l, float3 n, float3 v, float3 lightColor, float3
 	float G = G_SchlicksmithGGX(nDotV, nDotL, a);
 	
 	float3 specular = (D * G * F) / (4.0 * nDotL * nDotV);
+	
 	float3 diffuse = albedo / PI;
 	
 	float3 kD = float3(1, 1, 1) - F; //metallic is handled in the albedo calculation 
 	return (kD * albedo / PI + specular) * nDotL * lightColor;
-	
 	
 	//float3 kS = F;
 	//kS = float3(1,1,1) * dot(kS, float3(0.2126, 0.7152, 0.0722));

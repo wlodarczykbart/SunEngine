@@ -116,6 +116,7 @@ namespace SunEngine
 		srvDesc.Format = (DXGI_FORMAT)format;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		if (!_device->CreateShaderResourceView(pD3DTexture->_texture, srvDesc, &pD3DTexture->_srv)) return false;
+		pD3DTexture->_external = true;
 
 		return true;
 	}

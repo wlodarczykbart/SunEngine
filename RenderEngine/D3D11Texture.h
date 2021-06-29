@@ -16,7 +16,6 @@ namespace SunEngine
 		void Bind(ICommandBuffer* cmdBuffer, IBindState* pBindState) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 		void BindToShader(D3D11Shader* pShader, const String& name, uint binding, IBindState* pBindState) override;
-
 		bool Destroy() override;
 
 	private:
@@ -26,6 +25,7 @@ namespace SunEngine
 
 		ID3D11Texture2D* _texture;
 		ID3D11ShaderResourceView* _srv;
+		bool _external;
 	};
 
 }

@@ -1027,6 +1027,7 @@ namespace SunEngine
 		VkPhysicalDeviceFeatures features = {};
 		features.geometryShader = VK_TRUE;
 		features.samplerAnisotropy = VK_TRUE;
+		features.imageCubeArray = VK_TRUE;
 		info.pEnabledFeatures = &features;
 
 		VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingExt = {};

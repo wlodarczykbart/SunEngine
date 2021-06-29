@@ -23,7 +23,7 @@ SamplerState Sampler;
 Texture2DArray SplatMap;
 SamplerState SplatSampler;
 
-PS_Out main(PS_In pIn) : SV_TARGET
+PS_Out main(PS_In pIn)
 {
 	PS_Out pOut;
 	float ao = 1.0;
@@ -54,12 +54,15 @@ PS_Out main(PS_In pIn) : SV_TARGET
 		normal += NormalMap.Sample(Sampler, coord) * weight;
 	}
 	
+#ifndef SIMPLE_SHADING		
 	float3x3 tbn;
 	tbn[0] = normalize(pIn.tangent.xyz);
 	tbn[2] = normalize(pIn.normal.xyz);
 	tbn[1] = -cross(tbn[2], tbn[0]);
-	
-	float3 n = mul(normal.xyz * 2.0 - 1.0, tbn);	
+	float3 n = mul(normal.xyz * 2.0 - 1.0, tbn);
+#else			
+	float3 n = lerp(normalize(pIn.normal.xyz), normal, pIn.normal.w);
+#endif	
 	
 	ShadePixel(
 		albedo.rgb, 
@@ -69,7 +72,6 @@ PS_Out main(PS_In pIn) : SV_TARGET
 		float3(0,0,0), 
 		n, 
 		pIn.position.xyz, 
-		GetScreenTexCoord(pIn.clipPos.xy), 
 		pOut);
 	
 	//pOut.color = splatWeights[0];

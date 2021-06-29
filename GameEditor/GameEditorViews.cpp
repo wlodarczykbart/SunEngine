@@ -76,36 +76,66 @@ namespace SunEngine
 			return false;
 		_resizeOccured = false;
 
-		RenderTargetPassInfo outputInfo = {};
+		Map<RenderPassType, RenderPassInfo> renderPasses;
+
+		RenderPassInfo outputInfo = {};
 		outputInfo.pTarget = &_outputTarget;
 		outputInfo.pPipeline = &_outputData.pipeline;
 		outputInfo.pBindings = &_outputData.bindings;
+		renderPasses[RPT_OUTPUT] = outputInfo;
 
 		bool bDeferred = EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred;
-		DeferredRenderTargetPassInfo deferredInfo = {};
 		if (bDeferred)
 		{
-			deferredInfo.pTarget = &_deferredTarget;
-			deferredInfo.pPipeline = &_deferredData.pipeline;
-			deferredInfo.pBindings = &_deferredData.bindings;
+			RenderPassInfo gbufferInfo = {};
+			gbufferInfo.pTarget = &_gbufferTarget;
+			renderPasses[RPT_GBUFFER] = gbufferInfo;
 
-			deferredInfo.pDeferredResolveTarget = &_deferredResolveTarget;
-			deferredInfo.pDeferredCopyPipeline = &_deferredCopyData.pipeline;
-			deferredInfo.pDeferredCopyBindings = &_deferredCopyData.bindings;
+			RenderPassInfo deferredResolveInfo = {};
+			deferredResolveInfo.pTarget = &_deferredResolveTarget;
+			deferredResolveInfo.pPipeline = &_deferredResolveData.pipeline;
+			deferredResolveInfo.pBindings = &_deferredResolveData.bindings;
+			renderPasses[RPT_DEFERRED_RESOLVE] = deferredResolveInfo;
+
+			RenderPassInfo deferredCopyInfo = {};
+			deferredCopyInfo.pPipeline = &_deferredCopyData.pipeline;
+			deferredCopyInfo.pBindings = &_deferredCopyData.bindings;
+			renderPasses[RPT_DEFERRED_COPY] = deferredCopyInfo;
 
 #ifdef SUPPORT_SSR
-			deferredInfo.pSSRPipeline = &_ssrData.pipeline;
-			deferredInfo.pSSRBindings = &_ssrData.bindings;
+			if (_settings.ssr.enabled)
+			{
+				RenderPassInfo ssrInfo = {};
+				ssrInfo.pTarget = &_ssrTarget;
+				ssrInfo.pPipeline = &_ssrData.pipeline;
+				ssrInfo.pBindings = &_ssrData.bindings;
+				renderPasses[RPT_SSR] = ssrInfo;
+
+				RenderPassInfo ssrBlurInfo = {};
+				ssrInfo.pTarget = &_ssrBlurTarget;
+				ssrInfo.pPipeline = &_ssrBlurData.pipeline;
+				ssrInfo.pBindings = &_ssrBlurData.bindings;
+				renderPasses[RPT_SSR_BLUR] = ssrInfo;
+
+				RenderPassInfo ssrCopyInfo = {};
+				ssrInfo.pPipeline = &_ssrCopyData.pipeline;
+				ssrInfo.pBindings = &_ssrCopyData.bindings;
+				renderPasses[RPT_SSR_COPY] = ssrInfo;
+			}
 #endif
 		}
 
-		RenderTargetPassInfo msaaResolvInfo = {};
-		msaaResolvInfo.pTarget = &_msaaTarget;
-		msaaResolvInfo.pPipeline = &_msaaResolveData.pipeline;
-		msaaResolvInfo.pBindings = &_msaaResolveData.bindings;
 		bool bMSAA = _settings.msaa.enabled && EngineInfo::GetRenderer().GetMSAAMode() != SE_MSAA_OFF;
+		if (bMSAA)
+		{
+			RenderPassInfo msaaResolvInfo = {};
+			msaaResolvInfo.pTarget = &_msaaTarget;
+			msaaResolvInfo.pPipeline = &_msaaResolveData.pipeline;
+			msaaResolvInfo.pBindings = &_msaaResolveData.bindings;
+			renderPasses[RPT_MSAA_RESOLVE] = msaaResolvInfo;
+		}
 
-		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, &outputInfo, bDeferred ? &deferredInfo : 0, bMSAA ? &msaaResolvInfo : 0))
+		if (!_renderer->RenderFrame(cmdBuffer, &_opaqueTarget, renderPasses))
 			return false;
 
 		//Apply toneMap correction
@@ -287,7 +317,7 @@ namespace SunEngine
 		if (!CreateRenderPassData(DefaultShaders::MSAAResolve, _msaaResolveData))
 			return false;
 
-		if (!CreateRenderPassData(DefaultShaders::Deferred, _deferredData))
+		if (!CreateRenderPassData(DefaultShaders::Deferred, _deferredResolveData))
 			return false;
 
 		if (!CreateRenderPassData(DefaultShaders::SceneCopy, _deferredCopyData))
@@ -295,6 +325,12 @@ namespace SunEngine
 
 #ifdef SUPPORT_SSR
 		if (!CreateRenderPassData(DefaultShaders::ScreenSpaceReflection, _ssrData))
+			return false;
+
+		if (!CreateRenderPassData(DefaultShaders::BoxBlur, _ssrBlurData, ShaderVariant::KERNEL_5X5))
+			return false;
+
+		if (!CreateRenderPassData(DefaultShaders::TextureCopy, _ssrCopyData))
 			return false;
 #endif
 
@@ -343,24 +379,42 @@ namespace SunEngine
 
 		rtInfo.hasDepthBuffer = true;
 		rtInfo.numTargets = 4;
-		if (!_deferredTarget.Create(rtInfo))
+		if (!_gbufferTarget.Create(rtInfo))
 			return false;
 
-		_deferredData.bindings.SetTexture(MaterialStrings::DiffuseMap, _deferredTarget.GetColorTexture(0));
-		_deferredData.bindings.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1));
-		_deferredData.bindings.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
-		_deferredData.bindings.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
-		_deferredData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture());
+		_deferredResolveData.bindings.SetTexture(MaterialStrings::DiffuseMap, _gbufferTarget.GetColorTexture(0));
+		_deferredResolveData.bindings.SetTexture(MaterialStrings::SpecularMap, _gbufferTarget.GetColorTexture(1));
+		_deferredResolveData.bindings.SetTexture(MaterialStrings::NormalMap, _gbufferTarget.GetColorTexture(2));
+		_deferredResolveData.bindings.SetTexture(MaterialStrings::PositionMap, _gbufferTarget.GetColorTexture(3));
+		_deferredResolveData.bindings.SetTexture(MaterialStrings::DepthMap, _gbufferTarget.GetDepthTexture());
 
 		_deferredCopyData.bindings.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
-		_deferredCopyData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture()); //used for blend factor blend
+		_deferredCopyData.bindings.SetTexture(MaterialStrings::DepthMap, _gbufferTarget.GetDepthTexture()); //used for blend factor blend
 
 #ifdef SUPPORT_SSR
 		_ssrData.bindings.SetTexture(MaterialStrings::DiffuseMap, _deferredResolveTarget.GetColorTexture(0)); //Feed in previous frame results
-		_ssrData.bindings.SetTexture(MaterialStrings::SpecularMap, _deferredTarget.GetColorTexture(1)); //used for blend factor blend
-		_ssrData.bindings.SetTexture(MaterialStrings::NormalMap, _deferredTarget.GetColorTexture(2));
-		_ssrData.bindings.SetTexture(MaterialStrings::PositionMap, _deferredTarget.GetColorTexture(3));
-		_ssrData.bindings.SetTexture(MaterialStrings::DepthMap, _deferredTarget.GetDepthTexture());
+		_ssrData.bindings.SetTexture(MaterialStrings::SpecularMap, _gbufferTarget.GetColorTexture(1)); //used for blend factor blend
+		_ssrData.bindings.SetTexture(MaterialStrings::NormalMap, _gbufferTarget.GetColorTexture(2));
+		_ssrData.bindings.SetTexture(MaterialStrings::PositionMap, _gbufferTarget.GetColorTexture(3));
+		_ssrData.bindings.SetTexture(MaterialStrings::DepthMap, _gbufferTarget.GetDepthTexture());
+
+		{
+			auto ssrRTInfo = rtInfo;
+
+			ssrRTInfo.width /= 2;
+			ssrRTInfo.height /= 2;
+			rtInfo.hasDepthBuffer = false;
+			rtInfo.numTargets = 1;
+
+			if (!_ssrTarget.Create(rtInfo))
+				return false;
+
+			if (!_ssrBlurTarget.Create(rtInfo))
+				return false;
+		}
+
+		_ssrBlurData.bindings.SetTexture(MaterialStrings::DiffuseMap, _ssrTarget.GetColorTexture(0));
+		_ssrCopyData.bindings.SetTexture(MaterialStrings::DiffuseMap, _ssrBlurTarget.GetColorTexture(0));
 #endif
 
 		rtInfo.numTargets = 1;
@@ -526,9 +580,9 @@ namespace SunEngine
 		}
 	}
 
-	bool SceneView::CreateRenderPassData(const String& shader, RenderPassData& data, bool useOneZ)
+	bool SceneView::CreateRenderPassData(const String& shader, RenderPassData& data, uint64 variantMask)
 	{
-		BaseShader* pShader = !useOneZ ? ShaderMgr::Get().GetShader(shader)->GetBase() : ShaderMgr::Get().GetShader(shader)->GetBaseVariant(ShaderVariant::ONE_Z);
+		BaseShader* pShader = ShaderMgr::Get().GetShader(shader)->GetBaseVariant(variantMask);
 		assert(pShader);
 
 		if (!pShader)
@@ -554,17 +608,7 @@ namespace SunEngine
 		pipelineInfo.settings.depthStencil.depthCompareOp = SE_DC_LESS_EQUAL;
 		pipelineInfo.settings.depthStencil.enableDepthWrite = false;
 
-		//TODO: specific pipelineInfo based on shader string name
-		if (shader == DefaultShaders::ScreenSpaceReflection)
-		{
-			pipelineInfo.settings.EnableAlphaBlend();
-			//pipelineInfo.settings.blendState.srcAlphaBlendFactor = SE_BF_ONE;
-			//pipelineInfo.settings.blendState.dstAlphaBlendFactor = SE_BF_ZERO;
-			//pipelineInfo.settings.blendState.srcColorBlendFactor = SE_BF_SRC_ALPHA;
-			//pipelineInfo.settings.blendState.dstColorBlendFactor = SE_BF_ONE_MINUS_SRC_ALPHA;
-			//pipelineInfo.settings.depthStencil.depthCompareOp = se; //we only want to test pixels which have depths < 1, the quad will have depth == 1, so pixels which are the background wont be tested
-		}
-		else if (shader == DefaultShaders::SceneCopy)
+		if (shader == DefaultShaders::SceneCopy)
 		{
 			//this pipeline writes to depth buffer in pixel shader
 			pipelineInfo.settings.depthStencil.enableDepthWrite = true;
@@ -579,6 +623,22 @@ namespace SunEngine
 			//fxaa needs linear filter for pixel averaging
 			filter = SE_FM_LINEAR;
 		}
+		else if (shader == DefaultShaders::BoxBlur)
+		{
+			filter = SE_FM_LINEAR;
+		}
+		else if (shader == DefaultShaders::ScreenSpaceReflection)
+		{
+			filter = SE_FM_LINEAR;
+	}
+
+#ifdef SUPPORT_SSR
+		if (&data == &_ssrCopyData)
+		{
+			pipelineInfo.settings.EnableAlphaBlend();
+			filter = SE_FM_LINEAR;
+		}
+#endif
 
 		pipelineInfo.pShader = pShader;
 		if (!data.pipeline.Create(pipelineInfo))
@@ -601,6 +661,8 @@ namespace SunEngine
 		shadows.enabled = true;
 		shadows.cascadeSplitLambda = 0.95f;
 
+		ssr.enabled = false;
+
 		memset(&gui, 0x0, sizeof(gui));
 	}
 
@@ -612,7 +674,7 @@ namespace SunEngine
 
 	bool ShadowMapView::OnCreate(const CreateInfo&)
 	{
-		Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureCopy);
+		Shader* pShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureArrayCopy);
 
 		GraphicsPipeline::CreateInfo pipelineInfo = {};
 		pipelineInfo.pShader = pShader->GetBase();
@@ -631,6 +693,15 @@ namespace SunEngine
 		if (!_bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE)))
 			return false;
 
+		//shader uniform buffer for post process rendering, at the moment each shader has at most 16 floats of input
+		UniformBuffer::CreateInfo buffInfo = {};
+		buffInfo.isShared = true;
+		buffInfo.size = sizeof(glm::vec4)*2;
+		if (!_shaderBuffer.Create(buffInfo))
+			return false;
+
+		_bindings.SetUniformBuffer(ShaderStrings::MaterialBufferName, &_shaderBuffer);
+
 		return true;
 	}
 
@@ -641,15 +712,51 @@ namespace SunEngine
 
 		_target.SetClearColor(color.r, color.g, color.b, 1);
 		_target.Bind(cmdBuffer);
+
 		//TODO BROKEN SINCE USING TEXTURE ARRAYS NOW...
-		//BaseShader* pShader = _pipeline.GetShader();
-		//pShader->Bind(cmdBuffer);
-		//_pipeline.Bind(cmdBuffer);
-		//_bindings.Bind(cmdBuffer);
-		//cmdBuffer->Draw(6, 1, 0, 0);
-		//_bindings.Unbind(cmdBuffer);
-		//_pipeline.Unbind(cmdBuffer);
-		//pShader->Unbind(cmdBuffer);
+		BaseShader* pShader = _pipeline.GetShader();
+		pShader->Bind(cmdBuffer);
+		_pipeline.Bind(cmdBuffer);
+
+		Viewport vp;
+		vp.height = _target.Height();
+		vp.width = (uint)((float)_target.Width() / EngineInfo::GetRenderer().CascadeShadowMapSplits());
+		vp.y = 0.0f;
+
+		struct MaterialBuffer
+		{
+			glm::vec4 TextureTransform;
+			glm::vec4 TextureLayer;
+		};
+
+		MaterialBuffer bufferData[EngineInfo::Renderer::Limits::MaxCascadeShadowMapSplits];
+		IShaderBindingsBindState bufferBindState = {};
+		bufferBindState.DynamicIndices[0].first = ShaderStrings::MaterialBufferName;
+
+		for (uint i = 0; i < EngineInfo::GetRenderer().CascadeShadowMapSplits(); i++)
+		{
+			vp.x = i * vp.width;
+			MaterialBuffer buff;
+			buff.TextureTransform = glm::vec4(vp.x / _target.Width(), vp.y / _target.Height(), vp.width / _target.Width(), vp.height / _target.Height());
+			buff.TextureLayer.x = (float)i;
+			bufferData[i] = buff;
+		}
+		_shaderBuffer.UpdateShared(bufferData, EngineInfo::GetRenderer().CascadeShadowMapSplits());
+
+		for (uint i = 0; i < EngineInfo::GetRenderer().CascadeShadowMapSplits(); i++)
+		{
+			vp.x = i * vp.width;
+			bufferBindState.DynamicIndices[0].second = i;
+			_bindings.Bind(cmdBuffer, &bufferBindState);
+
+			cmdBuffer->SetViewport(vp.x, vp.y, vp.width, vp.height);
+			cmdBuffer->SetScissor(vp.x, vp.y, vp.width, vp.height);
+			cmdBuffer->Draw(6, 1, 0, 0);
+		}
+
+		_bindings.Unbind(cmdBuffer);
+		_pipeline.Unbind(cmdBuffer);
+		pShader->Unbind(cmdBuffer);
 		_target.Unbind(cmdBuffer);
 
 		return true;

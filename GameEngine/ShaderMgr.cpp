@@ -29,6 +29,9 @@ namespace SunEngine
 	DefineStaticStr(DefaultShaders, MSAAResolve)
 	DefineStaticStr(DefaultShaders, Terrain)
 	DefineStaticStr(DefaultShaders, EnvTextureCopy)
+	DefineStaticStr(DefaultShaders, TextureArrayCopy)
+	DefineStaticStr(DefaultShaders, BoxBlur)
+	DefineStaticStr(DefaultShaders, Test)
 
 	DefineStaticStr(DefaultPipelines, ShadowDepth)
 

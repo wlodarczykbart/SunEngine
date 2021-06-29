@@ -21,6 +21,9 @@ namespace SunEngine
 		static const String MSAAResolve;
 		static const String Terrain;
 		static const String EnvTextureCopy;
+		static const String TextureArrayCopy;
+		static const String BoxBlur;
+		static const String Test;
 
 	private:
 		DefaultShaders() = delete;

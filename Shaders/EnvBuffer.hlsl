@@ -9,7 +9,6 @@
 cbuffer EnvBuffer
 {
 	float4 SunDirection;
-	float4 SunViewDirection;
 	float4 SunColor;
 
 	float4 FogColor;
@@ -17,10 +16,18 @@ cbuffer EnvBuffer
 
 	float4 TimeData;
 	float4 WindVec;
+	
+	float4 EnvProbeCenters[64];
 };
 
 TextureCube EnvTexture;
+TextureCubeArray EnvProbesTexture;
 SamplerState EnvSampler;
+
+float4 SampleEnvironment(float3 dir, uint probeIndex)
+{
+	return EnvProbesTexture.Sample(EnvSampler, float4(dir.zyx, float(probeIndex)));
+}
 
 float4 SampleEnvironment(float3 dir)
 {

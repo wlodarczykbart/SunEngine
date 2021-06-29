@@ -11,6 +11,7 @@ namespace SunEngine
 	class Asset : public Resource
 	{
 	public:
+		typedef void(*TraverseFunc)(AssetNode* pNode, void* pData);
 
 		AssetNode* AddNode(const String& name);
 		AssetNode* GetRoot() const { return _nodes.at(0).get(); }
@@ -21,6 +22,8 @@ namespace SunEngine
 		SceneNode* CreateSceneNode(Scene* pScene, float assetScale = 0.0f) const;
 
 		bool ComputeBoundingVolume(AABB& aabb) const;
+
+		void Traverse(TraverseFunc func, void* pData) const;
 	private:
 		SceneNode* BuildSceneNode(AssetNode* pCurrNode, AssetNode* pCurrParent, Scene* pScene) const;
 

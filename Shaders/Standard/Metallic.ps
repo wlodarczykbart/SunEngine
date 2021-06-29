@@ -52,7 +52,7 @@ PS_Out main(PS_In pIn)
 #endif
 
 	float3 albedo = diffuse.rgb;
-	float metallic = saturate(MetallicMap.Sample(Sampler, texCoord).r * Metallic);
+	float metallic = saturate(max(MetallicMap.Sample(Sampler, texCoord).r, 0.01) * Metallic);
 	float smoothness = (1.0 - RoughnessMap.Sample(Sampler, texCoord).r) * Smoothness;
 	float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
 	albedo *= (1.0 - metallic);
@@ -64,12 +64,15 @@ PS_Out main(PS_In pIn)
 	ao = lerp(ao, diffuse.a, pIn.normal.w);
 #endif	
 		
+#if 1//ndef SIMPLE_SHADING		
 	float3x3 tbn;
 	tbn[0] = normalize(pIn.tangent.xyz);
 	tbn[2] = normalize(pIn.normal.xyz);
 	tbn[1] = -cross(tbn[2], tbn[0]);
-	
 	float3 n = mul(NormalMap.Sample(Sampler, texCoord).xyz * 2.0 - 1.0, tbn);
+#else	
+	float3 n = lerp(normalize(pIn.normal.xyz), NormalMap.Sample(Sampler, texCoord).xyz, pIn.normal.w);
+#endif	
 		
 	ShadePixel(
 		albedo, 
@@ -79,7 +82,6 @@ PS_Out main(PS_In pIn)
 		emissive, 
 		n, 
 		pIn.position.xyz, 
-		GetScreenTexCoord(pIn.clipPos.xy), 
 		pOut);
 		
 #ifndef GBUFFER

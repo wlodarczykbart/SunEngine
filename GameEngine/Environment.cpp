@@ -12,6 +12,7 @@ namespace SunEngine
 	{
 		enabled = true;
 		heightFalloff = 0.12400f;
+		heightFalloff = 0.27200;
 		density = 0.00082f;
 		color = glm::vec3(0.25f);
 	}
@@ -25,6 +26,7 @@ namespace SunEngine
 	Environment::Environment()
 	{
 		_sunDirection = glm::normalize(glm::vec3(1, 1, 1));
+		_sunDirection = glm::vec3(-0.253, 0.320, 0.160);
 		_cloudtexture = 0;
 		_cloudBindings = UniquePtr<ShaderBindings>(new ShaderBindings());
 
