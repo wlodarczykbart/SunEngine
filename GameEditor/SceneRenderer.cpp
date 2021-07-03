@@ -178,6 +178,17 @@ namespace SunEngine
 		}
 
 		_bInit = true;
+
+		for (auto& pipeline : _helperPipelines)
+			RegisterShader(pipeline.second.GetShader());
+
+		//plug in deferred shader so it gets camera/light buffers
+		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
+		{
+			RegisterShader(ShaderMgr::Get().GetShader(DefaultShaders::Deferred)->GetBase());
+			RegisterShader(ShaderMgr::Get().GetShader(DefaultShaders::ScreenSpaceReflection)->GetBase());
+		}
+
 		return true;
 	}
 
@@ -192,6 +203,7 @@ namespace SunEngine
 
 		_currentCamera = pCamera;
 		_currentEnvironment = 0;
+		_currentShaders = _registeredShaders;
 
 		if (_currentCamera == 0)
 		{
@@ -392,21 +404,11 @@ namespace SunEngine
 		if (!_environmentBuffer->Buffer.Update(&envData))
 			return false;
 
-		for (auto& pipeline : _helperPipelines)
-			_currentShaders.insert(pipeline.second.GetShader());
-
-		//plug in deferred shader so it gets camera/light buffers
-		if (EngineInfo::GetRenderer().RenderMode() == EngineInfo::Renderer::Deferred)
-		{
-			_currentShaders.insert(ShaderMgr::Get().GetShader(DefaultShaders::Deferred)->GetBase());
-			_currentShaders.insert(ShaderMgr::Get().GetShader(DefaultShaders::ScreenSpaceReflection)->GetBase());
-		}
-
 		for (auto iter = _currentShaders.begin(); iter != _currentShaders.end(); ++iter)
 		{
 			BaseShader* pShader = (*iter);
 
-			if (pShader->ContainsBuffer(ShaderStrings::CameraBufferName) && _cameraBuffer->ShaderBindings.find(pShader) == _cameraBuffer->ShaderBindings.end())
+			if (pShader->ContainsResource(ShaderStrings::CameraBufferName) && _cameraBuffer->ShaderBindings.find(pShader) == _cameraBuffer->ShaderBindings.end())
 			{
 				ShaderBindings::CreateInfo bindInfo = {};
 				bindInfo.pShader = pShader;
@@ -417,7 +419,7 @@ namespace SunEngine
 					return false;
 			}
 
-			if ((pShader->ContainsBuffer(ShaderStrings::EnvBufferName) || pShader->ContainsResource(ShaderStrings::EnvSamplerName)) && (_environmentBuffer->ShaderBindings.find(pShader) == _environmentBuffer->ShaderBindings.end()))
+			if ((pShader->ContainsResource(ShaderStrings::EnvBufferName) || pShader->ContainsResource(ShaderStrings::EnvSamplerName)) && (_environmentBuffer->ShaderBindings.find(pShader) == _environmentBuffer->ShaderBindings.end()))
 			{
 				ShaderBindings::CreateInfo bindInfo = {};
 				bindInfo.pShader = pShader;
@@ -431,7 +433,7 @@ namespace SunEngine
 				binding.SetSampler(ShaderStrings::EnvSamplerName, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE));
 			}
 
-			if (pShader->ContainsBuffer(ShaderStrings::ShadowBufferName) && _shadowBuffer->ShaderBindings.find(pShader) == _shadowBuffer->ShaderBindings.end())
+			if (pShader->ContainsResource(ShaderStrings::ShadowBufferName) && _shadowBuffer->ShaderBindings.find(pShader) == _shadowBuffer->ShaderBindings.end())
 			{
 				ShaderBindings::CreateInfo bindInfo = {};
 				bindInfo.pShader = pShader;
@@ -568,9 +570,12 @@ namespace SunEngine
 		ProcessRenderList(cmdBuffer, _sortedRenderList);
 
 		outputInfo.pTarget->Unbind(cmdBuffer);
-
-		_currentShaders.clear();
 		return true;
+	}
+
+	bool SceneRenderer::BindEnvDataBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader) const
+	{
+		return TryBindBuffer(cmdBuffer, pShader, _environmentBuffer.get());
 	}
 
 	void SceneRenderer::ProcessRenderNode(RenderNode* pNode)

@@ -1,6 +1,7 @@
 #include <d3dcompiler.h>
 #include <direct.h>
 #include <mutex>
+#include <assert.h>
 #include "GraphicsAPIDef.h"
 #include "FileBase.h"
 #include "StringUtil.h"
@@ -14,7 +15,7 @@
 namespace SunEngine
 {
 	//Make sure this is updated when something related to the compiler changes
-	const uint SHADER_COMPILER_VERSION = 1;
+	const uint SHADER_COMPILER_VERSION = 3;
 
 	const uint HLSL_MASK_XYZW = (D3D_COMPONENT_MASK_X | D3D_COMPONENT_MASK_Y | D3D_COMPONENT_MASK_Z | D3D_COMPONENT_MASK_W);
 	const uint HLSL_MASK_XYZ = (D3D_COMPONENT_MASK_X | D3D_COMPONENT_MASK_Y | D3D_COMPONENT_MASK_Z);
@@ -22,59 +23,59 @@ namespace SunEngine
 
 	const uint ENGINE_RESOURCE_COUNT = 3;
 
+	static const Vector<uint> SHADER_STAGE_ARRAY
+	{
+		SS_VERTEX,
+		SS_PIXEL,
+		SS_GEOMETRY,
+		SS_COMPUTE
+	};
+
 	void ShaderCompiler::InitShaderBindingNames(ShaderBindingType type)
 	{
-		ShaderBindingNames names;
+		Vector<String> names;
 		switch (type)
 		{
 		case SunEngine::SBT_CAMERA:
-			names.bufferNames.push_back(ShaderStrings::CameraBufferName);
+			names.push_back(ShaderStrings::CameraBufferName);
 			break;
 		case SunEngine::SBT_OBJECT:
-			names.bufferNames.push_back(ShaderStrings::ObjectBufferName);
+			names.push_back(ShaderStrings::ObjectBufferName);
 			break;
 		case SunEngine::SBT_LIGHT:
-			names.bufferNames.push_back(ShaderStrings::PointlightBufferName);
-			names.bufferNames.push_back(ShaderStrings::SpotlightBufferName);
+			names.push_back(ShaderStrings::PointlightBufferName);
+			names.push_back(ShaderStrings::SpotlightBufferName);
 			break;
 		case SunEngine::SBT_ENVIRONMENT:
-			names.bufferNames.push_back(ShaderStrings::EnvBufferName);
-			names.textureNames.push_back(ShaderStrings::EnvTextureName);
-			names.textureNames.push_back(ShaderStrings::EnvProbesTextureName);
-			names.samplerNames.push_back(ShaderStrings::EnvSamplerName);
+			names.push_back(ShaderStrings::EnvBufferName);
+			names.push_back(ShaderStrings::EnvTextureName);
+			names.push_back(ShaderStrings::EnvProbesTextureName);
+			names.push_back(ShaderStrings::EnvSamplerName);
 			break;
 		case SunEngine::SBT_SHADOW:
-			names.bufferNames.push_back(ShaderStrings::ShadowBufferName);
-			names.textureNames.push_back(ShaderStrings::ShadowTextureName);
-			names.samplerNames.push_back(ShaderStrings::ShadowSamplerName);
+			names.push_back(ShaderStrings::ShadowBufferName);
+			names.push_back(ShaderStrings::ShadowTextureName);
+			names.push_back(ShaderStrings::ShadowSamplerName);
 			break;
 		case SunEngine::SBT_SCENE:
-			names.textureNames.push_back(ShaderStrings::SceneTextureName);
-			names.samplerNames.push_back(ShaderStrings::SceneSamplerName);
-			names.textureNames.push_back(ShaderStrings::DepthTextureName);
-			names.samplerNames.push_back(ShaderStrings::DepthSamplerName);
+			names.push_back(ShaderStrings::SceneTextureName);
+			names.push_back(ShaderStrings::SceneSamplerName);
+			names.push_back(ShaderStrings::DepthTextureName);
+			names.push_back(ShaderStrings::DepthSamplerName);
 			break;
 		case SunEngine::SBT_BONES:
-			names.bufferNames.push_back(ShaderStrings::SkinnedBoneBufferName);
+			names.push_back(ShaderStrings::SkinnedBoneBufferName);
 			break;
 		case SunEngine::SBT_MATERIAL:
-			names.bufferNames.push_back(ShaderStrings::MaterialBufferName);
-			names.bufferNames.push_back(ShaderStrings::TextureTransformBufferName);
+			names.push_back(ShaderStrings::MaterialBufferName);
+			names.push_back(ShaderStrings::TextureTransformBufferName);
 			break;
 		default:
 			break;
 		}
 
-		for (uint i = 0; i < names.bufferNames.size(); i++)
-			_bindingNameLookup.insert(names.bufferNames[i]);
-
-		for (uint i = 0; i < names.textureNames.size(); i++)
-			_bindingNameLookup.insert(names.textureNames[i]);
-
-		for (uint i = 0; i < names.samplerNames.size(); i++)
-			_bindingNameLookup.insert(names.samplerNames[i]);
-
-		_bindingNames[type] = names;
+		for (uint i = 0; i < names.size(); i++)
+			_namedBindingLookup[names[i]].bindType = (ShaderBindingType)type;
 	}
    
 	String g_ShaderAuxDir = "";
@@ -105,21 +106,16 @@ namespace SunEngine
 		_defines = defines;
 	}
 
-	void ShaderCompiler::SetVertexShaderSource(const String& vertexShader)
+	void ShaderCompiler::SetShaderSource(ShaderStage stage, const String& source)
 	{
-		_shaderSource[SS_VERTEX] = vertexShader;
-	}
-
-	void ShaderCompiler::SetPixelShaderSource(const String& pixelShader)
-	{
-		_shaderSource[SS_PIXEL] = pixelShader;
+		if(!source.empty())
+			_shaderSource[stage] = source;
 	}
 
 	bool ShaderCompiler::Compile(const String& uniqueName)
 	{
 		_shaderInfo.resources.clear();
-		_shaderInfo.buffers.clear();
-		_bindingNames.clear();
+		_namedBindingLookup.clear();
 		_numUserTextures = 0;
 		_numUserSamplers = 0;
 		_uniqueName = uniqueName;
@@ -129,16 +125,11 @@ namespace SunEngine
 
 		uint shaderFlags = 0;
 
-		if (_shaderSource.count(SS_VERTEX))
+		for (auto iter = _shaderSource.begin(); iter != _shaderSource.end(); ++iter)
 		{
-			PreProcessText(_shaderSource[SS_VERTEX], _hlslShaderText[SS_VERTEX], _glslShaderText[SS_VERTEX]);
-			shaderFlags |= SS_VERTEX;
-		}
-
-		if (_shaderSource.count(SS_PIXEL))
-		{
-			PreProcessText(_shaderSource[SS_PIXEL], _hlslShaderText[SS_PIXEL], _glslShaderText[SS_PIXEL]);
-			shaderFlags |= SS_PIXEL;
+			ShaderStage stage = (*iter).first;
+			PreProcessText((*iter).second, _hlslShaderText[stage], _glslShaderText[stage]);
+			shaderFlags |= stage;
 		}
 
 		String cachedFile = g_ShaderCacheDir + _uniqueName + ".scached";
@@ -148,30 +139,13 @@ namespace SunEngine
 				return true;
 		}
 
-		if (_shaderSource.count(SS_VERTEX))
+		for (auto iter = _shaderSource.begin(); iter != _shaderSource.end(); ++iter)
 		{
-			if (!CompileShader(SS_VERTEX))
+			if (!CompileShader((*iter).first))
 				return false;
 		}
 
-		if (_shaderSource.count(SS_PIXEL))
-		{
-			if (!CompileShader(SS_PIXEL))
-				return false;
-		}
-
-		Vector<String> unusedBuffers, unusedResources;
-
-		for (auto iter = _shaderInfo.buffers.begin(); iter != _shaderInfo.buffers.end(); ++iter)
-		{
-			if (strlen((*iter).second.name) == 0)
-				unusedBuffers.push_back((*iter).first);
-		}
-		for (uint i = 0; i < unusedBuffers.size(); i++)
-		{
-			_shaderInfo.buffers.erase(unusedBuffers[i]);
-		}
-
+		Vector<String> unusedResources;
 		for (auto iter = _shaderInfo.resources.begin(); iter != _shaderInfo.resources.end(); ++iter)
 		{
 			if (strlen((*iter).second.name) == 0)
@@ -207,6 +181,7 @@ namespace SunEngine
 		Vector<Pair<String, String>> ResourceDefintions = 
 		{
 			{"b", "cbuffer"},
+			{"u", "RWTexture2D<float4>"},
 			{"t", "Texture2DArray"},
 			{"t", "Texture2DMS<float4>"},
 			{"t", "Texture2D"},
@@ -216,15 +191,16 @@ namespace SunEngine
 		};
 
 		const String STR_REGISTER_PLACEHOLDER = "SHADER_COMPILER_REGISTER=";
-		Vector<String> registerUpdateLines;
+
+		Map<uint, String> registerUpdateLines;
 
 		for (uint i = 0; i < lines.size(); i++)
 		{
-			String line = lines[i];
+			const String& line = lines[i];
 
 			for (uint j = 0; j < ResourceDefintions.size(); j++)
 			{
-				usize resPos = lines[i].find(ResourceDefintions[j].second);
+				usize resPos = line.find(ResourceDefintions[j].second);
 				if (resPos != String::npos)
 				{
 					bool valid = true;
@@ -240,7 +216,7 @@ namespace SunEngine
 
 					if (valid)
 					{
-						String resName = lines[i].substr(resPos + ResourceDefintions[j].second.length() + 1);
+						String resName = line.substr(resPos + ResourceDefintions[j].second.length() + 1);
 						for (uint k = 0; k < resName.length(); k++)
 						{
 							if (isalpha(resName[k]) == 0)
@@ -251,102 +227,66 @@ namespace SunEngine
 						}
 
 						String strResType = ResourceDefintions[j].first;
-						if (_bindingNameLookup.count(resName) == 0)
-						{
-							if (strResType == "b")
-							{
-								_bindingNames[SBT_MATERIAL].bufferNames.push_back(resName);
-							}
-							else if (strResType == "t")
-							{
-								_bindingNames[SBT_MATERIAL].textureNames.push_back(resName);
-							}
-							else if (strResType == "s")
-							{
-								_bindingNames[SBT_MATERIAL].samplerNames.push_back(resName);
-							}
-							_bindingNameLookup.insert(resName);
-						}
-
-						line = line + STR_REGISTER_PLACEHOLDER + resName;
+						if (_namedBindingLookup.count(resName) == 0)
+							_namedBindingLookup[resName].bindType = SBT_MATERIAL;
+						_namedBindingLookup[resName].hlslRegister = strResType;
+						registerUpdateLines[i] = resName;
 					}
 					break;
 				}
 			}
-
-			registerUpdateLines.push_back(line);
 		}
 
-		struct NamedBindingInfo
-		{
-			ShaderBindingType bindType;
-			String hlslRegister;
-			uint bindings[MAX_GRAPHICS_API_TYPES];
-		};
+		Map<ShaderBindingType, uint> vulkanCounters;
+		Map<String, uint> d3d11Counters;
 
-		uint bufferIndexCounter = 0;
-		uint textureIndexCounter = 0;
-		uint samplerIndexCounter = 0;
-		StrMap<NamedBindingInfo> knownBindingInfo;
+		//supported registers
+		d3d11Counters["b"] = 0;
+		d3d11Counters["t"] = 0;
+		d3d11Counters["s"] = 0;
+		d3d11Counters["u"] = 0;
 
+		//supported sets
 		for (uint i = 0; i <= SBT_MATERIAL; i++)
+			vulkanCounters[(ShaderBindingType)i] = 0;
+
+		//First pass we compute the max bindings to start incrementing based on already set bindings
+		for (auto iter = _namedBindingLookup.begin(); iter != _namedBindingLookup.end(); ++iter)
 		{
-			auto& names = _bindingNames.at((ShaderBindingType)i);
-
-			uint vulkanBinding = 0; //vulkan bindings are local to the 'set' they are in, the set being '(ShaderBindingType)i';
-			for (uint j = 0; j < names.bufferNames.size(); j++)
+			auto& info = (*iter).second;
+			if (!info.needsBindingsSet)
 			{
-				auto& namedBinding = knownBindingInfo[names.bufferNames[j]];
-				namedBinding.bindType = (ShaderBindingType)i;
-				namedBinding.bindings[SE_GFX_VULKAN] = vulkanBinding++;
-				namedBinding.bindings[SE_GFX_D3D11] = bufferIndexCounter++;
-				namedBinding.hlslRegister = "b";
-
-				auto& shaderBuffer = _shaderInfo.buffers[names.bufferNames[j]];
-				shaderBuffer.binding[SE_GFX_VULKAN] = namedBinding.bindings[SE_GFX_VULKAN];
-				shaderBuffer.binding[SE_GFX_D3D11] = namedBinding.bindings[SE_GFX_D3D11];
-				shaderBuffer.bindType = (ShaderBindingType)i;
-				shaderBuffer.size = 0;
-			}
-
-			for (uint j = 0; j < names.textureNames.size(); j++)
-			{
-				auto& namedBinding = knownBindingInfo[names.textureNames[j]];
-				namedBinding.bindType = (ShaderBindingType)i;
-				namedBinding.bindings[SE_GFX_VULKAN] = vulkanBinding++;
-				namedBinding.bindings[SE_GFX_D3D11] = textureIndexCounter++;
-				namedBinding.hlslRegister ="t";
-
-				auto& shaderResource = _shaderInfo.resources[names.textureNames[j]];
-				shaderResource.binding[SE_GFX_VULKAN] = namedBinding.bindings[SE_GFX_VULKAN];
-				shaderResource.binding[SE_GFX_D3D11] = namedBinding.bindings[SE_GFX_D3D11];
-				shaderResource.bindType = (ShaderBindingType)i;
-				shaderResource.bindingCount = 0;
-			}
-
-			for (uint j = 0; j < names.samplerNames.size(); j++)
-			{
-				auto& namedBinding = knownBindingInfo[names.samplerNames[j]];
-				namedBinding.bindType = (ShaderBindingType)i;
-				namedBinding.bindings[SE_GFX_VULKAN] = vulkanBinding++;
-				namedBinding.bindings[SE_GFX_D3D11] = samplerIndexCounter++;
-				namedBinding.hlslRegister = "s";
-
-				auto& shaderResource = _shaderInfo.resources[names.samplerNames[j]];
-				shaderResource.binding[SE_GFX_VULKAN] = namedBinding.bindings[SE_GFX_VULKAN];
-				shaderResource.binding[SE_GFX_D3D11] = namedBinding.bindings[SE_GFX_D3D11];
-				shaderResource.bindType = (ShaderBindingType)i;
-				shaderResource.bindingCount = 0;
+				d3d11Counters.at(info.hlslRegister)++; //d3d11 binding are incremented based on resource type based on register char
+				vulkanCounters.at(info.bindType)++; //vulkan bindings are incremented based on what set they are in, which is defined by the bind type
 			}
 		}
 
-		for (uint i = 0; i < registerUpdateLines.size(); i++)
+		//Second pass we generate correct bindings
+		for (auto iter = registerUpdateLines.begin(); iter != registerUpdateLines.end(); ++iter)
 		{
-			usize placeholderPos = registerUpdateLines[i].find(STR_REGISTER_PLACEHOLDER);
-			if (placeholderPos != String::npos)
+			auto& info = _namedBindingLookup[(*iter).second];
+			if (info.needsBindingsSet)
 			{
-				auto& namedBinding = knownBindingInfo.at(registerUpdateLines[i].substr(placeholderPos + STR_REGISTER_PLACEHOLDER.length()));
-				String line = registerUpdateLines[i].substr(0, placeholderPos);
+			 	uint& d3dBinding = d3d11Counters.at(info.hlslRegister); //d3d11 binding are incremented based on resource type based on register char
+				uint& vkBinding = vulkanCounters.at(info.bindType); //vulkan bindings are incremented based on what set they are in, which is defined by the bind type
+
+				info.bindings[SE_GFX_D3D11] = d3dBinding;
+				info.bindings[SE_GFX_VULKAN] = vkBinding;
+
+				++d3dBinding;
+				++vkBinding;
+
+				info.needsBindingsSet = false;
+			}
+		}
+
+		for (uint i = 0; i < lines.size(); i++)
+		{
+			auto found = registerUpdateLines.find(i);
+			if (found != registerUpdateLines.end())
+			{
+				auto& namedBinding = _namedBindingLookup.at((*found).second);
+				const String& line = lines[i];
 
 				if(StrContains(line, ";"))
 					outHLSL += StrFormat("%s: register(%s%d);\n", StrRemove(line, ';').c_str(), namedBinding.hlslRegister.c_str(), namedBinding.bindings[SE_GFX_D3D11]);
@@ -356,8 +296,8 @@ namespace SunEngine
 			}
 			else
 			{
-				outHLSL += registerUpdateLines[i] + "\n";
-				outGLSL += registerUpdateLines[i] + "\n";
+				outHLSL += lines[i] + "\n";
+				outGLSL += lines[i] + "\n";
 			}
 		}
 
@@ -373,30 +313,33 @@ namespace SunEngine
 
 	bool ShaderCompiler::CompileShader(ShaderStage type)
 	{
-
-
 		String targetHLSL, targetGLSL;
+		BaseShader::CreateInfo& shader = _shaderInfo;
+		MemBuffer* pBinBuffer = 0;
+
 		if (type == SS_VERTEX)
 		{
 			targetHLSL = "vs_5_0";
 			targetGLSL = "vert";
+			pBinBuffer = shader.vertexBinaries;
 		}
 		else if (type == SS_PIXEL)
 		{
 			targetHLSL = "ps_5_0";
 			targetGLSL = "frag";
+			pBinBuffer = shader.pixelBinaries;
+		}
+		else if (type == SS_COMPUTE)
+		{
+			targetHLSL = "cs_5_0";
+			targetGLSL = "comp";
+			pBinBuffer = shader.computeBinaries;
 		}
 		else
 		{
 			return false;
 		}
 
-		BaseShader::CreateInfo& shader = _shaderInfo;
-
-		MemBuffer* pBinBuffer = 0;
-		if (type == SS_VERTEX) pBinBuffer = shader.vertexBinaries;
-		if (type == SS_PIXEL) pBinBuffer = shader.pixelBinaries;
-		if (type == SS_GEOMETRY) pBinBuffer = shader.geometryBinaries;
 
 		FileStream fr;
 
@@ -467,7 +410,7 @@ namespace SunEngine
 						D3D11_SIGNATURE_PARAMETER_DESC inputDesc;
 						pReflector->GetInputParameterDesc(i, &inputDesc);
 
-						if (StrContains(inputDesc.SemanticName, "SV_"))
+						if (StrContains(StrToLower(inputDesc.SemanticName), "sv_"))
 							continue;
 
 						uint mask = inputDesc.Mask;
@@ -496,79 +439,9 @@ namespace SunEngine
 						shader.vertexElements.push_back(elem);
 					}
 				}
-
-				for (uint i = 0; i < shaderDesc.ConstantBuffers; i++)
+				else if (type == SS_COMPUTE)
 				{
-					ID3D11ShaderReflectionConstantBuffer* pBuffer = pReflector->GetConstantBufferByIndex(i);
-
-					D3D11_SHADER_BUFFER_DESC bufferDesc;
-					pBuffer->GetDesc(&bufferDesc);
-
-					auto found = shader.buffers.find(bufferDesc.Name);
-					if (found != shader.buffers.end())
-					{
-						IShaderBuffer& buffer = (*found).second;
-						strncpy_s(buffer.name, bufferDesc.Name, strlen(bufferDesc.Name));
-						buffer.size = max(buffer.size, bufferDesc.Size);
-						buffer.stages |= type;
-
-						for (uint j = 0; j < bufferDesc.Variables; j++)
-						{
-							ID3D11ShaderReflectionVariable* pVar = pBuffer->GetVariableByIndex(j);
-
-							D3D11_SHADER_TYPE_DESC typeDesc;
-							pVar->GetType()->GetDesc(&typeDesc);
-
-							D3D11_SHADER_VARIABLE_DESC varDesc;
-							pVar->GetDesc(&varDesc);
-
-							ShaderBufferVariable var;
-							strncpy_s(var.name, varDesc.Name, strlen(varDesc.Name));
-							var.numElements = typeDesc.Elements;
-							var.offset = varDesc.StartOffset;
-							var.size = varDesc.Size;
-
-							String strType = StrToLower(typeDesc.Name);
-							if (strType == "float4x4" || strType == "matrix")
-							{
-								var.type = SDT_MAT4;
-							}
-							else if (strType == "float3x3")
-							{
-								var.type = SDT_MAT3;
-							}
-							else if (strType == "float2x2")
-							{
-								var.type = SDT_MAT2;
-							}
-							if (strType == "float4")
-							{
-								var.type = SDT_FLOAT4;
-							}
-							else if (strType == "float3")
-							{
-								var.type = SDT_FLOAT3;
-							}
-							else if (strType == "float2")
-							{
-								var.type = SDT_FLOAT2;
-							}
-							else if (strType == "float")
-							{
-								var.type = SDT_FLOAT;
-							}
-							else if (typeDesc.Class == D3D_SHADER_VARIABLE_CLASS::D3D_SVC_STRUCT)
-							{
-								var.type = SDT_STRUCT;
-							}
-
-							buffer.variables[buffer.numVariables++] = var;
-						}
-					}
-					else
-					{
-						(*found).second.stages |= type;
-					}
+					pReflector->GetThreadGroupSize(&shader.computeThreadGroupSize.x, &shader.computeThreadGroupSize.y, &shader.computeThreadGroupSize.z);
 				}
 
 				for (uint i = 0; i < shaderDesc.BoundResources; i++)
@@ -576,42 +449,152 @@ namespace SunEngine
 					D3D11_SHADER_INPUT_BIND_DESC resDesc = {};
 					pReflector->GetResourceBindingDesc(i, &resDesc);
 
-					if (resDesc.Type == D3D_SIT_TEXTURE || resDesc.Type == D3D_SIT_SAMPLER)
+					auto found = shader.resources.find(resDesc.Name);
+					if (found == shader.resources.end())
 					{
-						auto found = shader.resources.find(resDesc.Name);
-						if (found != shader.resources.end())
-						{
-							IShaderResource& resource = (*found).second;
-							strncpy_s(resource.name, resDesc.Name, strlen(resDesc.Name));
-							resource.stages |= type;
-							resource.bindingCount = max(resource.bindingCount, resDesc.BindCount);
+						IShaderResource& resource = shader.resources[resDesc.Name];
+						strncpy_s(resource.name, resDesc.Name, strlen(resDesc.Name));
+						resource.stages |= type;
+						resource.texture.bindingCount = resDesc.BindCount;
 
-							if (resDesc.Type == D3D_SIT_TEXTURE)
+						auto& bindInfo = _namedBindingLookup.at(resource.name);
+						assert(!bindInfo.needsBindingsSet);
+						resource.binding[SE_GFX_VULKAN] = bindInfo.bindings[SE_GFX_VULKAN];
+						resource.binding[SE_GFX_D3D11] = bindInfo.bindings[SE_GFX_D3D11];
+						resource.bindType = bindInfo.bindType;
+
+						switch (resDesc.Type)
+						{
+						case D3D_SIT_TEXTURE:
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SIT_SAMPLER:
+							resource.type = SRT_SAMPLER;
+							break;
+						case D3D_SIT_CBUFFER:
+						{
+							resource.type = SRT_BUFFER;
+
+							ID3D11ShaderReflectionConstantBuffer* pBuffer = pReflector->GetConstantBufferByName(resDesc.Name);
+
+							D3D11_SHADER_BUFFER_DESC bufferDesc;
+							pBuffer->GetDesc(&bufferDesc);
+
+							auto& buffer = resource.buffer;
+							buffer.size = bufferDesc.Size;
+
+							for (uint j = 0; j < bufferDesc.Variables; j++)
 							{
-								resource.type = SRT_TEXTURE;
-								switch (resDesc.Dimension)
+								ID3D11ShaderReflectionVariable* pVar = pBuffer->GetVariableByIndex(j);
+
+								D3D11_SHADER_TYPE_DESC typeDesc;
+								pVar->GetType()->GetDesc(&typeDesc);
+
+								D3D11_SHADER_VARIABLE_DESC varDesc;
+								pVar->GetDesc(&varDesc);
+
+								ShaderBufferVariable var;
+								strncpy_s(var.name, varDesc.Name, strlen(varDesc.Name));
+								var.numElements = typeDesc.Elements;
+								var.offset = varDesc.StartOffset;
+								var.size = varDesc.Size;
+
+								String strType = StrToLower(typeDesc.Name);
+								if (strType == "float4x4" || strType == "matrix")
 								{
-								case D3D_SRV_DIMENSION_UNKNOWN: 		  resource.dimension = SRD_UNKNOWN; break;
-								case D3D_SRV_DIMENSION_BUFFER:			  resource.dimension = SRD_BUFFER; break;
-								case D3D_SRV_DIMENSION_TEXTURE1D:		  resource.dimension = SRD_TEXTURE1D; break;
-								case D3D_SRV_DIMENSION_TEXTURE1DARRAY:	  resource.dimension = SRD_TEXTURE1DARRAY; break;
-								case D3D_SRV_DIMENSION_TEXTURE2D:		  resource.dimension = SRD_TEXTURE2D; break;
-								case D3D_SRV_DIMENSION_TEXTURE2DARRAY:	  resource.dimension = SRD_TEXTURE2DARRAY; break;
-								case D3D_SRV_DIMENSION_TEXTURE2DMS:		  resource.dimension = SRD_TEXTURE2DMS; break;
-								case D3D_SRV_DIMENSION_TEXTURE2DMSARRAY:  resource.dimension = SRD_TEXTURE2DMSARRAY; break;
-								case D3D_SRV_DIMENSION_TEXTURE3D:		  resource.dimension = SRD_TEXTURE3D; break;
-								case D3D_SRV_DIMENSION_TEXTURECUBE:		  resource.dimension = SRD_TEXTURECUBE; break;
-								case D3D_SRV_DIMENSION_TEXTURECUBEARRAY:  resource.dimension = SRD_TEXTURECUBEARRAY; break;
-								case D3D_SRV_DIMENSION_BUFFEREX:		  resource.dimension = SRD_BUFFEREX; break;
-								default:
-									break;
+									var.type = SDT_MAT4;
 								}
-							}
-							else if (resDesc.Type == D3D_SIT_SAMPLER)
-							{
-								resource.type = SRT_SAMPLER;
+								else if (strType == "float3x3")
+								{
+									var.type = SDT_MAT3;
+								}
+								else if (strType == "float2x2")
+								{
+									var.type = SDT_MAT2;
+								}
+								if (strType == "float4")
+								{
+									var.type = SDT_FLOAT4;
+								}
+								else if (strType == "float3")
+								{
+									var.type = SDT_FLOAT3;
+								}
+								else if (strType == "float2")
+								{
+									var.type = SDT_FLOAT2;
+								}
+								else if (strType == "float")
+								{
+									var.type = SDT_FLOAT;
+								}
+								else if (typeDesc.Class == D3D_SHADER_VARIABLE_CLASS::D3D_SVC_STRUCT)
+								{
+									var.type = SDT_STRUCT;
+								}
+
+								buffer.variables[buffer.numVariables++] = var;
 							}
 						}
+						break;
+						case D3D_SIT_UAV_RWTYPED:
+							resource.type = SRT_UNDEFINED;
+							resource.texture.readOnly = false;
+							break;
+						default:
+							resource.type = SRT_UNDEFINED;
+							break;
+						}
+
+						switch (resDesc.Dimension)
+						{
+						case D3D_SRV_DIMENSION_TEXTURE1D:		  
+							resource.texture.dimension = SRD_TEXTURE1D;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_TEXTURE1DARRAY:	  
+							resource.texture.dimension = SRD_TEXTURE1DARRAY;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_TEXTURE2D:		  
+							resource.texture.dimension = SRD_TEXTURE2D;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_TEXTURE2DARRAY:	  
+							resource.texture.dimension = SRD_TEXTURE2DARRAY;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_TEXTURE2DMS:		  
+							resource.texture.dimension = SRD_TEXTURE2DMS;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_TEXTURE2DMSARRAY:  
+							resource.texture.dimension = SRD_TEXTURE2DMSARRAY;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_TEXTURE3D:		  
+							resource.texture.dimension = SRD_TEXTURE3D;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_TEXTURECUBE:		  
+							resource.texture.dimension = SRD_TEXTURECUBE;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_TEXTURECUBEARRAY:  
+							resource.texture.dimension = SRD_TEXTURECUBEARRAY;
+							resource.type = SRT_TEXTURE;
+							break;
+						case D3D_SRV_DIMENSION_UNKNOWN:
+						case D3D_SRV_DIMENSION_BUFFER:
+						case D3D_SRV_DIMENSION_BUFFEREX:		 
+							break;
+						default:
+							break;
+						}
+					}
+					else
+					{
+						(*found).second.stages |= type;
 					}
 				}
 			}
@@ -730,11 +713,14 @@ namespace SunEngine
 		if (cachedFlags != stageFlags)
 			CLOSE_AND_RETURN;
 
-		uint numStages = 0;
-		if (stageFlags & SS_VERTEX) numStages++;
-		if (stageFlags & SS_PIXEL) numStages++;
+		Vector<uint> stages;
+		for (uint i = 0; i < SHADER_STAGE_ARRAY.size(); i++)
+		{
+			if (stageFlags & SHADER_STAGE_ARRAY[i])
+				stages.push_back(SHADER_STAGE_ARRAY[i]);
+		}
 
-		for (uint i = 0; i < numStages; i++)
+		for (uint i = 0; i < stages.size(); i++)
 		{
 			uint currStage;
 			if (!stream.Read(currStage))
@@ -744,30 +730,21 @@ namespace SunEngine
 			if (!stream.Read(currText))
 				CLOSE_AND_RETURN;
 
-			bool textMatches = false;
-			switch (currStage)
-			{
-			case SS_VERTEX:
-				textMatches = currText == _hlslShaderText.at(SS_VERTEX);
-				break;
-			case SS_PIXEL:
-				textMatches = currText == _hlslShaderText.at(SS_PIXEL);
-				break;
-			default:
-				break;
-			}
+			auto found = _hlslShaderText.find(ShaderStage(currStage));
+			if (found == _hlslShaderText.end())
+				CLOSE_AND_RETURN;
 
-			if (!textMatches)
+			if (currText != (*found).second)
 				CLOSE_AND_RETURN;
 		}
 
 		BaseShader::CreateInfo newInfo;
 
-		if (!stream.ReadSimple(newInfo.buffers))
-			CLOSE_AND_RETURN;
 		if (!stream.ReadSimple(newInfo.resources))
 			CLOSE_AND_RETURN;
 		if (!stream.ReadSimple(newInfo.vertexElements))
+			CLOSE_AND_RETURN;
+		if (!stream.Read(&newInfo.computeThreadGroupSize, sizeof(_shaderInfo.computeThreadGroupSize)))
 			CLOSE_AND_RETURN;
 
 		for (uint i = 0; i < MAX_GRAPHICS_API_TYPES; i++)
@@ -777,6 +754,8 @@ namespace SunEngine
 			if (!newInfo.pixelBinaries[i].Read(stream))
 				CLOSE_AND_RETURN;
 			if (!newInfo.geometryBinaries[i].Read(stream))
+				CLOSE_AND_RETURN;
+			if (!newInfo.computeBinaries[i].Read(stream))
 				CLOSE_AND_RETURN;
 		}
 
@@ -801,31 +780,27 @@ namespace SunEngine
 		if (!stream.Write(stageFlags))
 			CLOSE_AND_RETURN;
 
-		if (stageFlags & SS_VERTEX)
+		Vector<uint> stages;
+		for (uint i = 0; i < SHADER_STAGE_ARRAY.size(); i++)
 		{
-			uint currStage = SS_VERTEX;
-			if (!stream.Write(currStage))
+			if (stageFlags & SHADER_STAGE_ARRAY[i])
+				stages.push_back(SHADER_STAGE_ARRAY[i]);
+		}
+
+		for (uint i = 0; i < stages.size(); i++)
+		{
+			if (!stream.Write(stages[i]))
 				CLOSE_AND_RETURN;
 
-			if (!stream.Write(_hlslShaderText.at(SS_VERTEX)))
+			if (!stream.Write(_hlslShaderText.at(ShaderStage(stages[i]))))
 				CLOSE_AND_RETURN;
 		}
 
-		if (stageFlags & SS_PIXEL)
-		{
-			uint currStage = SS_PIXEL;
-			if (!stream.Write(currStage))
-				CLOSE_AND_RETURN;
-
-			if (!stream.Write(_hlslShaderText.at(SS_PIXEL)))
-				CLOSE_AND_RETURN;
-		}
-
-		if (!stream.WriteSimple(_shaderInfo.buffers))
-			CLOSE_AND_RETURN;
 		if (!stream.WriteSimple(_shaderInfo.resources))
 			CLOSE_AND_RETURN;
 		if (!stream.WriteSimple(_shaderInfo.vertexElements))
+			CLOSE_AND_RETURN;
+		if (!stream.Write(&_shaderInfo.computeThreadGroupSize, sizeof(_shaderInfo.computeThreadGroupSize)))
 			CLOSE_AND_RETURN;
 
 		for (uint i = 0; i < MAX_GRAPHICS_API_TYPES; i++)
@@ -836,9 +811,16 @@ namespace SunEngine
 				CLOSE_AND_RETURN;
 			if (!_shaderInfo.geometryBinaries[i].Write(stream))
 				CLOSE_AND_RETURN;
+			if (!_shaderInfo.computeBinaries[i].Write(stream))
+				CLOSE_AND_RETURN;
 		}
 
 		stream.Close();
 		return true;
+	}
+
+	ShaderCompiler::NamedBindingInfo::NamedBindingInfo()
+	{
+		needsBindingsSet = true;
 	}
 }

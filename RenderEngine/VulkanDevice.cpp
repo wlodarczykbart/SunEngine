@@ -570,6 +570,12 @@ namespace SunEngine
 		return true;
 	}
 
+	bool VulkanDevice::CreateComputePipeline(VkComputePipelineCreateInfo& info, VkPipeline* pHandle)
+	{
+		CheckVkResult(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &info, VK_NULL_HANDLE, pHandle));
+		return true;
+	}
+
 	void VulkanDevice::DestroyBuffer(VkBuffer buffer)
 	{
 		vkDestroyBuffer(_device, buffer, VK_NULL_HANDLE);
@@ -861,6 +867,132 @@ namespace SunEngine
 		vkFreeCommandBuffers(_device, _cmdPool, 1, &cmdBuffer);
 	}
 
+	bool VulkanDevice::SetImageLayout(VkImage image, uint arrayCount, uint mipCount, VkImageLayout oldLayout, VkImageLayout newLayout)
+	{
+		VkCommandBufferBeginInfo cmdInfo = {};
+		cmdInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		cmdInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		VkImageMemoryBarrier barrier = {};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.image = image;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.layerCount = arrayCount;
+		barrier.subresourceRange.levelCount = 1 + mipCount;
+
+		barrier.oldLayout = oldLayout;
+		barrier.newLayout = newLayout;
+
+		// Source layouts (old)
+		// Source access mask controls actions that have to be finished on the old layout
+		// before it will be transitioned to the new layout
+		switch (oldLayout)
+		{
+		case VK_IMAGE_LAYOUT_UNDEFINED:
+			// Image layout is undefined (or does not matter)
+			// Only valid as initial layout
+			// No flags required, listed only for completeness
+			barrier.srcAccessMask = 0;
+			break;
+
+		case VK_IMAGE_LAYOUT_PREINITIALIZED:
+			// Image is preinitialized
+			// Only valid as initial layout for linear images, preserves memory contents
+			// Make sure host writes have been finished
+			barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			// Image is a color attachment
+			// Make sure any writes to the color buffer have been finished
+			barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			// Image is a depth/stencil attachment
+			// Make sure any writes to the depth/stencil buffer have been finished
+			barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			// Image is a transfer source
+			// Make sure any reads from the image have been finished
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			// Image is a transfer destination
+			// Make sure any writes to the image have been finished
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			// Image is read by a shader
+			// Make sure any shader reads from the image have been finished
+			barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			break;
+		default:
+			// Other source layouts aren't handled (yet)
+			break;
+		}
+
+		// Target layouts (new)
+		// Destination access mask controls the dependency for the new image layout
+		switch (newLayout)
+		{
+		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			// Image will be used as a transfer destination
+			// Make sure any writes to the image have been finished
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			// Image will be used as a transfer source
+			// Make sure any reads from the image have been finished
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			// Image will be used as a color attachment
+			// Make sure any writes to the color buffer have been finished
+			barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+			// Image layout will be used as a depth/stencil attachment
+			// Make sure any writes to depth/stencil buffer have been finished
+			barrier.dstAccessMask = barrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			// Image will be read in a shader (sampler, input attachment)
+			// Make sure any writes to the image have been finished
+			if (barrier.srcAccessMask == 0)
+			{
+				barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+			}
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			break;
+		default:
+			// Other source layouts aren't handled (yet)
+			break;
+		}
+
+
+		CheckVkResult(vkBeginCommandBuffer(_utilCmd, &cmdInfo))
+		vkCmdPipelineBarrier(_utilCmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, 0, 0, 0, 1, &barrier);
+		CheckVkResult(vkEndCommandBuffer(_utilCmd));
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &_utilCmd;
+		CheckVkResult(vkQueueSubmit(_queue._queue, 1, &submitInfo, _utilFence));
+		if (!ProcessFences(&_utilFence, 1, UINT64_MAX, true)) return false;
+
+		return true;
+	}
+
 	bool VulkanDevice::WaitIdle()
 	{
 		CheckVkResult(vkDeviceWaitIdle(_device));
@@ -1119,7 +1251,7 @@ namespace SunEngine
 
 	bool VulkanDevice::createDescriptorPool()
 	{
-		VkDescriptorPoolSize sizes[3];
+		VkDescriptorPoolSize sizes[4];
 
 		sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		sizes[0].descriptorCount = 2048;
@@ -1130,10 +1262,13 @@ namespace SunEngine
 		sizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		sizes[2].descriptorCount = 2048;
 
+		sizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		sizes[3].descriptorCount = 512;
+
 		VkDescriptorPoolCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		info.maxSets = 2048;
-		info.poolSizeCount = sizeof(sizes) / sizeof(*sizes);
+		info.poolSizeCount = SE_ARR_SIZE(sizes);
 		info.pPoolSizes = sizes;
 		//info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT; //is this not effecient? using this works better for my binding scheme atm..
 

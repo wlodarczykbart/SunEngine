@@ -87,14 +87,14 @@ namespace SunEngine
 		return true;
 	}
 
-	void D3D11UniformBuffer::BindToShader(D3D11Shader* pShader, const String& name, uint binding, IBindState* pBindState)
+	void D3D11UniformBuffer::BindToShader(D3D11CommandBuffer* cmdBuffer, D3D11Shader* pShader, const String& name, uint binding, IBindState* pBindState)
 	{
 		uint offset = 0;
 		if (pBindState && pBindState->GetType() == IOBT_SHADER_BINDINGS)
 		{
 			IShaderBindingsBindState* state = static_cast<IShaderBindingsBindState*>(pBindState);
 			uint idx = 0;
-			while (!state->DynamicIndices[idx].first.empty() && idx < ARRAYSIZE(state->DynamicIndices))
+			while (!state->DynamicIndices[idx].first.empty() && idx < SE_ARR_SIZE(state->DynamicIndices))
 			{
 				if(state->DynamicIndices[idx].first == name)
 				{
@@ -104,7 +104,7 @@ namespace SunEngine
 				idx++;
 			}		
 		}
-		pShader->BindBuffer(this, binding, offset / CONST_BUFFER_ELEM_SIZE, GetAlignedSize() / CONST_BUFFER_ELEM_SIZE);
+		pShader->BindBuffer(cmdBuffer, this, name, binding, offset / CONST_BUFFER_ELEM_SIZE, GetAlignedSize() / CONST_BUFFER_ELEM_SIZE);
 	}
 
 	void D3D11UniformBuffer::Bind(ICommandBuffer * cmdBuffer, IBindState*)

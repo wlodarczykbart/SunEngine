@@ -78,9 +78,9 @@ namespace SunEngine
 		(void)cmdBuffer;
 	}
 
-	void D3D11Sampler::BindToShader(D3D11Shader* pShader, const String&, uint binding, IBindState*)
+	void D3D11Sampler::BindToShader(D3D11CommandBuffer* cmdBuffer, D3D11Shader* pShader, const String& name, uint binding, IBindState*)
 	{
-		pShader->BindSampler(this, binding);
+		pShader->BindSampler(cmdBuffer, this, name, binding);
 	}
 
 }

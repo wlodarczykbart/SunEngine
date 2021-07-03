@@ -21,6 +21,7 @@ namespace SunEngine
 	VulkanShader::VulkanShader()
 	{
 		_layout = VK_NULL_HANDLE;
+		_computePipeline = VK_NULL_HANDLE;
 		_inputBinding = {};
 
 		memset(_currentBindings, 0, sizeof(_currentBindings));
@@ -32,6 +33,7 @@ namespace SunEngine
 		_vertShader = VK_NULL_HANDLE;
 		_fragShader = VK_NULL_HANDLE;
 		_geomShader = VK_NULL_HANDLE;
+		_compShader = VK_NULL_HANDLE;
 	}
 
 
@@ -44,10 +46,12 @@ namespace SunEngine
 		VkShaderModuleCreateInfo shaderInfo = {};
 		shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 
-
-		shaderInfo.pCode = (const uint*)info.vertexBinaries[SE_GFX_VULKAN].GetData();
-		shaderInfo.codeSize = info.vertexBinaries[SE_GFX_VULKAN].GetSize();
-		if (!_device->CreateShaderModule(shaderInfo, &_vertShader)) return false;
+		if (info.vertexBinaries[SE_GFX_VULKAN].GetSize())
+		{
+			shaderInfo.pCode = (const uint*)info.vertexBinaries[SE_GFX_VULKAN].GetData();
+			shaderInfo.codeSize = info.vertexBinaries[SE_GFX_VULKAN].GetSize();
+			if (!_device->CreateShaderModule(shaderInfo, &_vertShader)) return false;
+		}
 
 		if (info.pixelBinaries[SE_GFX_VULKAN].GetSize())
 		{
@@ -61,6 +65,13 @@ namespace SunEngine
 			shaderInfo.pCode = (const uint*)info.geometryBinaries[SE_GFX_VULKAN].GetData();
 			shaderInfo.codeSize = info.geometryBinaries[SE_GFX_VULKAN].GetSize();
 			if (!_device->CreateShaderModule(shaderInfo, &_geomShader)) return false;
+		}
+
+		if (info.computeBinaries[SE_GFX_VULKAN].GetSize())
+		{
+			shaderInfo.pCode = (const uint*)info.computeBinaries[SE_GFX_VULKAN].GetData();
+			shaderInfo.codeSize = info.computeBinaries[SE_GFX_VULKAN].GetSize();
+			if (!_device->CreateShaderModule(shaderInfo, &_compShader)) return false;
 		}
 
 		Vector<IVertexElement> sortedElements = info.vertexElements;
@@ -98,28 +109,6 @@ namespace SunEngine
 		Vector<VkDescriptorSetLayoutBinding> vDescriptorSetLayoutBindings[32];
 		uint maxSet = 0;
 
-		for (auto iter = info.buffers.begin(); iter != info.buffers.end(); ++iter)
-		{
-			IShaderBuffer& desc = (*iter).second;
-
-			VkDescriptorSetLayoutBinding binding = {};
-			binding.binding = desc.binding[SE_GFX_VULKAN];
-			binding.descriptorCount = 1;
-			binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-
-			if (desc.stages & SS_VERTEX)
-				binding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-			if (desc.stages & SS_PIXEL)
-				binding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-			if (desc.stages & SS_GEOMETRY)
-				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
-
-			//_uniformBuffersMap[desc.binding] = static_cast<VulkanUniformBuffer*>(info.constBuffers[i].second);
-			vDescriptorSetLayoutBindings[desc.bindType].push_back(binding);
-			if (desc.bindType > maxSet)
-				maxSet = desc.bindType;
-		}
-
 		//Vector<VkDescriptorBindingFlagsEXT> texBindingFlags;
 		for (auto iter = info.resources.begin(); iter != info.resources.end(); ++iter)
 		{
@@ -135,11 +124,15 @@ namespace SunEngine
 				binding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
 			if (desc.stages & SS_GEOMETRY)
 				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
+			if (desc.stages & SS_COMPUTE)
+				binding.stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
 
-			if(desc.type == SRT_TEXTURE)
-				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-			else if(desc.type == SRT_SAMPLER)
+			if (desc.type == SRT_TEXTURE)
+				binding.descriptorType = desc.texture.readOnly ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			else if (desc.type == SRT_SAMPLER)
 				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+			else if (desc.type == SRT_BUFFER)
+				binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 
 			vDescriptorSetLayoutBindings[desc.bindType].push_back(binding);
 
@@ -235,6 +228,23 @@ namespace SunEngine
 		//	}
 		//}
 
+		//is a compute shader
+		if (_compShader != VK_NULL_HANDLE)
+		{
+			VkPipelineShaderStageCreateInfo stageInfo = {};
+			stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+			stageInfo.module = _compShader;
+			stageInfo.pName = "main";
+
+			VkComputePipelineCreateInfo pipelineInfo = {};
+			pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+			pipelineInfo.layout = _layout;
+			pipelineInfo.stage = stageInfo;
+			
+			if (!_device->CreateComputePipeline(pipelineInfo, &_computePipeline)) return false;
+		}
+
 		return true;
 	}
 
@@ -243,6 +253,8 @@ namespace SunEngine
 		if (_vertShader != VK_NULL_HANDLE) _device->DestroyShaderModule(_vertShader); _vertShader = VK_NULL_HANDLE;
 		if (_fragShader != VK_NULL_HANDLE) _device->DestroyShaderModule(_fragShader); _fragShader = VK_NULL_HANDLE;
 		if (_geomShader != VK_NULL_HANDLE) _device->DestroyShaderModule(_geomShader); _geomShader = VK_NULL_HANDLE;
+		if (_compShader != VK_NULL_HANDLE) _device->DestroyShaderModule(_compShader); _compShader = VK_NULL_HANDLE;
+		if (_computePipeline != VK_NULL_HANDLE) _device->DestroyPipeline(_computePipeline); _computePipeline = VK_NULL_HANDLE;
 
 		for (uint i = 0; i < _setLayouts.size(); i++)
 		{
@@ -263,6 +275,12 @@ namespace SunEngine
 	void VulkanShader::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		(void)cmdBuffer;
+
+		if (_computePipeline != VK_NULL_HANDLE)
+		{
+			VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(cmdBuffer);
+			vkCmd->BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline, _layout);
+		}
 	}
 
 	void VulkanShader::Unbind(ICommandBuffer * cmdBuffer)
@@ -288,6 +306,11 @@ namespace SunEngine
 	VkDescriptorSetLayout VulkanShader::GetDescriptorSetLayout(uint set) const
 	{
 		return _setLayouts.at(set);
+	}
+
+	bool VulkanShader::IsComputeShader() const
+	{
+		return _compShader != VK_NULL_HANDLE && _computePipeline != VK_NULL_HANDLE;
 	}
 
 	int VulkanShader::SortBindings(const void * lhs, const void * rhs)
@@ -353,30 +376,10 @@ namespace SunEngine
 		VkDescriptorSetLayoutCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
-		uint maxBufferBinding = 0;
-		for (uint i = 0; i < createInfo.bufferBindings.size(); i++)
-		{
-			VkDescriptorSetLayoutBinding binding = {};
-			binding.binding = createInfo.bufferBindings[i].binding[SE_GFX_VULKAN];
-			binding.descriptorCount = 1;
-			binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-
-			if (createInfo.bufferBindings[i].stages & SS_VERTEX)
-				binding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
-			if (createInfo.bufferBindings[i].stages & SS_PIXEL)
-				binding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-			if (createInfo.bufferBindings[i].stages & SS_GEOMETRY)
-				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
-
-			_bindingMap[createInfo.bufferBindings[i].name].binding = binding.binding;
-			layoutBindings.push_back(binding);
-
-			if (binding.binding+1 > maxBufferBinding)
-				maxBufferBinding = binding.binding+1;
-		}
-
-		_dynamicOffsets.resize(maxBufferBinding);
-		memset(_dynamicOffsets.data(), 0, sizeof(uint) * _dynamicOffsets.size());
+		uint bufferCount = 0;
+		_firstBuffer = UINT32_MAX;
+		
+		VulkanShader* pShader = static_cast<VulkanShader*>(createInfo.pShader);
 
 		for (uint i = 0; i < createInfo.resourceBindings.size(); i++)
 		{
@@ -390,27 +393,57 @@ namespace SunEngine
 				binding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
 			if (createInfo.resourceBindings[i].stages & SS_GEOMETRY)
 				binding.stageFlags |= VK_SHADER_STAGE_GEOMETRY_BIT;
+			if (createInfo.resourceBindings[i].stages & SS_COMPUTE)
+				binding.stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
 
 			if (createInfo.resourceBindings[i].type == SRT_TEXTURE)
 			{
-				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+				if (createInfo.resourceBindings[i].texture.readOnly)
+				{
+					binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+				}
+				else
+				{
+					binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+					if (pShader->IsComputeShader())
+					{
+						// Image memory barrier to make sure that compute shader writes are finished before sampling from the texture
+						VkImageMemoryBarrier imageMemoryBarrier = {};
+						imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+						// We won't be changing the layout of the image
+						imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+						imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+						imageMemoryBarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS , 0, VK_REMAINING_ARRAY_LAYERS };
+						imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+						imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+						imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+						imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+						_computeBarriers[binding.binding] = imageMemoryBarrier;
+					}
+				}
 			}
 			else if (createInfo.resourceBindings[i].type == SRT_SAMPLER)
-			{
 				binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+			else if (createInfo.resourceBindings[i].type == SRT_BUFFER)
+			{
+				binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+				_firstBuffer = min(_firstBuffer, binding.binding);
+				bufferCount++;
 			}
 
-			_bindingMap[createInfo.resourceBindings[i].name].binding = binding.binding;
-			_bindingMap[createInfo.resourceBindings[i].name].dimension = createInfo.resourceBindings[i].dimension;
+			_bindingMap[createInfo.resourceBindings[i].name].resource = createInfo.resourceBindings[i];
 			layoutBindings.push_back(binding);
 		}
+
+		_dynamicOffsets.resize(bufferCount);
+		memset(_dynamicOffsets.data(), 0, sizeof(uint) * _dynamicOffsets.size());
 
 		info.bindingCount = layoutBindings.size();
 		info.pBindings = layoutBindings.data();
 
 		if (!_device->CreateDescriptorSetLayout(info, &_layout)) return false;
 
-		_sets.resize(createInfo.bufferBindings.size() ? VulkanDevice::BUFFERED_FRAME_COUNT : 1);
+		_sets.resize(bufferCount > 0 ? VulkanDevice::BUFFERED_FRAME_COUNT : 1);
 		Vector<VkDescriptorSetLayout> layouts(_sets.size());
 		for (uint i = 0; i < _sets.size(); i++)
 			layouts[i] = _layout;
@@ -424,6 +457,19 @@ namespace SunEngine
 		return true;
 	}
 
+	bool VulkanShaderBindings::Destroy()
+	{
+		_device->DestroyDescriptorSetLayout(_layout);
+		_bindingMap.clear();
+		_dynamicOffsets.clear();
+		_computeBarriers.clear();
+		
+		for (uint i = 0; i < _sets.size(); i++)
+			_device->FreeDescriptorSet(_sets[i]);
+		_sets.clear();
+		return true;
+	}
+
 	void VulkanShaderBindings::Bind(ICommandBuffer * pCmdBuffer, IBindState* pBindState)
 	{
 		if (_sets.size())
@@ -433,17 +479,16 @@ namespace SunEngine
 			{
 				IShaderBindingsBindState* state = static_cast<IShaderBindingsBindState*>(pBindState);
 				uint idx = 0;
-				while (!state->DynamicIndices[idx].first.empty() && idx < ARRAYSIZE(state->DynamicIndices))
+				while (!state->DynamicIndices[idx].first.empty() && idx < SE_ARR_SIZE(state->DynamicIndices))
 				{
 					auto& buffInfo = _bindingMap.at(state->DynamicIndices[idx].first);
-
-					_dynamicOffsets[buffInfo.binding] = static_cast<VulkanUniformBuffer*>(buffInfo.pObject)->GetAlignedSize() * state->DynamicIndices[idx].second;
+					_dynamicOffsets[_firstBuffer - buffInfo.resource.binding[SE_GFX_VULKAN]] = static_cast<VulkanUniformBuffer*>(buffInfo.pObject)->GetAlignedSize() * state->DynamicIndices[idx].second;
 					idx++;
 				}
 			}
 
 			VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(pCmdBuffer);
-			vkCmd->BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, _setNumber, 1, &set, _dynamicOffsets.size(), _dynamicOffsets.data());
+			vkCmd->BindDescriptorSets(_setNumber, 1, &set, _dynamicOffsets.size(), _dynamicOffsets.data());
 
 			if (_dynamicOffsets.size())
 				memset(_dynamicOffsets.data(), 0x0, sizeof(uint) * _dynamicOffsets.size());
@@ -453,11 +498,16 @@ namespace SunEngine
 	void VulkanShaderBindings::Unbind(ICommandBuffer * pCmdBuffer)
 	{
 		(void)pCmdBuffer;
+
+		VulkanCommandBuffer* vkCmd = static_cast<VulkanCommandBuffer*>(pCmdBuffer);
+		for (auto iter = _computeBarriers.begin(); iter != _computeBarriers.end(); ++iter)
+			vkCmd->PipelineBarrier(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, (*iter).second);
 	}
 
 	void VulkanShaderBindings::SetUniformBuffer(IUniformBuffer* pBuffer, const String& name)
 	{
 		VulkanUniformBuffer* pVulkanBuffer = static_cast<VulkanUniformBuffer*>(pBuffer);
+		ResourceBindData& data = _bindingMap.at(name);
 		for (uint i = 0; i < _sets.size(); i++)
 		{
 			VkDescriptorBufferInfo info = {};
@@ -469,24 +519,45 @@ namespace SunEngine
 			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			set.dstSet = _sets[i];
 			set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-			set.dstBinding = _bindingMap.at(name).binding;
+			set.dstBinding = data.resource.binding[SE_GFX_VULKAN];
 			set.pBufferInfo = &info;
 			set.descriptorCount = 1;
 
 			_device->UpdateDescriptorSets(&set, 1);
 		}
-		_bindingMap.at(name).pObject = pVulkanBuffer;
+		data.pObject = pVulkanBuffer;
 	}
 
 	void VulkanShaderBindings::SetTexture(ITexture * pTexture, const String& name)
 	{
 		VulkanTexture* vkTexture = static_cast<VulkanTexture*>(pTexture);
+		ResourceBindData& data = _bindingMap.at(name);
+
 		bool cubemapToArray = 
 			(vkTexture->_viewInfo.viewType == VK_IMAGE_VIEW_TYPE_CUBE || vkTexture->_viewInfo.viewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) 
-			&& _bindingMap.at(name).dimension == SRD_TEXTURE2DARRAY;
+			&& data.resource.texture.dimension == SRD_TEXTURE2DARRAY;
 
-		BindImageView(cubemapToArray ? vkTexture->_cubeToArrayView : vkTexture->_view, vkTexture->_layout, _bindingMap.at(name).binding);
-		_bindingMap.at(name).pObject = vkTexture;
+		VkDescriptorImageInfo info = {};
+		info.imageView = cubemapToArray ? vkTexture->_cubeToArrayView : vkTexture->_view;
+		info.imageLayout = vkTexture->_layout;
+
+		for (uint i = 0; i < _sets.size(); i++)
+		{
+			VkWriteDescriptorSet set = {};
+			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			set.dstSet = _sets[i];
+			set.descriptorType = data.resource.texture.readOnly ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			set.dstBinding = data.resource.binding[SE_GFX_VULKAN];
+			set.pImageInfo = &info;
+			set.descriptorCount = 1;
+
+			_device->UpdateDescriptorSets(&set, 1);
+		}
+		data.pObject = vkTexture;
+
+		auto barrier = _computeBarriers.find(data.resource.binding[SE_GFX_VULKAN]);
+		if (barrier != _computeBarriers.end())
+			(*barrier).second.image = vkTexture->_image;
 	}
 
 	void VulkanShaderBindings::SetSampler(ISampler * pSampler, const String& name)
@@ -494,39 +565,20 @@ namespace SunEngine
 		VkDescriptorImageInfo info = {};
 		info.sampler = static_cast<VulkanSampler*>(pSampler)->_sampler;
 
+		ResourceBindData& data = _bindingMap.at(name);
 		for (uint i = 0; i < _sets.size(); i++)
 		{
 			VkWriteDescriptorSet set = {};
 			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			set.dstSet = _sets[i];
 			set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-			set.dstBinding = _bindingMap.at(name).binding;
+			set.dstBinding = data.resource.binding[SE_GFX_VULKAN];
 			set.pImageInfo = &info;
 			set.descriptorCount = 1;
 
 			_device->UpdateDescriptorSets(&set, 1);
 		}
-		_bindingMap.at(name).pObject = static_cast<VulkanSampler*>(pSampler);
-	}
-
-	void VulkanShaderBindings::BindImageView(VkImageView view, VkImageLayout layout, const uint binding)
-	{
-		VkDescriptorImageInfo info = {};
-		info.imageView = view;
-		info.imageLayout = layout;
-
-		for (uint i = 0; i < _sets.size(); i++)
-		{
-			VkWriteDescriptorSet set = {};
-			set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			set.dstSet = _sets[i];
-			set.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-			set.dstBinding = binding;
-			set.pImageInfo = &info;
-			set.descriptorCount = 1;
-
-			_device->UpdateDescriptorSets(&set, 1);
-		}
+		data.pObject = static_cast<VulkanSampler*>(pSampler);
 	}
 
 	VkDescriptorSet VulkanShaderBindings::GetCurrentSet() const

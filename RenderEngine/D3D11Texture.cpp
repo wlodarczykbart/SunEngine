@@ -17,6 +17,8 @@ namespace SunEngine
 	{
 		_texture = 0;
 		_srv = 0;
+		_cubeToArraySRV = 0;
+		_uav = 0;
 		_external = false;
 	}
 
@@ -48,35 +50,33 @@ namespace SunEngine
 		{
 			D3D11_SUBRESOURCE_DATA subData = {};
 			subData.pSysMem = info.images[i].image.Pixels;
-			subData.SysMemPitch = sizeof(Pixel) * width;
-			subDataArray.push_back(subData);
-
-			for (uint j = 0; j < info.images[i].mipLevels; j++)
+			if (subData.pSysMem)
 			{
-				subData.pSysMem = info.images[i].pMips[j].Pixels;
-				subData.SysMemPitch = sizeof(Pixel) * info.images[i].pMips[j].Width;
+				subData.SysMemPitch = sizeof(Pixel) * width;
 				subDataArray.push_back(subData);
+				for (uint j = 0; j < info.images[i].mipLevels; j++)
+				{
+					subData.pSysMem = info.images[i].pMips[j].Pixels;
+					subData.SysMemPitch = sizeof(Pixel) * info.images[i].pMips[j].Width;
+					subDataArray.push_back(subData);
+				}
 			}
 		}
 
-		D3D11_SUBRESOURCE_DATA* pSubData = subDataArray.data();
 		if (flags & ImageData::DEPTH_BUFFER)
 		{
 			texDesc.BindFlags |= D3D11_BIND_FLAG::D3D11_BIND_DEPTH_STENCIL;
 			texDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-			pSubData = 0;
 		}
 		else if (flags & ImageData::COLOR_BUFFER_RGBA8)
 		{
 			texDesc.BindFlags |= D3D11_BIND_FLAG::D3D11_BIND_RENDER_TARGET;
 			texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			pSubData = 0;
 		}
 		else if (flags & ImageData::COLOR_BUFFER_RGBA16F)
 		{
 			texDesc.BindFlags |= D3D11_BIND_FLAG::D3D11_BIND_RENDER_TARGET;
 			texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-			pSubData = 0;
 		}
 		else if (flags & ImageData::COMPRESSED_BC1)
 		{
@@ -107,6 +107,9 @@ namespace SunEngine
 			}
 		}
 
+		if (flags & ImageData::WRITABLE)
+			texDesc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+
 		if (flags & ImageData::SRGB)
 		{
 			if (texDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM) texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -119,58 +122,83 @@ namespace SunEngine
 		else if (flags & ImageData::MULTI_SAMPLES_8) _device->FillSampleDesc(texDesc.Format, 8, texDesc.SampleDesc);
 		else texDesc.SampleDesc.Count = 1;
 
-		if (!_device->CreateTexture2D(texDesc, pSubData, &_texture)) return false;
+		if (!_device->CreateTexture2D(texDesc, subDataArray.data(), &_texture)) return false;
 
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = texDesc.Format;
+		_viewDesc = {};
+		_viewDesc.Format = texDesc.Format;
 
 		if (flags & ImageData::CUBEMAP)
 		{
 			if (texDesc.ArraySize > 6)
 			{
-				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
-				srvDesc.TextureCubeArray.NumCubes = texDesc.ArraySize / 6;
-				srvDesc.TextureCubeArray.MipLevels = 1 + mips;
+				_viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
+				_viewDesc.TextureCubeArray.NumCubes = texDesc.ArraySize / 6;
+				_viewDesc.TextureCubeArray.MipLevels = 1 + mips;
 			}
 			else
 			{
-				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-				srvDesc.TextureCube.MipLevels = 1 + mips;
+				_viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+				_viewDesc.TextureCube.MipLevels = 1 + mips;
 			}
 		}
 		else if (info.numImages > 1)
 		{
 			if (texDesc.SampleDesc.Count == 1)
 			{
-				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-				srvDesc.Texture2DArray.ArraySize = info.numImages;
-				srvDesc.Texture2DArray.MipLevels = 1 + mips;
+				_viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+				_viewDesc.Texture2DArray.ArraySize = info.numImages;
+				_viewDesc.Texture2DArray.MipLevels = 1 + mips;
 			}
 			else
 			{
-				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
-				srvDesc.Texture2DMSArray.ArraySize = info.numImages;
+				_viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
+				_viewDesc.Texture2DMSArray.ArraySize = info.numImages;
 			}
 		}
 		else
 		{
 			if (texDesc.SampleDesc.Count == 1)
 			{
-				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				srvDesc.Texture2D.MipLevels = 1 + mips;
+				_viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+				_viewDesc.Texture2D.MipLevels = 1 + mips;
 			}
 			else
 			{
-				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+				_viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
 			}
 		}
 
 		if (flags & ImageData::DEPTH_BUFFER)
 		{
-			srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+			_viewDesc.Format = DXGI_FORMAT_R32_FLOAT;
 		}
 		
-		if (!_device->CreateShaderResourceView(_texture, srvDesc, &_srv)) return false;
+		if (!_device->CreateShaderResourceView(_texture, _viewDesc, &_srv)) return false;
+
+		if (flags & ImageData::CUBEMAP)
+		{
+			D3D11_SHADER_RESOURCE_VIEW_DESC cubeToArrayDesc = _viewDesc;
+			cubeToArrayDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+			cubeToArrayDesc.Texture2DArray.ArraySize = info.numImages;
+			cubeToArrayDesc.Texture2DArray.MipLevels = 1 + mips;
+			if (!_device->CreateShaderResourceView(_texture, cubeToArrayDesc, &_cubeToArraySRV)) return false;
+		}
+
+		if (flags & ImageData::WRITABLE)
+		{
+			D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+			if (info.numImages > 1)
+			{
+				uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
+				uavDesc.Texture2DArray.ArraySize = info.numImages;
+			}
+			else
+			{
+				uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+			}
+
+			if (!_device->CreateUnorderedAccessView(_texture, uavDesc, &_uav)) return false;
+		}
 
 		return true;
 	}
@@ -185,14 +213,16 @@ namespace SunEngine
 		(void)cmdBuffer;
 	}
 
-	void D3D11Texture::BindToShader(D3D11Shader* pShader, const String&, uint binding, IBindState*)
+	void D3D11Texture::BindToShader(D3D11CommandBuffer* cmdBuffer, D3D11Shader* pShader, const String& name, uint binding, IBindState*)
 	{
-		pShader->BindTexture(this, binding);
+		pShader->BindTexture(cmdBuffer, this, name, binding);
 	}
 
 	bool D3D11Texture::Destroy()
 	{
 		COM_RELEASE(_srv);
+		COM_RELEASE(_cubeToArraySRV);
+		COM_RELEASE(_uav);
 		if(!_external)
 			COM_RELEASE(_texture);
 		_external = false;

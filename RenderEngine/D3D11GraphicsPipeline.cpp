@@ -100,7 +100,7 @@ namespace SunEngine
 
 		D3D11_BLEND_DESC blendDesc = {};
 		blendDesc.AlphaToCoverageEnable = settings.mulitSampleState.enableAlphaToCoverage;
-		for (uint i = 0; i < ARRAYSIZE(blendDesc.RenderTarget); i++)
+		for (uint i = 0; i < SE_ARR_SIZE(blendDesc.RenderTarget); i++)
 		{
 			D3D11_RENDER_TARGET_BLEND_DESC blend = {};
 			blend.BlendEnable = settings.blendState.enableBlending;

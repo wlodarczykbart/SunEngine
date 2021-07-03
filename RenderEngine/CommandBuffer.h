@@ -25,6 +25,7 @@ namespace SunEngine
 		void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
 		void SetScissor(float x, float y, float width, float height);
 		void SetViewport(float x, float y, float width, float height);
+		void Dispatch(uint groupCountX, uint groupCountY, uint groupCountZ);
 	private:
 		ICommandBuffer* _apiCmdBuffer;
 	};

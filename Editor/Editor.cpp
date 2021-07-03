@@ -53,7 +53,7 @@ namespace SunEngine
 		"\n"
 		"float4 main(PS_In pIn) : SV_TARGET\n"
 		"{\n"
-		"	return Texture.Sample(Sampler, pIn.texCoord);\n"
+		"	return float4(Texture.Sample(Sampler, pIn.texCoord).rgb, 1.0);\n"
 		"}\n"
 		;
 
@@ -209,8 +209,8 @@ namespace SunEngine
 	bool Editor::CreateTextureCopyData(View* pGraphicsWindowView)
 	{
 		ShaderCompiler shaderCompiler;
-		shaderCompiler.SetVertexShaderSource(TexCopyVertexText);
-		shaderCompiler.SetPixelShaderSource(TexCopyPixelText);
+		shaderCompiler.SetShaderSource(SS_VERTEX, TexCopyVertexText);
+		shaderCompiler.SetShaderSource(SS_PIXEL, TexCopyPixelText);
 
 		if (!shaderCompiler.Compile())
 			return false;
@@ -349,11 +349,12 @@ namespace SunEngine
 		for (auto iter = _views.begin(); iter != _views.end(); ++iter)
 		{
 			View* pView = (*iter).second.get();
-			bool result = pView->Render(cmdBuffer);
-			assert(result);
 
 			if (pView->GetRenderToGraphicsWindow())
 				pGraphicsWindowView = pView;
+
+			bool result = pView->Render(cmdBuffer);
+			assert(result);
 		}
 
 		_graphicsSurface.Bind(cmdBuffer);

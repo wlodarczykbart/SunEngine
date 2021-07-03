@@ -29,7 +29,6 @@ namespace SunEngine
 		_numTargets = 0;
 		_width = 0;
 		_height = 0;
-		_viewport = {};
 	}
 
 	D3D11RenderTarget::~D3D11RenderTarget()
@@ -45,12 +44,6 @@ namespace SunEngine
 		_layers.resize(info.numLayers);
 		if (!createViews(info.colorBuffers, info.depthBuffer)) 
 			return false;
-
-		_viewport = {};
-		_viewport.Width = (float)_width;
-		_viewport.Height = (float)_height;
-		_viewport.MinDepth = 0.0f;
-		_viewport.MaxDepth = 1.0f;
 
 		return true;
 	}
@@ -100,7 +93,8 @@ namespace SunEngine
 			dxCmd->ClearDepthStencilView(pLayer->dsv, D3D11_CLEAR_DEPTH, 1.0f, 0xff);
 		}
 
-		dxCmd->BindViewports(1, &_viewport);
+		dxCmd->SetViewport(0.0f, 0.0f, (float)_width, (float)_height);
+		dxCmd->SetScissor(0.0f, 0.0f, (float)_width, (float)_height);
 	}
 
 	void D3D11RenderTarget::Unbind(ICommandBuffer * cmdBuffer)
@@ -122,16 +116,10 @@ namespace SunEngine
 				//DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
 				D3D11Texture* pTex = static_cast<D3D11Texture*>(pColorTexures[j]);
 
-				D3D11_TEXTURE2D_DESC texDesc;
-				pTex->_texture->GetDesc(&texDesc);
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc;
-				pTex->_srv->GetDesc(&viewDesc);
-
 				//_device->Get
 				D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-				rtvDesc.ViewDimension = RTVDimensionMap.at(viewDesc.ViewDimension);
-				rtvDesc.Format = viewDesc.Format;
+				rtvDesc.ViewDimension = RTVDimensionMap.at(pTex->GetViewDimension());
+				rtvDesc.Format = pTex->GetFormat();
 
 				switch (rtvDesc.ViewDimension)
 				{
@@ -154,14 +142,8 @@ namespace SunEngine
 			{
 				D3D11Texture* pTex = static_cast<D3D11Texture*>(pDepthTex);
 
-				D3D11_TEXTURE2D_DESC texDesc;
-				pTex->_texture->GetDesc(&texDesc);
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC viewDesc;
-				pTex->_srv->GetDesc(&viewDesc);
-
 				D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-				dsvDesc.ViewDimension = DSVDimensionMap.at(viewDesc.ViewDimension);
+				dsvDesc.ViewDimension = DSVDimensionMap.at(pTex->GetViewDimension());
 
 				switch (dsvDesc.ViewDimension)
 				{
@@ -177,9 +159,10 @@ namespace SunEngine
 					break;
 				}
 
-				if (viewDesc.Format == DXGI_FORMAT_R32_TYPELESS) dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
-				else if (viewDesc.Format == DXGI_FORMAT_R32_FLOAT) dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
-				else if (viewDesc.Format == DXGI_FORMAT_R24G8_TYPELESS) dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+				DXGI_FORMAT format = pTex->GetFormat();
+				if (format == DXGI_FORMAT_R32_TYPELESS) dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+				else if (format == DXGI_FORMAT_R32_FLOAT) dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+				else if (format == DXGI_FORMAT_R24G8_TYPELESS) dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 				if (!_device->CreateDepthStencilView(dsvDesc, pTex->_texture, &_layers[i].dsv)) return false;
 			}

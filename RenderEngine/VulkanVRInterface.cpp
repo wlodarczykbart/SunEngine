@@ -100,7 +100,7 @@ namespace SunEngine
 		};
 
 		static XrSwapchainImageVulkan2KHR imageHeaders[64];
-		for (uint i = 0; i < ARRAYSIZE(imageHeaders); i++)
+		for (uint i = 0; i < SE_ARR_SIZE(imageHeaders); i++)
 			imageHeaders[i].type = XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR;
 		info.outImageHeaders = imageHeaders;
 

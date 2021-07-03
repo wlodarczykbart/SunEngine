@@ -46,38 +46,18 @@ namespace SunEngine
 		void Bind(ICommandBuffer* cmdBuffer, IBindState* pBindState) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
 
-		void BindTexture(D3D11Texture* pTexture, uint binding);
-		void BindSampler(D3D11Sampler* pSampler, uint binding);
-		void BindBuffer(D3D11UniformBuffer* pBuffer, uint binding, uint firstConstant, uint numConstants);
+		void BindTexture(D3D11CommandBuffer* cmdBuffer, D3D11Texture* pTexture, const String& name, uint binding);
+		void BindSampler(D3D11CommandBuffer* cmdBuffer, D3D11Sampler* pSampler, const String& name, uint binding);
+		void BindBuffer(D3D11CommandBuffer* cmdBuffer, D3D11UniformBuffer* pBuffer, const String& name, uint binding, uint firstConstant, uint numConstants);
 	private:
-		typedef void(SunEngine::D3D11Shader::*BindConstantBufferFunc)(ID3D11Buffer*, uint binding, uint firstConstant, uint numConstants);
-		typedef void(SunEngine::D3D11Shader::*BindSamplerFunc)(ID3D11SamplerState*, uint binding);
-		typedef void(SunEngine::D3D11Shader::*BindShaderResourceFunc)(ID3D11ShaderResourceView*, uint binding);
-
-		void BindShaderResourceView(ID3D11ShaderResourceView* pSRV, uint binding);
-
-		void BindConstantBufferVS(ID3D11Buffer* pBuffer, uint binding, uint firstConstant, uint numConstants);
-		void BindConstantBufferPS(ID3D11Buffer* pBuffer, uint binding, uint firstConstant, uint numConstants);
-		void BindConstantBufferGS(ID3D11Buffer* pBuffer, uint binding, uint firstConstant, uint numConstants);
-
-		void BindSamplerVS(ID3D11SamplerState* pSampler, uint binding);
-		void BindSamplerPS(ID3D11SamplerState* pSampler, uint binding);
-		void BindSamplerGS(ID3D11SamplerState* pSampler, uint binding);
-
-		void BindShaderResourceVS(ID3D11ShaderResourceView* pShaderResourceView, uint binding);
-		void BindShaderResourcePS(ID3D11ShaderResourceView* pShaderResourceView, uint binding);
-		void BindShaderResourceGS(ID3D11ShaderResourceView* pShaderResourceView, uint binding);
-
 		friend class D3D11GraphicsPipeline;
 
 		ID3D11VertexShader* _vertexShader;
 		ID3D11PixelShader* _pixelShader;
 		ID3D11GeometryShader* _geometryShader;
+		ID3D11ComputeShader* _computeShader;
 		ID3D11InputLayout* _inputLayout;
-
-		Map<uint, Vector<BindConstantBufferFunc>> _constBufferFuncMap;
-		Map<uint, Vector<BindSamplerFunc>> _samplerFuncMap;
-		Map<uint, Vector<BindShaderResourceFunc>> _textureFuncMap;
+		StrMap<IShaderResource> _resourceMap;
 	
 	};
 

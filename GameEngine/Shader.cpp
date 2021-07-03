@@ -61,27 +61,30 @@ namespace SunEngine
 		if (pShaderSection == 0)
 			return false;
 
-		//shaders require a vertex shader at minimum
-		String vs = pShaderSection->GetString("vs");
-		if (vs.empty())
+		Map<ShaderStage, String> inputShaders;
+
+		inputShaders[SS_VERTEX] = pShaderSection->GetString("vs");
+		inputShaders[SS_COMPUTE] = pShaderSection->GetString("cs");
+		if (inputShaders[SS_VERTEX].empty() && inputShaders[SS_COMPUTE].empty()) //vertex or compute shader required
 			return false;
-		String ps = pShaderSection->GetString("ps");
-		String gs = pShaderSection->GetString("gs");
+		inputShaders[SS_PIXEL] = pShaderSection->GetString("ps");
+		inputShaders[SS_GEOMETRY] = pShaderSection->GetString("gs");
 
 		String sourceDir = EngineInfo::GetPaths().ShaderSourceDir();
 		bool isText = pShaderSection->GetInt("isText", 0) == 1;
-		if (!isText)
+		Vector<ShaderStage> removeList;
+
+		for (auto& shaderSource : inputShaders)
 		{
-			Vector<String*> inputFiles = { &vs, &ps, &gs };
-			for (auto pFilename : inputFiles)
+			if (!shaderSource.second.empty())
 			{
-				if (!pFilename->empty())
+				if (!isText)
 				{
 					FileStream fr;
-					String path = sourceDir + *pFilename;
+					String path = sourceDir + shaderSource.second;
 					if (fr.OpenForRead(path.c_str()))
 					{
-						fr.ReadText(*pFilename);
+						fr.ReadText(shaderSource.second);
 						fr.Close();
 					}
 					else
@@ -91,13 +94,21 @@ namespace SunEngine
 					}
 				}
 			}
+			else
+			{
+				removeList.push_back(shaderSource.first);
+			}
 		}
+
+		for (uint i = 0; i < removeList.size(); i++)
+			inputShaders.erase(removeList[i]);
 
 		ShaderCompiler baseCompiler;
 		if(pDefines)
 			baseCompiler.SetDefines(*pDefines);
-		baseCompiler.SetVertexShaderSource(vs);
-		baseCompiler.SetPixelShaderSource(ps);
+
+		for (auto& shaderSource : inputShaders)
+			baseCompiler.SetShaderSource(shaderSource.first, shaderSource.second);
 
 		if (!baseCompiler.Compile(_name))
 		{
@@ -135,13 +146,24 @@ namespace SunEngine
 
 				if (variantShaders.empty())
 				{
-					variantCompiler.SetVertexShaderSource(vs);
-					variantCompiler.SetPixelShaderSource(ps);
+					for (auto& shaderSource : inputShaders)
+						variantCompiler.SetShaderSource(shaderSource.first, shaderSource.second);
 				}
 				else
 				{
-					if (StrContains(variantShaders, "vs")) variantCompiler.SetVertexShaderSource(vs);
-					if (StrContains(variantShaders, "ps")) variantCompiler.SetPixelShaderSource(ps);
+					const Vector<Pair<String, ShaderStage>> StrToStageEnum =
+					{
+						{ "vs", SS_VERTEX },
+						{ "ps", SS_PIXEL },
+						{ "gs", SS_GEOMETRY },
+						{ "cs", SS_COMPUTE },
+					};
+
+					for (auto& stage : StrToStageEnum)
+					{
+						if (StrContains(variantShaders, stage.first.c_str()))
+							variantCompiler.SetShaderSource(stage.second, inputShaders.at(stage.second));
+					}
 				}
 
 				String variantName = _name.size() ? _name + "_" + StrReplace(variantString, { ',' }, '_') : "";
@@ -374,9 +396,6 @@ namespace SunEngine
 
 			pVariant->defaults.clear();
 
-			Vector<IShaderBuffer> buffers;
-			pVariant->shader.GetBufferInfos(buffers);
-
 			Vector<IShaderResource> resources;
 			pVariant->shader.GetResourceInfos(resources);
 
@@ -385,10 +404,9 @@ namespace SunEngine
 				const IShaderResource& res = (*iter);
 				if (res.bindType == SBT_MATERIAL)
 				{
-
 					if (res.type == SRT_TEXTURE)
 					{
-						if (res.dimension == SRD_TEXTURE2D)
+						if (res.texture.dimension == SRD_TEXTURE2D)
 						{
 							pVariant->defaults[res.name].Type = SPT_TEXTURE2D;
 							pVariant->defaults[res.name].pTexture2D = resMgr.GetTexture2D("Black");
@@ -399,37 +417,33 @@ namespace SunEngine
 						pVariant->defaults[res.name].Type = SPT_SAMPLER;
 						pVariant->defaults[res.name].pSampler = resMgr.GetSampler(SE_FM_LINEAR, SE_WM_REPEAT, SE_AM_OFF);
 					}
-				}
-			}
-
-			for (auto iter = buffers.begin(); iter != buffers.end(); ++iter)
-			{
-				const IShaderBuffer& buff = (*iter);
-				if (buff.bindType == SBT_MATERIAL)
-				{
-					for (uint i = 0; i < buff.numVariables; i++)
+					else if (res.type == SRT_BUFFER)
 					{
-						const ShaderBufferVariable& var = buff.variables[i];
-						switch (var.type)
+						const auto& buff = (*iter).buffer;
+						for (uint i = 0; i < buff.numVariables; i++)
 						{
-						case SDT_FLOAT:
-							pVariant->defaults[var.name].Type = SPT_FLOAT;
-							pVariant->defaults[var.name].float1 = 0.0f;
-							break;
-						case SDT_FLOAT2:
-							pVariant->defaults[var.name].Type = SPT_FLOAT2;
-							pVariant->defaults[var.name].float2 = glm::vec2(0.0f);
-							break;
-						case SDT_FLOAT3:
-							pVariant->defaults[var.name].Type = SPT_FLOAT3;
-							pVariant->defaults[var.name].float3 = glm::vec3(0.0f);
-							break;
-						case SDT_FLOAT4:
-							pVariant->defaults[var.name].Type = SPT_FLOAT4;
-							pVariant->defaults[var.name].float4 = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-							break;
-						default:
-							break;
+							const ShaderBufferVariable& var = buff.variables[i];
+							switch (var.type)
+							{
+							case SDT_FLOAT:
+								pVariant->defaults[var.name].Type = SPT_FLOAT;
+								pVariant->defaults[var.name].float1 = 0.0f;
+								break;
+							case SDT_FLOAT2:
+								pVariant->defaults[var.name].Type = SPT_FLOAT2;
+								pVariant->defaults[var.name].float2 = glm::vec2(0.0f);
+								break;
+							case SDT_FLOAT3:
+								pVariant->defaults[var.name].Type = SPT_FLOAT3;
+								pVariant->defaults[var.name].float3 = glm::vec3(0.0f);
+								break;
+							case SDT_FLOAT4:
+								pVariant->defaults[var.name].Type = SPT_FLOAT4;
+								pVariant->defaults[var.name].float4 = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+								break;
+							default:
+								break;
+							}
 						}
 					}
 				}

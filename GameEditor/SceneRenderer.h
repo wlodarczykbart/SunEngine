@@ -54,6 +54,9 @@ namespace SunEngine
 		BaseTexture* GetShadowMapTexture() const { return _depthTarget.GetDepthTexture(); }
 		void SetCascadeSplitLambda(float lambda) { _cascadeSplitLambda = lambda; }
 
+		void RegisterShader(BaseShader* pShader) { _registeredShaders.insert(pShader); }
+		bool BindEnvDataBuffer(CommandBuffer* cmdBuffer, BaseShader* pShader) const;
+
 	private:
 		struct UniformBufferData
 		{
@@ -171,11 +174,9 @@ namespace SunEngine
 
 		RenderTarget _envTarget;
 		ReflectionProbeData _envProbeData;
-
-
-
-
 		AABB _shadowCasterAABB;
+
+		HashSet<BaseShader*> _registeredShaders;
 	};
 
 }

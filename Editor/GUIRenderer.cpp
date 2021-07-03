@@ -249,8 +249,8 @@ namespace SunEngine
 			return false;
 
 		ShaderCompiler shaderCompiler;
-		shaderCompiler.SetVertexShaderSource(GUIVertexText);
-		shaderCompiler.SetPixelShaderSource(GUIPixelText);
+		shaderCompiler.SetShaderSource(SS_VERTEX, GUIVertexText);
+		shaderCompiler.SetShaderSource(SS_PIXEL, GUIPixelText);
 
 		if (!shaderCompiler.Compile())
 			return false;

@@ -161,4 +161,23 @@ namespace SunEngine
 		GraphicsPipeline _pipeline;
 	};
 
+	class ComputeView : public View
+	{
+	public:
+		ComputeView(SceneRenderer* pSceneRenderer);
+
+	private:
+		bool OnCreate(const CreateInfo&) override;
+		bool Render(CommandBuffer* cmdBuffer) override;
+		void RenderGUI(GUIRenderer* pRenderer) override;
+		uint GetGUIColumns() const override { return 1; }
+
+		SceneRenderer* _sceneRenderer;
+		ShaderBindings _computeBindings;
+		BaseTexture _texture;
+
+		ShaderBindings _bindings;
+		GraphicsPipeline _pipeline;
+	};
+
 }

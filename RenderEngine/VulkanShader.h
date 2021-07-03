@@ -24,6 +24,7 @@ namespace SunEngine
 		~VulkanShaderBindings();
 
 		bool Create(const IShaderBindingCreateInfo& createInfo) override;
+		bool Destroy() override;
 
 		void Bind(ICommandBuffer *pCmdBuffer, IBindState* pBindState) override;
 		void Unbind(ICommandBuffer *pCmdBuffer) override;
@@ -37,17 +38,13 @@ namespace SunEngine
 		{
 			ResourceBindData()
 			{
-				binding = 0;
-				dimension = SRD_UNKNOWN;
 				pObject = 0;
 			}
 
-			uint binding;
-			ShaderResourceDimension dimension;
+			IShaderResource resource;
 			VulkanObject* pObject;
 		};
 
-		void BindImageView(VkImageView view, VkImageLayout layout, uint binding);
 		VkDescriptorSet GetCurrentSet() const;
 
 		uint _setNumber;
@@ -55,6 +52,9 @@ namespace SunEngine
 		VkDescriptorSetLayout _layout;
 		StrMap<ResourceBindData> _bindingMap;
 		Vector<uint> _dynamicOffsets;
+		uint _firstBuffer;
+
+		Map<uint, VkImageMemoryBarrier> _computeBarriers;
 	};
 
 	class VulkanShader : public VulkanObject, public IShader
@@ -73,6 +73,8 @@ namespace SunEngine
 		VkDescriptorSetLayout GetDescriptorSetLayout(uint set) const;
 
 		//VkDescriptorSetLayoutBinding GetDescriptorSetLayoutBinding(DescriptorSet set, uint binding) const;
+
+		bool IsComputeShader() const;
 
 	private:
 		enum BindingDataType
@@ -110,6 +112,7 @@ namespace SunEngine
 		VkShaderModule _vertShader;
 		VkShaderModule _fragShader;
 		VkShaderModule _geomShader;
+		VkShaderModule _compShader;
 
 		Vector<VkVertexInputAttributeDescription> _inputAttribs;
 		VkVertexInputBindingDescription _inputBinding;
@@ -121,11 +124,14 @@ namespace SunEngine
 		//Vector<uint> _dynamicOffsetTable;
 
 		VkPipelineLayout _layout;
+		VkPipeline _computePipeline; //compute has no reason to need varying pipeline states from the same shader(I think?), so one pipeline exists here
 
 		BindingData _previousBindings[MAX_BINDINGS_PER_DRAW];
 		uint _prevBindingCount;
 
 		BindingData _currentBindings[MAX_BINDINGS_PER_DRAW];
 		uint _currBindingCount;
+
+
 	};
 }

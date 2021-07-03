@@ -34,7 +34,6 @@ namespace SunEngine
 		uint _height;
 
 		Vector<RenderLayer> _layers;
-		D3D11_VIEWPORT _viewport;
 	};
 
 }

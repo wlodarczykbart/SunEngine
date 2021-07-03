@@ -18,7 +18,7 @@ namespace SunEngine
 
 		void Bind(ICommandBuffer* cmdBuffer, IBindState* pBindState) override;
 		void Unbind(ICommandBuffer* cmdBuffer) override;
-		void BindToShader(D3D11Shader* pShader, const String& name, uint binding, IBindState* pBindState) override;
+		void BindToShader(D3D11CommandBuffer* cmdBuffer, D3D11Shader* pShader, const String& name, uint binding, IBindState* pBindState) override;
 
 	private:
 		friend class D3D11Shader;

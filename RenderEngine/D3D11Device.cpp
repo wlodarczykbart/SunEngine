@@ -37,7 +37,7 @@ namespace SunEngine
 			0,
 			flags,
 			features,
-			ARRAYSIZE(features),
+			SE_ARR_SIZE(features),
 			D3D11_SDK_VERSION,
 			&device,
 			&outFeatureLevel,
@@ -125,6 +125,12 @@ namespace SunEngine
 		return true;
 	}
 
+	bool D3D11Device::CreateComputeShader(void* pCompiledCode, UINT codeSize, ID3D11ComputeShader** ppHandle)
+	{
+		CheckDXResult(_device->CreateComputeShader(pCompiledCode, codeSize, 0, ppHandle));
+		return true;
+	}
+
 	bool D3D11Device::CreateInputLayout(D3D11_INPUT_ELEMENT_DESC* pElements, UINT numElements, void * pCompiledVertexShaderCode, UINT codeSize, ID3D11InputLayout ** ppHandle)
 	{
 		CheckDXResult(_device->CreateInputLayout(pElements, numElements, pCompiledVertexShaderCode, codeSize, ppHandle));
@@ -161,6 +167,12 @@ namespace SunEngine
 		return true;
 	}
 
+	bool D3D11Device::CreateUnorderedAccessView(ID3D11Resource* pResource, D3D11_UNORDERED_ACCESS_VIEW_DESC& desc, ID3D11UnorderedAccessView** ppHandle)
+	{
+		CheckDXResult(_device->CreateUnorderedAccessView(pResource, &desc, ppHandle));
+		return true;
+	}
+
 	bool D3D11Device::Map(ID3D11Resource* pResource, UINT subresource, D3D11_MAP mapType, UINT mapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource)
 	{
 		CheckDXResult(_context->Map(pResource, subresource, mapType, mapFlags, pMappedResource));
@@ -177,69 +189,6 @@ namespace SunEngine
 	{
 		cmdBuffer->_context = _context;
 		return false;
-	}
-
-	bool D3D11Device::VSSetConstantBuffer(UINT startSlot, ID3D11Buffer* pBuffer, uint firstConstant, uint numConstants)
-	{
-		if (firstConstant == 0)
-			_context->VSSetConstantBuffers(startSlot, 1, &pBuffer);
-		else
-			_context->VSSetConstantBuffers1(startSlot, 1, &pBuffer, &firstConstant, &numConstants);
-		return true;
-	}
-
-	bool D3D11Device::PSSetConstantBuffer(UINT startSlot, ID3D11Buffer* pBuffer, uint firstConstant, uint numConstants)
-	{
-		if (firstConstant == 0)
-			_context->PSSetConstantBuffers(startSlot, 1, &pBuffer);
-		else
-			_context->PSSetConstantBuffers1(startSlot, 1, &pBuffer, &firstConstant, &numConstants);
-		return true;
-	}
-
-	bool D3D11Device::GSSetConstantBuffer(UINT startSlot, ID3D11Buffer * pBuffer, uint firstConstant, uint numConstants)
-	{
-		if (firstConstant == 0)
-			_context->GSSetConstantBuffers(startSlot, 1, &pBuffer);
-		else
-			_context->GSSetConstantBuffers1(startSlot, 1, &pBuffer, &firstConstant, &numConstants);
-		return true;
-	}
-
-	bool D3D11Device::VSSetSampler(UINT startSlot, ID3D11SamplerState* pSampler)
-	{
-		_context->VSSetSamplers(startSlot, 1, &pSampler);
-		return true;
-	}
-
-	bool D3D11Device::PSSetSampler(UINT startSlot, ID3D11SamplerState* pSampler)
-	{
-		_context->PSSetSamplers(startSlot, 1, &pSampler);
-		return true;
-	}
-
-	bool D3D11Device::GSSetSampler(UINT startSlot, ID3D11SamplerState * pSampler)
-	{
-		_context->GSSetSamplers(startSlot, 1, &pSampler);
-		return true;
-	}
-
-	bool D3D11Device::VSSetShaderResource(UINT startSlot, ID3D11ShaderResourceView* pResource)
-	{
-		_context->VSSetShaderResources(startSlot, 1, &pResource);
-		return true;
-	}
-
-	bool D3D11Device::PSSetShaderResource(UINT startSlot, ID3D11ShaderResourceView* pResource)
-	{
-		_context->PSSetShaderResources(startSlot, 1, &pResource);
-		return true;
-	}
-
-	bool D3D11Device::GSSetShaderResource(UINT startSlot, ID3D11ShaderResourceView * pResource)
-	{
-		_context->GSSetShaderResources(startSlot, 1, &pResource);
-		return true;
 	}
 
 	bool D3D11Device::UpdateSubresource(ID3D11Resource* pResource, UINT dstSubresource, D3D11_BOX* pDstBox, const void* pSrcData, UINT srcPitchRow, UINT srcDepthPitch)
@@ -276,6 +225,11 @@ namespace SunEngine
 			desc.Quality = 0;
 			return false;
 		}
+	}
+
+	void D3D11Device::LogError(const String& err)
+	{
+		_errMsg = err;
 	}
 
 	const String &D3D11Device::GetErrorMsg() const

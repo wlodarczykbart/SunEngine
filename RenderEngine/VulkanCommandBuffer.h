@@ -21,15 +21,17 @@ namespace SunEngine
 		void BeginRenderPass(const VkRenderPassBeginInfo &info, uint numTargets, MSAAMode msaaMode);
 		void EndRenderPass();
 		void BindPipeline(VkPipelineBindPoint bindPoint, VkPipeline pipeline, VkPipelineLayout layout);
-		void BindDescriptorSets(VkPipelineBindPoint bindPoint, uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets);
+		void BindDescriptorSets(uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets);
 
 		void BindVertexBuffer(VkBuffer buffer, VkDeviceSize offset);
 		void BindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
+		void PipelineBarrier(VkPipelineStageFlags srcStageMasks, VkPipelineStageFlags dstStateMasks, VkDependencyFlags depedencyFlags, const VkImageMemoryBarrier& barrier);
 
 		void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance) override;
 		void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance) override;
 		void SetScissor(float x, float y, float width, float height) override;
 		void SetViewport(float x, float y, float width, float height) override;
+		void Dispatch(uint groupCountX, uint groupCountY, uint groupCountZ) override;
 
 		//void SetViewport(const VkViewport &viewport);
 		//void SetScissor(const VkRect2D &rect);
@@ -48,6 +50,7 @@ namespace SunEngine
 		VkRenderPassBeginInfo _currentRenderPass;
 		VkPipeline _currentPipeline;
 		VkPipelineLayout _currentPipelineLayout;
+		VkPipelineBindPoint _currentPipelineBindPoint;
 		uint _currentNumTargets;
 		MSAAMode _currentMSAAMode;
 	};

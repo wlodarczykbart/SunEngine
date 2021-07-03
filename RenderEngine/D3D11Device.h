@@ -12,7 +12,7 @@
 #include "IDevice.h"
 
 #define COM_RELEASE(dx) if(dx) {dx->Release(); dx = 0;}
-#define CheckDXResult(expression) if(expression != S_OK) { _errMsg = StrFormat("Error on line %d, %s\n",  __LINE__, #expression); return false; }
+#define CheckDXResult(expression) if(expression != S_OK) { LogError(StrFormat("Error on line %d, %s\n",  __LINE__, #expression)); return false; }
 
 namespace SunEngine
 {
@@ -40,27 +40,19 @@ namespace SunEngine
 		bool CreateVertexShader(void* pCompiledCode, UINT codeSize, ID3D11VertexShader **ppHandle);
 		bool CreatePixelShader(void* pCompiledCode, UINT codeSize, ID3D11PixelShader **ppHandle);
 		bool CreateGeometryShader(void * pCompiledCode, UINT codeSize, ID3D11GeometryShader ** ppHandle);
+		bool CreateComputeShader(void* pCompiledCode, UINT codeSize, ID3D11ComputeShader** ppHandle);
 		bool CreateInputLayout(D3D11_INPUT_ELEMENT_DESC* pElements, UINT numElements, void* pCompiledVertexShaderCode, UINT codeSize, ID3D11InputLayout **ppHandle);
 		bool CreateTexture2D(D3D11_TEXTURE2D_DESC& desc, D3D11_SUBRESOURCE_DATA* subData, ID3D11Texture2D** ppHandle);
 		bool CreateShaderResourceView(ID3D11Resource* pResource, D3D11_SHADER_RESOURCE_VIEW_DESC& desc, ID3D11ShaderResourceView** ppHandle);
 		bool CreateRasterizerState(D3D11_RASTERIZER_DESC& desc, ID3D11RasterizerState** ppHandle);
 		bool CreateDepthStencilState(D3D11_DEPTH_STENCIL_DESC& desc, ID3D11DepthStencilState** ppHandle);
 		bool CreateBlendState(D3D11_BLEND_DESC& desc, ID3D11BlendState** ppHandle);
+		bool CreateUnorderedAccessView(ID3D11Resource* pResource, D3D11_UNORDERED_ACCESS_VIEW_DESC& desc, ID3D11UnorderedAccessView** ppHandle);
 
 
 		bool Map(ID3D11Resource* pResource, UINT subresource, D3D11_MAP mapType, UINT mapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource);
 		bool Unmap(ID3D11Resource* pResource, UINT subresource);
 		bool AllocateCommandBuffer(D3D11CommandBuffer* cmdBuffer);
-
-		bool VSSetConstantBuffer(UINT startSlot, ID3D11Buffer* pBuffer, uint firstConstant, uint numConstants);
-		bool PSSetConstantBuffer(UINT startSlot, ID3D11Buffer* pBuffer, uint firstConstant, uint numConstants);
-		bool GSSetConstantBuffer(UINT startSlot, ID3D11Buffer* pBuffer, uint firstConstant, uint numConstants);
-		bool VSSetSampler(UINT startSlot, ID3D11SamplerState* pSampler);
-		bool PSSetSampler(UINT startSlot, ID3D11SamplerState* pSampler);
-		bool GSSetSampler(UINT startSlot, ID3D11SamplerState* pSampler);
-		bool VSSetShaderResource(UINT startSlot, ID3D11ShaderResourceView* pResource);
-		bool PSSetShaderResource(UINT startSlot, ID3D11ShaderResourceView* pResource);
-		bool GSSetShaderResource(UINT startSlot, ID3D11ShaderResourceView* pResource);
 
 		bool UpdateSubresource(ID3D11Resource* pResource, UINT dstSubresource, D3D11_BOX* pDstBox, const void* pSrcData, UINT srcPitchRow, UINT srcDepthPitch);
 		bool GenerateMips(ID3D11ShaderResourceView *pResource);
@@ -69,6 +61,8 @@ namespace SunEngine
 		bool FillSampleDesc(DXGI_FORMAT format, uint samples, DXGI_SAMPLE_DESC& desc);
 
 	private:
+		void LogError(const String& err);
+
 		friend class D3D11VRInterface;
 
 		ID3D11Device1* _device;

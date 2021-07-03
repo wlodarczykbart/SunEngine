@@ -22,7 +22,7 @@ namespace SunEngine
 	void VulkanCommandBuffer::Create()
 	{
 		_device->AllocateCommandBuffer(&_cmdBuffer);
-
+		
 		VkFenceCreateInfo fenceInfo = {};
 		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		//fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -85,6 +85,7 @@ namespace SunEngine
 		_currentRenderPass = {};
 		_currentPipeline = VK_NULL_HANDLE;
 		_currentPipelineLayout = VK_NULL_HANDLE;
+		_currentPipelineBindPoint = VK_PIPELINE_BIND_POINT_MAX_ENUM;
 		_currentNumTargets = 0;
 		_currentMSAAMode = SE_MSAA_OFF;
 	}
@@ -94,13 +95,14 @@ namespace SunEngine
 		vkCmdBindPipeline(_cmdBuffer, bindPoint, pipeline);
 		_currentPipeline = pipeline;
 		_currentPipelineLayout = layout;
+		_currentPipelineBindPoint = bindPoint;
 	}
 
-	void VulkanCommandBuffer::BindDescriptorSets(VkPipelineBindPoint bindPoint, uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets)
+	void VulkanCommandBuffer::BindDescriptorSets(uint firstSet, uint setCount, VkDescriptorSet *pSets, uint dynamicOffsetCount, uint* pDynamicOffsets)
 	{
 		(void)dynamicOffsetCount;
 		(void)pDynamicOffsets;
-		vkCmdBindDescriptorSets(_cmdBuffer, bindPoint, _currentPipelineLayout, firstSet, setCount, pSets, dynamicOffsetCount, pDynamicOffsets);
+		vkCmdBindDescriptorSets(_cmdBuffer, _currentPipelineBindPoint, _currentPipelineLayout, firstSet, setCount, pSets, dynamicOffsetCount, pDynamicOffsets);
 	}
 
 	void VulkanCommandBuffer::BindVertexBuffer(VkBuffer buffer, VkDeviceSize offset)
@@ -111,6 +113,11 @@ namespace SunEngine
 	void VulkanCommandBuffer::BindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType)
 	{
 		vkCmdBindIndexBuffer(_cmdBuffer, buffer, offset, indexType);
+	}
+
+	void VulkanCommandBuffer::PipelineBarrier(VkPipelineStageFlags srcStageMasks, VkPipelineStageFlags dstStateMasks, VkDependencyFlags depedencyFlags, const VkImageMemoryBarrier& barrier)
+	{
+		vkCmdPipelineBarrier(_cmdBuffer, srcStageMasks, dstStateMasks, depedencyFlags, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &barrier);
 	}
 
 	void VulkanCommandBuffer::Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
@@ -150,6 +157,11 @@ namespace SunEngine
 		viewport.y = (float)height - y; //???? TODO
 		viewport.maxDepth = 1.0f;
 		vkCmdSetViewport(_cmdBuffer, 0, 1, &viewport);
+	}
+
+	void VulkanCommandBuffer::Dispatch(uint groupCountX, uint groupCountY, uint groupCountZ)
+	{
+		vkCmdDispatch(_cmdBuffer, groupCountX, groupCountY, groupCountZ);
 	}
 
 	VkPipeline VulkanCommandBuffer::GetCurrentPipeline() const

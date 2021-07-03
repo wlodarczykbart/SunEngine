@@ -25,6 +25,7 @@ namespace SunEngine
 		_vertexShader = 0;
 		_pixelShader = 0;
 		_geometryShader = 0;
+		_computeShader = 0;
 		_inputLayout = 0;
 	}
 
@@ -36,8 +37,10 @@ namespace SunEngine
 
 	bool D3D11Shader::Create(IShaderCreateInfo& info)
 	{
-
+		if (info.vertexBinaries[SE_GFX_D3D11].GetSize())
+		{
 		if (!_device->CreateVertexShader(info.vertexBinaries[SE_GFX_D3D11].GetData(), info.vertexBinaries[SE_GFX_D3D11].GetSize(), &_vertexShader)) return false;
+		}
 
 		if (info.pixelBinaries[SE_GFX_D3D11].GetSize())
 		{
@@ -49,10 +52,15 @@ namespace SunEngine
 			if (!_device->CreateGeometryShader(info.geometryBinaries[SE_GFX_D3D11].GetData(), info.geometryBinaries[SE_GFX_D3D11].GetSize(), &_geometryShader)) return false;
 		}
 
+		if (info.computeBinaries[SE_GFX_D3D11].GetSize())
+		{
+			if (!_device->CreateComputeShader(info.computeBinaries[SE_GFX_D3D11].GetData(), info.computeBinaries[SE_GFX_D3D11].GetSize(), &_computeShader)) return false;
+		}
+
 		Vector<D3D11_INPUT_ELEMENT_DESC> elements;
 		for (uint i = 0; i < info.vertexElements.size(); i++)
 		{
-			IVertexElement &data = info.vertexElements[i];
+			IVertexElement& data = info.vertexElements[i];
 
 			D3D11_INPUT_ELEMENT_DESC elem = {};
 			elem.AlignedByteOffset = data.offset;
@@ -81,51 +89,8 @@ namespace SunEngine
 			if (!_device->CreateInputLayout(elements.data(), (uint)elements.size(), info.vertexBinaries[SE_GFX_D3D11].GetData(), info.vertexBinaries[SE_GFX_D3D11].GetSize(), &_inputLayout)) return false;
 		}
 
-		for(auto iter = info.buffers.begin(); iter != info.buffers.end(); ++iter)
-		{
-			IShaderBuffer& buff = (*iter).second;
 
-			Vector<BindConstantBufferFunc>& funcs = _constBufferFuncMap[buff.binding[SE_GFX_D3D11]];
-			if (buff.stages & SS_VERTEX)
-				funcs.push_back(&D3D11Shader::BindConstantBufferVS);
-			if (buff.stages & SS_PIXEL)
-				funcs.push_back(&D3D11Shader::BindConstantBufferPS);
-			if (buff.stages & SS_GEOMETRY)
-				funcs.push_back(&D3D11Shader::BindConstantBufferGS);
-		}
-
-		for (auto iter = info.resources.begin(); iter != info.resources.end(); ++iter)
-		{
-			if ((*iter).second.type == SRT_TEXTURE)
-			{
-				IShaderResource& tex = (*iter).second;
-
-				Vector<BindShaderResourceFunc>& funcs = _textureFuncMap[tex.binding[SE_GFX_D3D11]];
-				if (tex.stages & SS_VERTEX)
-					funcs.push_back(&D3D11Shader::BindShaderResourceVS);
-				if (tex.stages & SS_PIXEL)
-					funcs.push_back(&D3D11Shader::BindShaderResourcePS);
-				if (tex.stages & SS_GEOMETRY)
-					funcs.push_back(&D3D11Shader::BindShaderResourceGS);
-			}
-		}
-
-		for (auto iter = info.resources.begin(); iter != info.resources.end(); ++iter)
-		{
-			if ((*iter).second.type == SRT_SAMPLER)
-			{
-				IShaderResource& sampler = (*iter).second;
-
-				Vector<BindSamplerFunc>& funcs = _samplerFuncMap[sampler.binding[SE_GFX_D3D11]];
-				if (sampler.stages & SS_VERTEX)
-					funcs.push_back(&D3D11Shader::BindSamplerVS);
-				if (sampler.stages & SS_PIXEL)
-					funcs.push_back(&D3D11Shader::BindSamplerPS);
-				if (sampler.stages & SS_GEOMETRY)
-					funcs.push_back(&D3D11Shader::BindSamplerPS);
-			}
-		}
-
+		_resourceMap = info.resources;
 		return true;
 	}
 
@@ -134,16 +99,14 @@ namespace SunEngine
 		COM_RELEASE(_vertexShader);
 		COM_RELEASE(_pixelShader);
 		COM_RELEASE(_geometryShader);
+		COM_RELEASE(_computeShader);
 		COM_RELEASE(_inputLayout);
-
-		_constBufferFuncMap.clear();
-		_samplerFuncMap.clear();
-		_textureFuncMap.clear();
+		_resourceMap.clear();
 
 		return true;
 	}
 
-	void D3D11Shader::Bind(ICommandBuffer * cmdBuffer, IBindState*)
+	void D3D11Shader::Bind(ICommandBuffer* cmdBuffer, IBindState*)
 	{
 		D3D11CommandBuffer* dxCmd = (D3D11CommandBuffer*)cmdBuffer;
 		dxCmd->SetCurrentShader(this);
@@ -152,138 +115,72 @@ namespace SunEngine
 		dxCmd->BindVertexShader(_vertexShader);
 		dxCmd->BindPixelShader(_pixelShader);
 		dxCmd->BindGeometryShader(_geometryShader);
+		dxCmd->BindComputeShader(_computeShader);
 	}
 
-	void D3D11Shader::Unbind(ICommandBuffer * cmdBuffer)
+	void D3D11Shader::Unbind(ICommandBuffer* cmdBuffer)
 	{
 		D3D11CommandBuffer* dxCmd = (D3D11CommandBuffer*)cmdBuffer;
 		dxCmd->BindInputLayout(0);
 		dxCmd->BindVertexShader(0);
 		dxCmd->BindPixelShader(0);
 		dxCmd->BindGeometryShader(0);
+		dxCmd->BindComputeShader(0);
 
-		(void)cmdBuffer;
 		ID3D11ShaderResourceView* pNullSRV = 0;
-		Map<uint, Vector<BindShaderResourceFunc> >::iterator texIter = _textureFuncMap.begin();
-		while (texIter != _textureFuncMap.end())
-		{
-			uint binding = (*texIter).first;
-			Vector<BindShaderResourceFunc> &funcs = (*texIter).second;
-			for (uint i = 0; i < funcs.size(); i++)
-			{
-				(this->*funcs[i])(pNullSRV, binding);
-			}
-			texIter++;
-		}
-
 		ID3D11SamplerState* pNullSampler = 0;
-		Map<uint, Vector<BindSamplerFunc> >::iterator samplerIt = _samplerFuncMap.begin();
-		while (samplerIt != _samplerFuncMap.end())
-		{
-			uint binding = (*samplerIt).first;
-			Vector<BindSamplerFunc> &funcs = (*samplerIt).second;
-			for (uint i = 0; i < funcs.size(); i++)
-			{
-				(this->*funcs[i])(pNullSampler, binding);
-			}
-			samplerIt++;
-		}
-
 		ID3D11Buffer* pNullBuffer = 0;
-		Map<uint, Vector<BindConstantBufferFunc>  >::iterator bufferIt = _constBufferFuncMap.begin();
-		while (bufferIt != _constBufferFuncMap.end())
+		ID3D11UnorderedAccessView* pNullUAV = 0;
+
+		for (auto iter = _resourceMap.begin(); iter != _resourceMap.end(); ++iter)
 		{
-			uint binding = (*bufferIt).first;
-			Vector<BindConstantBufferFunc> &funcs = (*bufferIt).second;
-			for (uint i = 0; i < funcs.size(); i++)
+			auto& res = (*iter).second;
+			switch (res.type)
 			{
-				(this->*funcs[i])(pNullBuffer, binding, 0, 0);
+			case SRT_TEXTURE:
+				if (res.texture.readOnly)
+					dxCmd->SetShaderResourceView(res.stages, res.binding[SE_GFX_D3D11], pNullSRV);
+				else
+					dxCmd->SetUnorderedAccessView(res.stages, res.binding[SE_GFX_D3D11], pNullUAV);
+				break;
+			case SRT_SAMPLER:
+				dxCmd->SetSampler(res.stages, res.binding[SE_GFX_D3D11], pNullSampler);
+				break;
+			case SRT_BUFFER:
+				dxCmd->SetConstantBuffer(res.stages, res.binding[SE_GFX_D3D11], pNullBuffer, 0, 0);
+				break;
+			default:
+				break;
 			}
-			bufferIt++;
 		}
 
 		dxCmd->SetCurrentShader(0);
 	}
 
-	void D3D11Shader::BindTexture(D3D11Texture * pTexture, uint binding)
+	void D3D11Shader::BindTexture(D3D11CommandBuffer* cmdBuffer, D3D11Texture * pTexture, const String& name, uint binding)
 	{
-		BindShaderResourceView(pTexture->_srv, binding);
+		IShaderResource& res = _resourceMap.at(name);
+
+		bool cubemapToArray =
+			(pTexture->GetViewDimension() == D3D11_SRV_DIMENSION_TEXTURECUBE || pTexture->GetViewDimension() == D3D11_SRV_DIMENSION_TEXTURECUBEARRAY)
+			&& res.texture.dimension == SRD_TEXTURE2DARRAY;
+
+		if (res.texture.readOnly)
+			cmdBuffer->SetShaderResourceView(res.stages, res.binding[SE_GFX_D3D11], cubemapToArray ? pTexture->_cubeToArraySRV : pTexture->_srv);
+		else
+			cmdBuffer->SetUnorderedAccessView(res.stages, res.binding[SE_GFX_D3D11], pTexture->_uav);
 	}
 
-	void D3D11Shader::BindSampler(D3D11Sampler * pSampler, uint binding)
+	void D3D11Shader::BindSampler(D3D11CommandBuffer* cmdBuffer, D3D11Sampler * pSampler, const String& name, uint binding)
 	{
-		Map<uint, Vector<BindSamplerFunc> >::iterator it = _samplerFuncMap.find(binding);
-		if (it != _samplerFuncMap.end())
-		{
-			Vector<BindSamplerFunc> &funcs = (*it).second;
-			for (uint i = 0; i < funcs.size(); i++)
-			{
-				(this->*funcs[i])(pSampler->_sampler, binding);
-			}
-		}
+		IShaderResource& res = _resourceMap.at(name);
+		cmdBuffer->SetSampler(res.stages, res.binding[SE_GFX_D3D11], pSampler->_sampler);
 	}
 
-	void D3D11Shader::BindBuffer(D3D11UniformBuffer* pBuffer, uint binding, uint firstConstant, uint numConstants)
+	void D3D11Shader::BindBuffer(D3D11CommandBuffer* cmdBuffer, D3D11UniformBuffer* pBuffer, const String& name, uint binding, uint firstConstant, uint numConstants)
 	{
-		Map<uint, Vector<BindConstantBufferFunc> >::iterator it = _constBufferFuncMap.find(binding);
-		if (it != _constBufferFuncMap.end())
-		{
-			Vector<BindConstantBufferFunc>& funcs = (*it).second;
-			for (uint i = 0; i < funcs.size(); i++)
-			{
-				(this->*funcs[i])(pBuffer->_buffer, binding, firstConstant, numConstants);
-			}
-		}
-	}
-
-	void D3D11Shader::BindShaderResourceView(ID3D11ShaderResourceView * pSRV, uint binding)
-	{
-		Map<uint, Vector<BindShaderResourceFunc> >::iterator it = _textureFuncMap.find(binding);
-		if (it != _textureFuncMap.end())
-		{
-			Vector<BindShaderResourceFunc> &funcs = (*it).second;
-			for (uint i = 0; i < funcs.size(); i++)
-			{
-				(this->*funcs[i])(pSRV, binding);
-			}
-		}
-	}
-
-	void D3D11Shader::BindConstantBufferVS(ID3D11Buffer * pBuffer, uint binding, uint firstConstant, uint numConstants)
-	{
-		_device->VSSetConstantBuffer(binding, pBuffer, firstConstant, numConstants);
-	}
-	void D3D11Shader::BindConstantBufferPS(ID3D11Buffer * pBuffer, uint binding, uint firstConstant, uint numConstants)
-	{
-		_device->PSSetConstantBuffer(binding, pBuffer, firstConstant, numConstants);
-	}
-	void D3D11Shader::BindConstantBufferGS(ID3D11Buffer * pBuffer, uint binding, uint firstConstant, uint numConstants)
-	{
-		_device->GSSetConstantBuffer(binding, pBuffer, firstConstant, numConstants);
-	}
-	void D3D11Shader::BindSamplerVS(ID3D11SamplerState * pSampler, uint binding)
-	{
-		_device->VSSetSampler(binding, pSampler);
-	}
-	void D3D11Shader::BindSamplerPS(ID3D11SamplerState * pSampler, uint binding)
-	{
-		_device->PSSetSampler(binding, pSampler);
-	}
-	void D3D11Shader::BindSamplerGS(ID3D11SamplerState * pSampler, uint binding)
-	{
-		_device->GSSetSampler(binding, pSampler);
-	}
-	void D3D11Shader::BindShaderResourceVS(ID3D11ShaderResourceView * pShaderResourceView, uint binding)
-	{
-		_device->VSSetShaderResource(binding, pShaderResourceView);
-	}
-	void D3D11Shader::BindShaderResourcePS(ID3D11ShaderResourceView * pShaderResourceView, uint binding)
-	{
-		_device->PSSetShaderResource(binding, pShaderResourceView);
-	}
-	void D3D11Shader::BindShaderResourceGS(ID3D11ShaderResourceView * pShaderResourceView, uint binding)
-	{
-		_device->GSSetShaderResource(binding, pShaderResourceView);
+		IShaderResource& res = _resourceMap.at(name);
+		cmdBuffer->SetConstantBuffer(res.stages, res.binding[SE_GFX_D3D11], pBuffer->_buffer, firstConstant, numConstants);
 	}
 
 	D3D11ShaderBindings::D3D11ShaderBindings()
@@ -299,16 +196,8 @@ namespace SunEngine
 	bool D3D11ShaderBindings::Create(const IShaderBindingCreateInfo& createInfo)
 	{
 		_bindingMap.clear();
-
-		for (uint i = 0; i < createInfo.bufferBindings.size(); i++)
-		{
-			_bindingMap[createInfo.bufferBindings[i].name] = { createInfo.bufferBindings[i].binding[SE_GFX_D3D11], NULL };
-		}
-
 		for (uint i = 0; i < createInfo.resourceBindings.size(); i++)
-		{
 			_bindingMap[createInfo.resourceBindings[i].name] = { createInfo.resourceBindings[i].binding[SE_GFX_D3D11], NULL };
-		}
 
 		return true;
 	}
@@ -321,7 +210,7 @@ namespace SunEngine
 		{
 			D3D11ShaderResource* pRes = (*iter).second.second;
 			if(pRes)
-				pRes->BindToShader(dxCmd->GetCurrentShader(), (*iter).first, (*iter).second.first, pBindState);
+				pRes->BindToShader(dxCmd, dxCmd->GetCurrentShader(), (*iter).first, (*iter).second.first, pBindState);
 		}
 	}
 

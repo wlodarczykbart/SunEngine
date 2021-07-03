@@ -45,7 +45,7 @@ namespace SunEngine
 		imgInfo.extent.height = extent.height;
 		imgInfo.extent.depth = 1;
 		imgInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		imgInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		imgInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 		if(flags & ImageData::CUBEMAP)
 			imgInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
@@ -54,18 +54,38 @@ namespace SunEngine
 		else if (flags & ImageData::MULTI_SAMPLES_8) imgInfo.samples = VK_SAMPLE_COUNT_8_BIT;
 		else imgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
-		_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		Vector<ImageData> images;
+		for (uint i = 0; i < info.numImages; i++)
+		{
+			if (info.images[i].image.Pixels)
+			{
+				images.push_back(info.images[i].image);
+				for (uint j = 0; j < info.images[i].mipLevels; j++)
+					images.push_back(info.images[i].pMips[j]);
+			}
+		}
+
+		_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		//Assume that a image with input data is a sampled image that will be read only
+		if (images.size())
+		{
+			imgInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+			_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
 
 		if (flags & ImageData::COLOR_BUFFER_RGBA8)
 		{
 			imgInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 			imgInfo.format = VK_FORMAT_B8G8R8A8_UNORM;
+			_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			//TODO: should color buffers have VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL?
 		}
 		else if (flags & ImageData::COLOR_BUFFER_RGBA16F)
 		{
 			imgInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 			imgInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+			_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			//TODO: should color buffers have VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL?
 		}
 		else if (flags & ImageData::DEPTH_BUFFER)
@@ -92,13 +112,8 @@ namespace SunEngine
 			imgInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT; //TODO: not sure if this needs more work on vulkan side, haven't tested
 		}
 
-		if (flags & ImageData::SRGB)
-		{
-			if (imgInfo.format == VK_FORMAT_R8G8B8A8_UNORM) imgInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-			else if (imgInfo.format == VK_FORMAT_B8G8R8A8_UNORM) imgInfo.format = VK_FORMAT_B8G8R8A8_SRGB;
-			else if (imgInfo.format == VK_FORMAT_BC1_RGBA_UNORM_BLOCK) imgInfo.format = VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
-			else if (imgInfo.format == VK_FORMAT_BC3_UNORM_BLOCK) imgInfo.format = VK_FORMAT_BC3_SRGB_BLOCK;
-		}
+		if (flags & ImageData::WRITABLE)
+			imgInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 
 		if (flags & ImageData::SRGB)
 		{
@@ -112,16 +127,12 @@ namespace SunEngine
 		if (!_device->AllocImageMemory(_image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &_memory)) return false;
 
 		if (imgInfo.usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-		{
-			Vector<ImageData> images;
-			for (uint i = 0; i < info.numImages; i++)
-			{
-				images.push_back(info.images[i].image);
-				for (uint j = 0; j < info.images[i].mipLevels; j++)
-					images.push_back(info.images[i].pMips[j]);
-			}
-
 			if (!_device->TransferImageData(_image, images.data(), info.numImages, info.images->mipLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)) return false;
+
+		if (imgInfo.usage & VK_IMAGE_USAGE_STORAGE_BIT)
+		{
+			if (!_device->SetImageLayout(_image, info.numImages, info.images->mipLevels, _layout, VK_IMAGE_LAYOUT_GENERAL)) return false;
+			_layout = VK_IMAGE_LAYOUT_GENERAL;
 		}
 
 		_viewInfo = {};
@@ -159,9 +170,9 @@ namespace SunEngine
 
 		if (flags & ImageData::CUBEMAP)
 		{
-			VkImageViewCreateInfo cubeToArrayInto = _viewInfo;
-			cubeToArrayInto.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-			if (!_device->CreateImageView(cubeToArrayInto, &_cubeToArrayView)) return false;
+			VkImageViewCreateInfo cubeToArrayInfo = _viewInfo;
+			cubeToArrayInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			if (!_device->CreateImageView(cubeToArrayInfo, &_cubeToArrayView)) return false;
 		}
 
 		_sampleMask = imgInfo.samples;

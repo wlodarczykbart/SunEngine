@@ -774,7 +774,6 @@ namespace SunEngine
 
 		GraphicsPipeline::CreateInfo pipelineInfo = {};
 		pipelineInfo.pShader = pShader->GetBase();
-		pipelineInfo.settings.rasterizer.cullMode = SE_CM_NONE;
 		if (!_pipeline.Create(pipelineInfo))
 			return false;
 
@@ -845,5 +844,86 @@ namespace SunEngine
 			}
 			++iter;
 		}
+	}
+
+	ComputeView::ComputeView(SceneRenderer* pSceneRenderer) : View("ComputeView")
+	{
+		_sceneRenderer = pSceneRenderer;
+	}
+
+	bool ComputeView::OnCreate(const CreateInfo& info)
+	{
+		BaseTexture::CreateInfo::TextureData img = {};
+		img.image.Width = 512;
+		img.image.Height = 512;
+		img.image.Flags |= ImageData::WRITABLE;
+
+		BaseTexture::CreateInfo texInfo = {};
+		texInfo.numImages = 1;
+		texInfo.pImages = &img;
+
+		if (!_texture.Create(texInfo))
+			return false;
+
+		Shader* pShader = ShaderMgr::Get().GetShader("TestCompute");
+		_sceneRenderer->RegisterShader(pShader->GetBase());
+
+		ShaderBindings::CreateInfo bindingInfo = {};
+		bindingInfo.pShader = pShader->GetBase();
+		bindingInfo.type = SBT_MATERIAL;
+
+		if (!_computeBindings.Create(bindingInfo))
+			return false;
+
+		if (!_computeBindings.SetTexture(MaterialStrings::DiffuseMap, &_texture))
+			return false;
+
+		pShader = ShaderMgr::Get().GetShader(DefaultShaders::TextureCopy);
+
+		GraphicsPipeline::CreateInfo pipelineInfo = {};
+		pipelineInfo.pShader = pShader->GetBase();
+		if (!_pipeline.Create(pipelineInfo))
+			return false;
+
+		bindingInfo = {};
+		bindingInfo.pShader = pipelineInfo.pShader;
+		bindingInfo.type = SBT_MATERIAL;
+		if (!_bindings.Create(bindingInfo))
+			return false;
+
+		if (!_bindings.SetTexture(MaterialStrings::DiffuseMap, &_texture))
+			return false;
+		if (!_bindings.SetSampler(MaterialStrings::Sampler, ResourceMgr::Get().GetSampler(SE_FM_LINEAR, SE_WM_CLAMP_TO_EDGE)))
+			return false;
+
+		return true;
+	}
+
+	bool ComputeView::Render(CommandBuffer* cmdBuffer)
+	{
+		BaseShader* pShader = _computeBindings.GetShader();
+		pShader->Bind(cmdBuffer);
+		_computeBindings.Bind(cmdBuffer);
+		_sceneRenderer->BindEnvDataBuffer(cmdBuffer, pShader);
+		pShader->Dispatch(cmdBuffer, _texture.GetWidth(), _texture.GetHeight(), 1);
+		_computeBindings.Unbind(cmdBuffer);
+		pShader->Unbind(cmdBuffer);
+
+		_target.Bind(cmdBuffer);
+		pShader = _pipeline.GetShader();
+		pShader->Bind(cmdBuffer);
+		_pipeline.Bind(cmdBuffer);
+		_bindings.Bind(cmdBuffer);
+		cmdBuffer->Draw(6, 1, 0, 0);
+		_bindings.Unbind(cmdBuffer);
+		_pipeline.Unbind(cmdBuffer);
+		pShader->Unbind(cmdBuffer);
+		_target.Unbind(cmdBuffer);
+
+		return true;
+	}
+
+	void ComputeView::RenderGUI(GUIRenderer* pRenderer)
+	{
 	}
 }

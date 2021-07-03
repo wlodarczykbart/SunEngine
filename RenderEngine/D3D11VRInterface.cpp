@@ -68,7 +68,7 @@ namespace SunEngine
 			0,
 			flags,
 			features,
-			ARRAYSIZE(features),
+			SE_ARR_SIZE(features),
 			D3D11_SDK_VERSION,
 			&device,
 			&outFeatureLevel,
@@ -97,7 +97,7 @@ namespace SunEngine
 		};
 
 		static XrSwapchainImageD3D11KHR imageHeaders[64];
-		for (uint i = 0; i < ARRAYSIZE(imageHeaders); i++)
+		for (uint i = 0; i < SE_ARR_SIZE(imageHeaders); i++)
 			imageHeaders[i].type = XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR;
 		info.outImageHeaders = imageHeaders;
 
@@ -111,11 +111,11 @@ namespace SunEngine
 
 		pD3DTexture->_texture = imgInfo.texture;
 
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Texture2D.MipLevels = 1;
-		srvDesc.Format = (DXGI_FORMAT)format;
-		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		if (!_device->CreateShaderResourceView(pD3DTexture->_texture, srvDesc, &pD3DTexture->_srv)) return false;
+		pD3DTexture->_viewDesc = {};
+		pD3DTexture->_viewDesc.Texture2D.MipLevels = 1;
+		pD3DTexture->_viewDesc.Format = (DXGI_FORMAT)format;
+		pD3DTexture->_viewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		if (!_device->CreateShaderResourceView(pD3DTexture->_texture, pD3DTexture->_viewDesc, &pD3DTexture->_srv)) return false;
 		pD3DTexture->_external = true;
 
 		return true;

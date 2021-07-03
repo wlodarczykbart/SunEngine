@@ -41,6 +41,7 @@ namespace SunEngine
 		bool CreateFence(VkFenceCreateInfo &info, VkFence *pHandle);
 		bool CreateBuffer(VkBufferCreateInfo &info, VkBuffer *pHandle);
 		bool CreateSampler(VkSamplerCreateInfo &info, VkSampler *pHandle);
+		bool CreateComputePipeline(VkComputePipelineCreateInfo& info, VkPipeline* pHandle);
 
 		void DestroyBuffer(VkBuffer buffer);
 		void DestroyShaderModule(VkShaderModule shader);
@@ -77,6 +78,7 @@ namespace SunEngine
 		bool TransferImageData(VkImage image, const ImageData* baseImages, uint arrayCount, uint mipCount, VkImageLayout endLayout);
 		void FreeMemory(MemoryHandle memory);
 		void FreeCommandBuffer(VkCommandBuffer cmdBuffer);
+		bool SetImageLayout(VkImage image, uint arrayCount, uint mipCount, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 		bool WaitIdle();
 

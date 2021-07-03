@@ -22,6 +22,7 @@ namespace SunEngine
 			MULTI_SAMPLES_4 = 1 << 9,
 			MULTI_SAMPLES_8 = 1 << 10,
 			CUBEMAP = 1 << 11,
+			WRITABLE = 1 << 12,
 		};
 
 		ImageData()

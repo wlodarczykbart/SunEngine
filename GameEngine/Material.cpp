@@ -167,35 +167,8 @@ namespace SunEngine
 
 		if (_shader)
 		{
-			Vector<IShaderBuffer> buffInfos;
 			Vector<IShaderResource> resInfos;
-			pVariant->GetBufferInfos(buffInfos);
 			pVariant->GetResourceInfos(resInfos);
-
-			for (uint i = 0; i < buffInfos.size(); i++)
-			{
-				if (buffInfos[i].name == ShaderStrings::MaterialBufferName && buffInfos[i].bindType == SBT_MATERIAL)
-				{
-					IShaderBuffer& buff = buffInfos[i];
-
-					UniformBuffer::CreateInfo buffCreateInfo = {};
-					buffCreateInfo.isShared = false;
-					buffCreateInfo.size = buff.size;
-					if (!_mtlBuffer.Create(buffCreateInfo))
-						return false;
-
-					_memBuffer.SetSize(buff.size);
-					if (!_gpuObject.SetUniformBuffer(buff.name, &_mtlBuffer))
-						return false;
-
-					for (uint j = 0; j < buff.numVariables; j++)
-					{
-						_mtlVariables[buff.variables[j].name] = buff.variables[j];
-					}
-
-					break;
-				}
-			}
 
 			for (uint i = 0; i < resInfos.size(); i++)
 			{
@@ -206,7 +179,7 @@ namespace SunEngine
 					{
 						MaterialTextureData data = {};
 						data.Res = res;
-						switch (res.dimension)
+						switch (res.texture.dimension)
 						{
 						case SRD_TEXTURE2D:
 							_mtlTextures2D[res.name] = data;
@@ -226,6 +199,28 @@ namespace SunEngine
 						MaterialSamplerData data = {};
 						data.Res = res;
 						_mtlSamplers[res.name] = data;
+					}
+					else if (res.type == SRT_BUFFER)
+					{
+						if (res.name == ShaderStrings::MaterialBufferName)
+						{
+							auto& buff = res.buffer;
+
+							UniformBuffer::CreateInfo buffCreateInfo = {};
+							buffCreateInfo.isShared = false;
+							buffCreateInfo.size = buff.size;
+							if (!_mtlBuffer.Create(buffCreateInfo))
+								return false;
+
+							_memBuffer.SetSize(buff.size);
+							if (!_gpuObject.SetUniformBuffer(res.name, &_mtlBuffer))
+								return false;
+
+							for (uint j = 0; j < buff.numVariables; j++)
+							{
+								_mtlVariables[buff.variables[j].name] = buff.variables[j];
+							}
+						}
 					}
 				}
 			}

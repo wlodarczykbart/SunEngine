@@ -3,6 +3,7 @@
 #include "IShader.h"
 #include "IUniformBuffer.h"
 #include "IShaderBindings.h"
+#include "CommandBuffer.h"
 
 #include "ConfigFile.h"
 #include "FileReader.h"
@@ -45,6 +46,7 @@ namespace SunEngine
 	BaseShader::BaseShader() : GraphicsObject(GraphicsObject::SHADER)
 	{
 		_iShader = 0;
+		_threadGroupSize = {};
 	}
 
 
@@ -58,11 +60,9 @@ namespace SunEngine
 		if (!Destroy())
 			return false;
 
-		_buffers = info.buffers;
 		_resources = info.resources;
 
 		IShaderCreateInfo apiInfo = {};
-		apiInfo.buffers = info.buffers;
 		apiInfo.resources = info.resources;
 		apiInfo.vertexElements = info.vertexElements;
 
@@ -71,11 +71,16 @@ namespace SunEngine
 			apiInfo.vertexBinaries[i] = info.vertexBinaries[i];
 			apiInfo.pixelBinaries[i] = info.pixelBinaries[i];
 			apiInfo.geometryBinaries[i] = info.geometryBinaries[i];
+			apiInfo.computeBinaries[i] = info.computeBinaries[i];
 		}
 
 		_iShader = AllocateGraphics<IShader>();
 		if (!_iShader->Create(apiInfo))
 			return false;
+
+		_threadGroupSize.x = info.computeThreadGroupSize.x;
+		_threadGroupSize.y = info.computeThreadGroupSize.y;
+		_threadGroupSize.z = info.computeThreadGroupSize.z;
 
 		return true;
 	}
@@ -86,7 +91,6 @@ namespace SunEngine
 			return false;
 
 		_resources.clear();
-		_buffers.clear();
 		_iShader = 0;
 		return true;
 	}
@@ -94,14 +98,6 @@ namespace SunEngine
 	IObject * BaseShader::GetAPIHandle() const
 	{
 		return _iShader;
-	}
-
-	void BaseShader::GetBufferInfos(Vector<IShaderBuffer>& infos) const
-	{
-		for (auto iter = _buffers.begin(); iter != _buffers.end(); ++iter)
-		{
-			infos.push_back((*iter).second);
-		}
 	}
 
 	void BaseShader::GetResourceInfos(Vector<IShaderResource>& infos) const
@@ -112,15 +108,16 @@ namespace SunEngine
 		}
 	}
 
-	bool BaseShader::ContainsBuffer(const String& name) const
-	{
-		return _buffers.find(name) != _buffers.end();
-	}
-
 	bool BaseShader::ContainsResource(const String& name) const
 	{
 		return _resources.find(name) != _resources.end();
 	}
+
+	void BaseShader::Dispatch(CommandBuffer* cmdBuffer, uint groupCountX, uint groupCountY, uint groupCountZ)
+	{
+		cmdBuffer->Dispatch(groupCountX / _threadGroupSize.x, groupCountY / _threadGroupSize.y, groupCountZ / _threadGroupSize.z);
+	}
+
 
 	ShaderBindings::ShaderBindings() : GraphicsObject(GraphicsObject::SHADER_BINDINGS)
 	{
@@ -204,25 +201,8 @@ namespace SunEngine
 		bindingInfo.pShader = static_cast<IShader*>(_shader->GetAPIHandle());
 		bindingInfo.type = info.type;
 
-		Vector<IShaderBuffer> buffers;
-		_shader->GetBufferInfos(buffers);
-
 		Vector<IShaderResource> resources;
 		_shader->GetResourceInfos(resources);
-
-		for (uint i = 0; i < buffers.size(); i++)
-		{
-			if (buffers[i].bindType == info.type)
-			{
-				const IShaderBuffer& buff = buffers[i];
-				bindingInfo.bufferBindings.push_back(buff);
-
-				ResourceInfo resInfo = {};
-				resInfo.Name = buff.name;
-				assert(resInfo.Name.length());
-				_resourceMap[buff.name] = resInfo;
-			}
-		}
 
 		for (uint i = 0; i < resources.size(); i++)
 		{
@@ -241,7 +221,7 @@ namespace SunEngine
 		_iBindings = AllocateGraphics<IShaderBindings>();
 
 		//only create the api bindings if any buffers our resources are using the binding type
-		if (bindingInfo.bufferBindings.size() || bindingInfo.resourceBindings.size())
+		if (bindingInfo.resourceBindings.size())
 		{
 			if (!_iBindings->Create(bindingInfo))
 				return false;

@@ -62,12 +62,8 @@ namespace SunEngine
 		dxCmd->ClearRenderTargetView(_rtv, rgba);
 		dxCmd->ClearDepthStencilView(_dsv, D3D11_CLEAR_DEPTH, 1.0f, 0xff);
 
-		D3D11_VIEWPORT vp = {};
-		vp.Width = (float)_window->Width();
-		vp.Height = (float)_window->Height();
-		vp.MinDepth = 0.0f;
-		vp.MaxDepth = 1.0f;
-		dxCmd->BindViewports(1, &vp);
+		dxCmd->SetViewport(0.0f, 0.0f, (float)_window->Width(), (float)_window->Height());
+		dxCmd->SetScissor(0.0f, 0.0f, (float)_window->Width(), (float)_window->Height());
 	}
 
 	void D3D11Surface::Unbind(ICommandBuffer * cmdBuffer)

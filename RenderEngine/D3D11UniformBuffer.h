@@ -17,7 +17,7 @@ namespace SunEngine
 		bool Update(const void* pData, uint offset, uint size) override;
 		bool UpdateShared(const void* pData, uint numElements) override;
 
-		void BindToShader(D3D11Shader* pShader, const String& name, uint binding, IBindState* pBindState) override;
+		void BindToShader(D3D11CommandBuffer* cmdBuffer, D3D11Shader* pShader, const String& name, uint binding, IBindState* pBindState) override;
 
 		uint GetAlignedSize() const;
 		uint GetMaxSharedUpdates() const override;

@@ -166,7 +166,6 @@ namespace SunEngine
 
 		bool ContainsBuffer(const String& name) const;
 		bool ContainsResource(const String& name) const;
-
 	private:
 		struct ResourceInfo
 		{
@@ -189,13 +188,14 @@ namespace SunEngine
 	public:
 		struct CreateInfo
 		{
-			StrMap<IShaderBuffer> buffers;
 			StrMap<IShaderResource> resources;
 			Vector<IVertexElement> vertexElements;
+			struct { uint x, y, z; } computeThreadGroupSize;
 
 			MemBuffer vertexBinaries[MAX_GRAPHICS_API_TYPES];
 			MemBuffer pixelBinaries[MAX_GRAPHICS_API_TYPES];
 			MemBuffer geometryBinaries[MAX_GRAPHICS_API_TYPES];
+			MemBuffer computeBinaries[MAX_GRAPHICS_API_TYPES];
 		};
 
 		BaseShader();
@@ -205,20 +205,18 @@ namespace SunEngine
 		bool Destroy() override;
 
 		IObject* GetAPIHandle() const override;
-
-		void GetBufferInfos(Vector<IShaderBuffer>& infos) const;
 		void GetResourceInfos(Vector<IShaderResource>& infos) const;
 
-		bool ContainsBuffer(const String& name) const;
 		bool ContainsResource(const String& name) const;
+
+		void Dispatch(CommandBuffer* cmdBuffer, uint groupCountX, uint groupCountY, uint groupCountZ);
 
 	protected:
 
 	private:
-
-		StrMap<IShaderBuffer> _buffers;
 		StrMap<IShaderResource> _resources;
 		IShader* _iShader;
+		struct { uint x, y, z; } _threadGroupSize;
 	};
 
 }

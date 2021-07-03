@@ -101,6 +101,7 @@ namespace SunEngine
 		SS_VERTEX = 1 << 0,
 		SS_PIXEL = 1 << 1,
 		SS_GEOMETRY = 1 << 2,
+		SS_COMPUTE = 1 << 3,
 	};
 
 	enum ShaderBindingType
@@ -154,16 +155,15 @@ namespace SunEngine
 
 	enum ShaderResourceType
 	{
+		SRT_UNDEFINED,
 		SRT_TEXTURE,
 		SRT_SAMPLER,
-
-		SRT_UNSUPPORTED = 0x777777F
+		SRT_BUFFER,
 	};
 
 	enum ShaderResourceDimension
 	{
-		SRD_UNKNOWN,
-		SRD_BUFFER,
+		SRD_UNDEFINED,
 		SRD_TEXTURE1D,
 		SRD_TEXTURE1DARRAY,
 		SRD_TEXTURE2D,
@@ -173,27 +173,6 @@ namespace SunEngine
 		SRD_TEXTURE3D,
 		SRD_TEXTURECUBE,
 		SRD_TEXTURECUBEARRAY,
-		SRD_BUFFEREX,
-	};
-
-	struct IShaderResource
-	{
-		IShaderResource()
-		{
-			type = SRT_UNSUPPORTED;
-			dimension = SRD_UNKNOWN;
-			stages = 0;
-			bindingCount = 0;
-			name[0] = '\0';
-		}
-
-		char name[MAX_GRAPHICS_FIELD_LENGTH];
-		ShaderResourceType type;
-		ShaderResourceDimension dimension;
-		ShaderBindingType bindType;
-		uint binding[MAX_GRAPHICS_API_TYPES];
-		uint bindingCount;
-		uint stages;
 	};
 
 	enum ShaderDataType
@@ -227,23 +206,60 @@ namespace SunEngine
 		uint numElements;
 	};
 
-	struct IShaderBuffer
+	struct IShaderResource
 	{
-		IShaderBuffer()
+		struct IShaderTexture
 		{
-			size = 0;
+			IShaderTexture()
+			{
+				dimension = SRD_UNDEFINED;
+				bindingCount = 1;
+				readOnly = true;
+			}
+
+			ShaderResourceDimension dimension;
+			uint bindingCount;
+			bool readOnly;
+		};
+
+		struct IShaderSampler
+		{
+			IShaderSampler()
+			{
+			}
+		};
+
+		struct IShaderBuffer
+		{
+			IShaderBuffer()
+			{
+				size = 0;
+				numVariables = 0;
+			}
+
+			uint size;
+			uint numVariables;
+			ShaderBufferVariable variables[MAX_SHADER_BUFFER_VARIABLES];
+		};
+
+		IShaderResource()
+		{
+			type = SRT_UNDEFINED;
 			stages = 0;
 			name[0] = '\0';
-			numVariables = 0;
+			texture = {};
+			sampler = {};
+			buffer = {};
 		}
 
 		char name[MAX_GRAPHICS_FIELD_LENGTH];
-		ShaderBindingType bindType;
 		uint binding[MAX_GRAPHICS_API_TYPES];
+		ShaderResourceType type;
+		ShaderBindingType bindType;
 		uint stages;
-		uint size;
-		uint numVariables;
-		ShaderBufferVariable variables[MAX_SHADER_BUFFER_VARIABLES];
+		IShaderTexture texture;
+		IShaderSampler sampler;
+		IShaderBuffer buffer;
 	};
 
 	struct IUniformBufferCreateInfo
@@ -254,20 +270,19 @@ namespace SunEngine
 
 	struct IShaderCreateInfo
 	{
-		StrMap<IShaderBuffer> buffers;
 		StrMap<IShaderResource> resources;
 		Vector<IVertexElement> vertexElements;
 
 		MemBuffer vertexBinaries[MAX_GRAPHICS_API_TYPES];
 		MemBuffer pixelBinaries[MAX_GRAPHICS_API_TYPES];
 		MemBuffer geometryBinaries[MAX_GRAPHICS_API_TYPES];
+		MemBuffer computeBinaries[MAX_GRAPHICS_API_TYPES];
 	};
 
 	struct IShaderBindingCreateInfo
 	{
 		ShaderBindingType type;
 		IShader* pShader;
-		Vector<IShaderBuffer> bufferBindings;
 		Vector<IShaderResource> resourceBindings;
 	};
 

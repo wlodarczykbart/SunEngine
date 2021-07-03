@@ -73,4 +73,9 @@ namespace SunEngine
 		_apiCmdBuffer->SetViewport(x, y, width, height);
 	}
 
+	void CommandBuffer::Dispatch(uint groupCountX, uint groupCountY, uint groupCountZ)
+	{
+		_apiCmdBuffer->Dispatch(groupCountX, groupCountY, groupCountZ);
+	}
+
 }

@@ -19,6 +19,7 @@ namespace SunEngine
 		virtual void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance) = 0;
 		virtual void SetScissor(float x, float y, float width, float height) = 0;
 		virtual void SetViewport(float x, float y, float width, float height) = 0;
+		virtual void Dispatch(uint groupCountX, uint groupCountY, uint groupCountZ) = 0;
 
 		static ICommandBuffer* Allocate(GraphicsAPI api);
 

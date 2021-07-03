@@ -16,8 +16,7 @@ namespace SunEngine
 		static void SetAuxiliaryDir(const String& path);
 
 		void SetDefines(const Vector<String>& defines);
-		void SetVertexShaderSource(const String& vertexShader);
-		void SetPixelShaderSource(const String& pixelShader);
+		void SetShaderSource(ShaderStage stage, const String& source);
 
 		const String& GetLastError() const { return _lastErr; }
 		const BaseShader::CreateInfo& GetCreateInfo() const { return _shaderInfo; }
@@ -25,13 +24,6 @@ namespace SunEngine
 		bool Compile(const String& uniqueName = "");
 
 	private:
-		struct ShaderBindingNames
-		{
-			Vector<String> bufferNames;
-			Vector<String> textureNames;
-			Vector<String> samplerNames;
-		};
-
 		void PreProcessText(const String& inText, String& outHLSL, String& outGLSL);
 		bool CompileShader(ShaderStage type);
 		bool ParseShaderFile(String& output, const String& input, HashSet<String>& includeFiles);
@@ -54,8 +46,17 @@ namespace SunEngine
 
 		Vector<String> _defines;
 
-		HashSet<String> _bindingNameLookup;
-		Map<ShaderBindingType, ShaderBindingNames> _bindingNames;
+		struct NamedBindingInfo
+		{
+			NamedBindingInfo();
+
+			ShaderBindingType bindType;
+			String hlslRegister;
+			bool needsBindingsSet;
+			uint bindings[MAX_GRAPHICS_API_TYPES];
+		};
+
+		StrMap<NamedBindingInfo> _namedBindingLookup;
 
 	};
 }

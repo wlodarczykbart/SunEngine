@@ -128,6 +128,11 @@ namespace SunEngine
 		pTexture2DView->Create(debugViewInfo);
 		AddView(pTexture2DView);
 
+		auto pComputeView = new ComputeView(&_sceneRenderer);
+		debugViewInfo.visible = false;
+		pComputeView->Create(debugViewInfo);
+		AddView(pComputeView);
+
 		GameEditorGUI* gui = new GameEditorGUI();
 		gui->RegisterSceneView(pView);
 		*ppOutGUI = gui;

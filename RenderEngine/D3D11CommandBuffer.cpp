@@ -40,11 +40,6 @@ namespace SunEngine
 		_context->OMSetRenderTargets(numViews, ppViews, pDSV);
 	}
 
-	void D3D11CommandBuffer::BindViewports(uint numViewports, D3D11_VIEWPORT * pViewports)
-	{
-		_context->RSSetViewports(numViewports, pViewports);
-	}
-
 	void D3D11CommandBuffer::BindVertexBuffer(ID3D11Buffer* pBuffer, UINT stride, UINT offset)
 	{
 		_context->IASetVertexBuffers(0, 1, &pBuffer, &stride, &offset);
@@ -68,6 +63,11 @@ namespace SunEngine
 	void D3D11CommandBuffer::BindGeometryShader(ID3D11GeometryShader * pShader)
 	{
 		_context->GSSetShader(pShader, 0, 0);
+	}
+
+	void D3D11CommandBuffer::BindComputeShader(ID3D11ComputeShader* pShader)
+	{
+		_context->CSSetShader(pShader, 0, 0);
 	}
 
 	void D3D11CommandBuffer::BindInputLayout(ID3D11InputLayout * pLayout)
@@ -149,6 +149,54 @@ namespace SunEngine
 		vp.Width = width;
 		vp.Height = height;
 		_context->RSSetViewports(1, &vp);
+	}
+
+	void D3D11CommandBuffer::Dispatch(uint groupCountX, uint groupCountY, uint groupCountZ)
+	{
+		_context->Dispatch(groupCountX, groupCountY, groupCountZ);
+	}
+
+	void D3D11CommandBuffer::SetConstantBuffer(uint stageFlags, UINT startSlot, ID3D11Buffer* pBuffer, uint firstConstant, uint numConstants)
+	{
+		if (stageFlags & SS_VERTEX)
+			firstConstant == 0 ? _context->VSSetConstantBuffers(startSlot, 1, &pBuffer) : _context->VSSetConstantBuffers1(startSlot, 1, &pBuffer, &firstConstant, &numConstants);
+		if (stageFlags & SS_PIXEL)
+			firstConstant == 0 ? _context->PSSetConstantBuffers(startSlot, 1, &pBuffer) : _context->PSSetConstantBuffers1(startSlot, 1, &pBuffer, &firstConstant, &numConstants);
+		if (stageFlags & SS_GEOMETRY)
+			firstConstant == 0 ? _context->GSSetConstantBuffers(startSlot, 1, &pBuffer) : _context->GSSetConstantBuffers1(startSlot, 1, &pBuffer, &firstConstant, &numConstants);
+		if (stageFlags & SS_COMPUTE)
+			firstConstant == 0 ? _context->CSSetConstantBuffers(startSlot, 1, &pBuffer) : _context->CSSetConstantBuffers1(startSlot, 1, &pBuffer, &firstConstant, &numConstants);
+	}
+
+	void D3D11CommandBuffer::SetSampler(uint stageFlags, UINT startSlot, ID3D11SamplerState* pSampler)
+	{
+		if (stageFlags & SS_VERTEX)
+			_context->VSSetSamplers(startSlot, 1, &pSampler);
+		if (stageFlags & SS_PIXEL)
+			_context->PSSetSamplers(startSlot, 1, &pSampler);
+		if (stageFlags & SS_GEOMETRY)
+			_context->GSSetSamplers(startSlot, 1, &pSampler);
+		if (stageFlags & SS_COMPUTE)
+			_context->CSSetSamplers(startSlot, 1, &pSampler);
+	}
+
+	void D3D11CommandBuffer::SetShaderResourceView(uint stageFlags, UINT startSlot, ID3D11ShaderResourceView* pResource)
+	{
+		if (stageFlags & SS_VERTEX)
+			_context->VSSetShaderResources(startSlot, 1, &pResource);
+		if (stageFlags & SS_PIXEL)
+			_context->PSSetShaderResources(startSlot, 1, &pResource);
+		if (stageFlags & SS_GEOMETRY)
+			_context->GSSetShaderResources(startSlot, 1, &pResource);
+		if (stageFlags & SS_COMPUTE)
+			_context->CSSetShaderResources(startSlot, 1, &pResource);
+	}
+
+	void D3D11CommandBuffer::SetUnorderedAccessView(uint stageFlags, UINT startSlot, ID3D11UnorderedAccessView* pResource)
+	{
+		//other stages don't have a uav method
+		if (stageFlags & SS_COMPUTE)
+			_context->CSSetUnorderedAccessViews(startSlot, 1, &pResource, 0);
 	}
 
 	void D3D11CommandBuffer::SetCurrentShader(D3D11Shader* pShader)
